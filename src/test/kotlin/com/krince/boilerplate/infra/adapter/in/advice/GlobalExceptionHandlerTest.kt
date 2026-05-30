@@ -221,6 +221,7 @@ class GlobalExceptionHandlerTest : FunSpec({
                 val fieldError2 = FieldError("dto", "password", "비밀번호를 입력하세요.")
                 every { bindingResult.fieldErrors } returns listOf(fieldError1, fieldError2)
                 val ex = mockk<MethodArgumentNotValidException>()
+                every { ex.message } returns "Validation failed"
                 every { ex.bindingResult } returns bindingResult
                 every { ex.stackTrace } returns arrayOf<StackTraceElement>()
 
