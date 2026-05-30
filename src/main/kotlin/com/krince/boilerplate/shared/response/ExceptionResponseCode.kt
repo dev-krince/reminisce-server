@@ -1,0 +1,33 @@
+package com.krince.boilerplate.shared.response
+
+enum class ExceptionResponseCode(
+    override val isSuccess: Boolean,
+    override val code: Int,
+    override val detailCode: String,
+    override val httpStatus: String,
+    override val message: String,
+) : ResponseCode {
+    BAD_REQUEST(false, 400, "BR-000", "Bad Request", "잘못된 요청입니다."),
+    INVALID_DTO_PARAMETER(false, 400, "BR-001", "Invalid Dto Parameter", "요청 값이 올바르지 않습니다.(dto 검증 오류)"),
+    REQUIRE_NOT_BLANK(false, 400, "BR-002", "Require Not Blank", "해당 value object는 비어있을 수 없습니다."),
+    REQUIRE_START_WITH(false, 400, "BR-003", "Require Start With", "해당 value object는 특정한 값으로 시작해야합니다."),
+    REQUIRE_FILE_EXTENSION(false, 400, "BR-004", "Require File Extension", "확장자명이 없습니다."),
+    INVALID_FILE_EXTENSION(false, 400, "BR-005", "Invalid File Extension", "올바르지 않은 파일 확장자입니다."),
+    INVALID_MULTIPART_FILE(false, 400, "BR-006", "Invalid Multipart File", "올바르지 않은 파일입니다."),
+    UNAUTHORIZED(false, 401, "UA-000", "Unauthorized", "인증 정보가 올바르지 않습니다."),
+    INVALID_TOKEN(false, 401, "UA-001", "Invalid Token", "유효하지 않은 토큰입니다."),
+    EMPTY_TOKEN(false, 401, "UA-002", "Empty Token", "토큰이 없습니다."),
+    EXPIRED_TOKEN(false, 401, "UA-003", "Expired Token", "만료된 토큰입니다."),
+    WRONG_TOKEN(false, 401, "UA-004", "Expired Token", "토큰 형식을 확인해주세요."),
+    INVALID_PASSWORD(false, 401, "UA-005", "Invalid Password", "비밀번호를 확인해주세요."),
+    UNAUTHORIZED_REFRESH_TOKEN(false, 402, "URT-000", "Unauthorized Refresh Token", "리프레시 토큰 정보가 올바르지 않습니다."),
+    EXPIRED_REFRESH_TOKEN(false, 402, "URT-001", "Expired Refresh Token", "만료된 리프레시 토큰입니다."),
+    INVALID_REFRESH_TOKEN(false, 402, "URT-002", "Invalid Refresh Token", "유효하지 않은 리프레시 토큰입니다."),
+    EMPTY_REFRESH_TOKEN(false, 402, "URT-003", "Empty Refresh Token", "리프레시 토큰이 없습니다."),
+    FORBIDDEN(false, 403, "FBD-000", "Forbidden", "해당 리소스에 접근 권한이 없습니다."),
+    NOT_FOUND(false, 404, "NF-000", "Not Found", "리소스가 존재하지 않습니다."),
+    NOT_FOUND_USER(false, 404, "NF-001", "Not Found User", "회원이 존재하지 않습니다."),
+    CONFLICT(false, 409, "CF-000", "Conflict", "현재 리소스 상태와 충돌하여 처리할 수 없습니다."),
+    BUSINESS_RULE_VIOLATION(false, 422, "BRV-000", "Business Rule Violation", "도메인 정책에 의해 실행할 수 없습니다."),
+    INTERNAL_SERVER_ERROR(false, 500, "ISR-000", "Internal Server Error", "서버 에러입니다. 개발자에게 문의해주세요."),
+}
