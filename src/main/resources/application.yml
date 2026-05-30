@@ -55,3 +55,7 @@ file:
   storage:
     path: /Users/krince/Desktop/krince/boilerplate-files
     cache-period: 3600
+
+LOG_HOST: localhost:5044
+LOG_INDEX_ID: local
+NODE_ID: boilerplate-local-krince

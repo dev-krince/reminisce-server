@@ -8,13 +8,14 @@
 
     <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
         <destination>${logHost}</destination>
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
-        <customFields>
-            {"service.name":"boilerplate","log.index.id":"${logIndexId}","service.node.id":"${nodeId}"}
-        </customFields>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>
+                {"service.name":"boilerplate","log.index.id":"${logIndexId}","service.node.id":"${nodeId}"}
+            </customFields>
+        </encoder>
     </appender>
 
-    <springProfile name="!dev &amp; !elk &amp; !test &amp; !prod">
+    <springProfile name="!dev &amp; !test &amp; !prod">
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
                 <level>DEBUG</level>
