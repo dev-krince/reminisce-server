@@ -20,7 +20,7 @@
             <level>INFO</level>
         </filter>
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level) [%cyan(%X{requestId})] [%magenta(%X{userId})] [%blue(%X{clientIp})] %cyan(%logger{36}) - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level) [%cyan(%X{request.id})] [%magenta(%X{user.id})] [%blue(%X{client.ip})] %cyan(%logger{36}) - %msg%n</pattern>
         </encoder>
     </appender>
 
@@ -63,7 +63,7 @@
         </encoder>
     </appender>
 
-    <springProfile name="local">
+    <springProfile name="be">
         <root level="INFO">
             <appender-ref ref="LOGSTASH"/>
             <appender-ref ref="CONSOLE_JSON"/>
@@ -72,19 +72,6 @@
         <logger name="com.krince.boilerplate" level="DEBUG" additivity="false">
             <appender-ref ref="LOGSTASH"/>
             <appender-ref ref="CONSOLE_JSON"/>
-        </logger>
-    </springProfile>
-
-    <springProfile name="dev,test,prod">
-        <root level="INFO">
-            <appender-ref ref="LOGSTASH"/>
-            <appender-ref ref="CONSOLE_JSON"/>
-        </root>
-
-        <logger name="com.krince.boilerplate" level="DEBUG" additivity="false">
-            <appender-ref ref="LOGSTASH"/>
-            <appender-ref ref="CONSOLE_JSON"/>
-            <appender-ref ref="FILE"/>
         </logger>
     </springProfile>
 
@@ -95,6 +82,28 @@
 
         <logger name="com.krince.boilerplate" level="DEBUG" additivity="false">
             <appender-ref ref="CONSOLE_JSON"/>
+        </logger>
+    </springProfile>
+
+    <springProfile name="dev">
+        <root level="INFO">
+            <appender-ref ref="LOGSTASH"/>
+        </root>
+
+        <logger name="com.krince.boilerplate" level="DEBUG" additivity="false">
+            <appender-ref ref="LOGSTASH"/>
+            <appender-ref ref="FILE"/>
+        </logger>
+    </springProfile>
+
+    <springProfile name="prod">
+        <root level="INFO">
+            <appender-ref ref="LOGSTASH"/>
+        </root>
+
+        <logger name="com.krince.boilerplate" level="DEBUG" additivity="false">
+            <appender-ref ref="LOGSTASH"/>
+            <appender-ref ref="FILE"/>
         </logger>
     </springProfile>
 </configuration>

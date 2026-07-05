@@ -5,9 +5,8 @@ spring:
   jackson:
     time-zone: Asia/Seoul
     date-format: yyyy-MM-dd HH:mm:ss
-  config:
-    activate:
-      on-profile: default
+  profiles:
+    include: be
   application:
     name: boilerplate
   datasource:
