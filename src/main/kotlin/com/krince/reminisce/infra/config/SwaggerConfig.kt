@@ -646,7 +646,7 @@ class SwaggerConfig(
                                     Float::class.java, Float::class.javaPrimitiveType -> MediaSchema<Float>().type("number").format("float").example(0.0f)
                                     else -> {
                                         // 중첩된 DTO인 경우 재귀적으로 스키마 생성
-                                        if (itemClass.name.startsWith("com.krince.reminisce")) { //TODO 변경
+                                        if (itemClass.name.startsWith("com.krince.reminisce")) {
                                             createInlineSchemaFromDtoClass(itemClass)
                                         } else {
                                             MediaSchema<Any>().type("string").example("string")
@@ -667,7 +667,7 @@ class SwaggerConfig(
                             .example(if (schemaAnnotation?.example?.isNotEmpty() == true) schemaAnnotation.example else "2026-01-09 14:30:25")
                     }
                     // 중첩된 DTO 클래스인 경우
-                    fieldType.name.startsWith("com.krince.reminisce") && !fieldType.isPrimitive && !fieldType.isInterface -> { //TODO 변경
+                    fieldType.name.startsWith("com.krince.reminisce") && !fieldType.isPrimitive && !fieldType.isInterface -> {
                         createInlineSchemaFromDtoClass(fieldType)
                     }
                     else -> {
@@ -821,7 +821,7 @@ class SwaggerConfig(
                                     Float::class.java, Float::class.javaPrimitiveType -> json.append("[0.0]")
                                     else -> {
                                         // 중첩된 DTO인 경우 재귀적으로 생성
-                                        if (itemClass.name.startsWith("com.krince.reminisce")) { //TODO 변경
+                                        if (itemClass.name.startsWith("com.krince.reminisce")) {
                                             val itemExample = generateExampleFromDtoClass(itemClass, indentLevel + 1)
                                             json.append("[\n").append(indent).append("  ").append(itemExample).append("\n").append(indent).append("]")
                                         } else {
@@ -837,7 +837,7 @@ class SwaggerConfig(
                         }
                     }
                     // 다른 DTO 클래스인 경우 재귀적으로 처리
-                    fieldType.name.startsWith("com.krince.reminisce") && !fieldType.isPrimitive && !fieldType.isInterface -> { //TODO 변경
+                    fieldType.name.startsWith("com.krince.reminisce") && !fieldType.isPrimitive && !fieldType.isInterface -> {
                         val nestedExample = generateExampleFromDtoClass(fieldType, indentLevel + 1)
                         json.append(nestedExample)
                     }
