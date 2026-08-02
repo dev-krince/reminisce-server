@@ -47,6 +47,8 @@ docker-compose.monitoring.yml
 
 ### AI Agent ###
 /agent/
+.claude
+CLAUDE.md
 
 ### local yml file ###
 
