@@ -10,7 +10,7 @@
         <destination>${logHost}</destination>
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
             <customFields>
-                {"service.name":"boilerplate","log.index.id":"${logIndexId}","service.node.id":"${nodeId}"}
+                {"service.name":"reminisce","log.index.id":"${logIndexId}","service.node.id":"${nodeId}"}
             </customFields>
         </encoder>
     </appender>
@@ -69,7 +69,7 @@
             <appender-ref ref="CONSOLE_JSON"/>
         </root>
 
-        <logger name="com.krince.boilerplate" level="DEBUG" additivity="false">
+        <logger name="com.krince.reminisce" level="DEBUG" additivity="false">
             <appender-ref ref="LOGSTASH"/>
             <appender-ref ref="CONSOLE_JSON"/>
         </logger>
@@ -80,7 +80,7 @@
             <appender-ref ref="CONSOLE_JSON"/>
         </root>
 
-        <logger name="com.krince.boilerplate" level="DEBUG" additivity="false">
+        <logger name="com.krince.reminisce" level="DEBUG" additivity="false">
             <appender-ref ref="CONSOLE_JSON"/>
         </logger>
     </springProfile>
@@ -90,7 +90,7 @@
             <appender-ref ref="LOGSTASH"/>
         </root>
 
-        <logger name="com.krince.boilerplate" level="DEBUG" additivity="false">
+        <logger name="com.krince.reminisce" level="DEBUG" additivity="false">
             <appender-ref ref="LOGSTASH"/>
             <appender-ref ref="FILE"/>
         </logger>
@@ -101,7 +101,7 @@
             <appender-ref ref="LOGSTASH"/>
         </root>
 
-        <logger name="com.krince.boilerplate" level="DEBUG" additivity="false">
+        <logger name="com.krince.reminisce" level="DEBUG" additivity="false">
             <appender-ref ref="LOGSTASH"/>
             <appender-ref ref="FILE"/>
         </logger>
