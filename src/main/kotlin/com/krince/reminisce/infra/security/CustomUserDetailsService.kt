@@ -11,8 +11,8 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional(readOnly = true)
 class CustomUserDetailsService(private val userAccessPort: UserAccessPort) : UserDetailsService {
 
-    override fun loadUserByUsername(loginId: String): CustomUserDetails {
-        val user: UserSnapshot = userAccessPort.findByLoginId(loginId)
+    override fun loadUserByUsername(email: String): CustomUserDetails {
+        val user: UserSnapshot = userAccessPort.findByEmail(email)
         val roleValue: String = user.role
 
         return CustomUserDetails(id = user.userId.value, role = roleValue)

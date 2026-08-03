@@ -25,7 +25,8 @@ class CustomUserDetailsServiceTest : FunSpec({
     val userId = UserId(userIdStr)
     val snapshot = UserSnapshot(
         userId = userId,
-        loginId = "testUser",
+        email = "user@example.com",
+        nickname = "홍길동",
         role = "ROLE_USER",
         createdDate = now,
         modifiedDate = now,
@@ -33,15 +34,15 @@ class CustomUserDetailsServiceTest : FunSpec({
 
     context("loadUserByUsername") {
         context("성공") {
-            test("loginId로 조회한 UserSnapshot으로 CustomUserDetails를 반환한다") {
+            test("email로 조회한 UserSnapshot으로 CustomUserDetails를 반환한다") {
                 clearMocks(userAccessPort)
-                every { userAccessPort.findByLoginId("testUser") } returns snapshot
+                every { userAccessPort.findByEmail("user@example.com") } returns snapshot
 
-                val result = service.loadUserByUsername("testUser")
+                val result = service.loadUserByUsername("user@example.com")
 
                 result.getId() shouldBe userIdStr
                 result.getRole() shouldBe "ROLE_USER"
-                verify(exactly = 1) { userAccessPort.findByLoginId("testUser") }
+                verify(exactly = 1) { userAccessPort.findByEmail("user@example.com") }
             }
         }
     }
