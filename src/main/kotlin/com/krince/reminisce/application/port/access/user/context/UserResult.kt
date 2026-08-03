@@ -5,7 +5,8 @@ import java.time.LocalDateTime
 
 class UserResult(
     val userId: String,
-    val loginId: String,
+    val email: String,
+    val nickname: String,
     val role: String,
     val createdDate: LocalDateTime,
     val modifiedDate: LocalDateTime,
@@ -13,10 +14,11 @@ class UserResult(
     companion object {
         fun from(user: User): UserResult = UserResult(
             userId = user.userId.value,
-            loginId = user.loginId.value,
+            email = user.email.value,
+            nickname = user.nickname.value,
             role = user.role.value,
-            createdDate = user.createdDate!!,
-            modifiedDate = user.modifiedDate!!,
+            createdDate = requireNotNull(user.createdDate),
+            modifiedDate = requireNotNull(user.modifiedDate),
         )
     }
 }

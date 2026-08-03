@@ -1,7 +1,10 @@
 package com.krince.reminisce.infra.adapter.out.persistence.user.mapper
 
 import com.krince.reminisce.domain.model.user.User
-import com.krince.reminisce.domain.model.user.vo.LoginId
+import com.krince.reminisce.domain.model.user.vo.AuthProvider
+import com.krince.reminisce.domain.model.user.vo.Email
+import com.krince.reminisce.domain.model.user.vo.Nickname
+import com.krince.reminisce.domain.model.user.vo.Password
 import com.krince.reminisce.domain.model.user.vo.Role
 import com.krince.reminisce.domain.model.user.vo.UserId
 import com.krince.reminisce.infra.adapter.out.persistence.user.dto.UserAggregateEntity
@@ -20,7 +23,10 @@ object UserMapper {
 
     private fun toUser(ormEntity: UserOrmEntity): User = User(
         userId = UserId(ormEntity.userId),
-        loginId = LoginId(ormEntity.loginId),
+        email = Email(ormEntity.email),
+        password = Password(ormEntity.password),
+        nickname = Nickname(ormEntity.nickname),
+        provider = AuthProvider.valueOf(ormEntity.provider),
         role = Role(ormEntity.role),
         createdDate = ormEntity.createdDate,
         modifiedDate = ormEntity.modifiedDate,
@@ -28,7 +34,10 @@ object UserMapper {
 
     private fun toUserOrmEntity(domain: User): UserOrmEntity = UserOrmEntity(
         userId = domain.userId.value,
-        loginId = domain.loginId.value,
+        email = domain.email.value,
+        password = domain.password.value,
+        nickname = domain.nickname.value,
+        provider = domain.provider.name,
         role = domain.role.value,
     ).apply {
         createdDate = domain.createdDate
