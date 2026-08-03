@@ -93,6 +93,7 @@ dependencies {
     testImplementation("io.rest-assured:kotlin-extensions:5.4.0")
 
     testImplementation("com.icegreen:greenmail-junit5:2.1.3")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile>().configureEach {
