@@ -64,7 +64,7 @@ dependencies {
     implementation("net.postgis:postgis-jdbc:2021.1.0")
 
     //Redis
-
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
     //AOP
     implementation("org.springframework.boot:spring-boot-starter-aop")

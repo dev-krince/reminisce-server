@@ -4,5 +4,7 @@ import com.krince.reminisce.infra.adapter.out.persistence.user.entity.UserOrmEnt
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface UserRepository : JpaRepository<UserOrmEntity, String> {
-    fun findByLoginId(loginId: String): UserOrmEntity?
+    fun findByEmail(email: String): UserOrmEntity?
+
+    fun existsByEmail(email: String): Boolean
 }

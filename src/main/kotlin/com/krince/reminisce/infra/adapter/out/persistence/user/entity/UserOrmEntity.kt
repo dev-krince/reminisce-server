@@ -21,8 +21,20 @@ class UserOrmEntity(
     val userId: String,
 
     @Column(nullable = false, unique = true)
-    @Comment("로그인 ID")
-    val loginId: String,
+    @Comment("이메일 (로그인 식별자)")
+    val email: String,
+
+    @Column(nullable = false)
+    @Comment("비밀번호 (BCrypt 해시)")
+    val password: String,
+
+    @Column(nullable = false)
+    @Comment("닉네임")
+    val nickname: String,
+
+    @Column(nullable = false)
+    @Comment("인증 제공자")
+    val provider: String,
 
     @Column(name = "role", nullable = false, unique = false)
     @Comment("역할/권한")
