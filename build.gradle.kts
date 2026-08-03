@@ -33,6 +33,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-mail")
 
     //Swagger UI
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
@@ -90,6 +91,8 @@ dependencies {
     testImplementation("io.rest-assured:json-path:5.4.0")
     testImplementation("io.rest-assured:rest-assured:5.4.0")
     testImplementation("io.rest-assured:kotlin-extensions:5.4.0")
+
+    testImplementation("com.icegreen:greenmail-junit5:2.1.3")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile>().configureEach {
