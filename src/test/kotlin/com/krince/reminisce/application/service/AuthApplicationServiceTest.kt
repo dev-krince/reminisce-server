@@ -1,11 +1,15 @@
 package com.krince.reminisce.application.service
 
+import com.krince.reminisce.application.port.`in`.auth.command.KakaoLoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.LoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.LogoutCommand
 import com.krince.reminisce.application.port.`in`.auth.command.ReissueTokenCommand
+import com.krince.reminisce.application.port.out.auth.KakaoOAuthPort
+import com.krince.reminisce.application.port.out.auth.KakaoUserInfo
 import com.krince.reminisce.application.port.out.auth.PasswordEncoderPort
 import com.krince.reminisce.application.port.out.auth.RefreshTokenPort
 import com.krince.reminisce.application.port.out.auth.TokenProviderPort
+import com.krince.reminisce.application.port.out.user.CommandUserPort
 import com.krince.reminisce.application.port.out.user.LoadUserPort
 import com.krince.reminisce.domain.model.user.User
 import com.krince.reminisce.domain.model.user.vo.AuthProvider
@@ -37,14 +41,18 @@ import java.time.Duration
 class AuthApplicationServiceTest : FunSpec({
 
     val loadUserPort = mockk<LoadUserPort>()
+    val commandUserPort = mockk<CommandUserPort>()
     val passwordEncoderPort = mockk<PasswordEncoderPort>()
     val tokenProviderPort = mockk<TokenProviderPort>()
     val refreshTokenPort = mockk<RefreshTokenPort>()
+    val kakaoOAuthPort = mockk<KakaoOAuthPort>()
     val service = AuthApplicationService(
         loadUserPort = loadUserPort,
+        commandUserPort = commandUserPort,
         passwordEncoderPort = passwordEncoderPort,
         tokenProviderPort = tokenProviderPort,
         refreshTokenPort = refreshTokenPort,
+        kakaoOAuthPort = kakaoOAuthPort,
     )
 
     beforeEach { clearAllMocks() }
@@ -110,6 +118,64 @@ class AuthApplicationServiceTest : FunSpec({
 
                 exception.message shouldBe INVALID_PASSWORD.message
                 verify(exactly = 0) { refreshTokenPort.save(any(), any(), any()) }
+            }
+            test("소셜 계정(provider=KAKAO, password null)에 이메일 로그인 시도하면 더미 비교 후 같은 예외를 던진다") {
+                val kakaoUser = User.kakao(providerId = "k-1", email = Email(email), nickname = Nickname("카카오회원"))
+                every { loadUserPort.findByEmail(Email(email)) } returns kakaoUser
+                every { passwordEncoderPort.matchDummyPassword(rawPassword) } returns Unit
+
+                val exception = shouldThrow<BadCredentialsException> {
+                    service.execute(LoginCommand(email, rawPassword))
+                }
+
+                exception.message shouldBe INVALID_PASSWORD.message
+                verify(exactly = 1) { passwordEncoderPort.matchDummyPassword(rawPassword) }
+                verify(exactly = 0) { passwordEncoderPort.matchPassword(any(), any()) }
+            }
+        }
+    }
+
+    context("KakaoLoginUseCase") {
+        val authCode = "kakao-auth-code"
+        val kakaoId = "kakao-9999"
+
+        context("첫 로그인 - 신규 가입") {
+            test("카카오 사용자 조회 후 계정이 없으면 생성하고 우리 토큰을 발급한다") {
+                every { kakaoOAuthPort.exchangeCodeForUser(authCode) } returns
+                    KakaoUserInfo(id = kakaoId, email = "kakao@example.com", nickname = "카카오회원")
+                every { loadUserPort.findByProviderAndProviderId(AuthProvider.KAKAO, kakaoId) } returns null
+                val savedSlot = slot<User>()
+                every { commandUserPort.save(capture(savedSlot)) } answers { savedSlot.captured }
+                every { tokenProviderPort.generateAccessToken(any(), any()) } returns "Bearer access"
+                every { tokenProviderPort.generateRefreshToken(any(), any()) } returns "Bearer refresh"
+                every { tokenProviderPort.getRefreshTokenExpiration() } returns refreshTtl
+                every { refreshTokenPort.save(any(), any(), any()) } returns Unit
+
+                val result = service.execute(KakaoLoginCommand(authCode))
+
+                result.accessToken shouldBe "Bearer access"
+                result.refreshToken shouldBe "Bearer refresh"
+                savedSlot.captured.provider shouldBe AuthProvider.KAKAO
+                savedSlot.captured.providerId shouldBe kakaoId
+                savedSlot.captured.password shouldBe null
+                verify(exactly = 1) { commandUserPort.save(any()) }
+            }
+        }
+        context("재방문 - 로그인") {
+            test("이미 있는 카카오 계정이면 새로 만들지 않고 토큰만 발급한다") {
+                every { kakaoOAuthPort.exchangeCodeForUser(authCode) } returns
+                    KakaoUserInfo(id = kakaoId, email = null, nickname = "카카오회원")
+                every { loadUserPort.findByProviderAndProviderId(AuthProvider.KAKAO, kakaoId) } returns
+                    User.kakao(providerId = kakaoId, email = null, nickname = Nickname("카카오회원"))
+                every { tokenProviderPort.generateAccessToken(any(), any()) } returns "Bearer access"
+                every { tokenProviderPort.generateRefreshToken(any(), any()) } returns "Bearer refresh"
+                every { tokenProviderPort.getRefreshTokenExpiration() } returns refreshTtl
+                every { refreshTokenPort.save(any(), any(), any()) } returns Unit
+
+                val result = service.execute(KakaoLoginCommand(authCode))
+
+                result.accessToken shouldBe "Bearer access"
+                verify(exactly = 0) { commandUserPort.save(any()) }
             }
         }
     }
