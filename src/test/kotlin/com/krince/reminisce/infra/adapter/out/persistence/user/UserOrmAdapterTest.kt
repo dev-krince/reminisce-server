@@ -42,7 +42,7 @@ class UserOrmAdapterTest : FunSpec({
 
                 result.shouldNotBeNull()
                 result.userId.value shouldBe userIdStr
-                result.email.value shouldBe "user@example.com"
+                result.email!!.value shouldBe "user@example.com"
                 verify(exactly = 1) { repository.findByEmail("user@example.com") }
             }
         }
@@ -117,8 +117,8 @@ class UserOrmAdapterTest : FunSpec({
                 val result = adapter.save(user)
 
                 result.userId.value shouldBe userIdStr
-                result.email.value shouldBe "user@example.com"
-                result.password.value shouldBe "\$2a\$10\$hashedvalue"
+                result.email!!.value shouldBe "user@example.com"
+                result.password!!.value shouldBe "\$2a\$10\$hashedvalue"
                 entitySlot.captured.email shouldBe "user@example.com"
                 verify(exactly = 1) { repository.saveAndFlush(any()) }
             }

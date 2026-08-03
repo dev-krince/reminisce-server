@@ -156,8 +156,8 @@ class UserApplicationServiceTest : FunSpec({
                 result.email shouldBe "user@example.com"
                 result.nickname shouldBe "홍길동"
                 result.role shouldBe "ROLE_USER"
-                savedSlot.captured.password.value shouldBe "\$2a\$10\$hashedvalue"
-                (savedSlot.captured.password.value == "Password1!") shouldBe false
+                savedSlot.captured.password!!.value shouldBe "\$2a\$10\$hashedvalue"
+                (savedSlot.captured.password!!.value == "Password1!") shouldBe false
                 verifyOrder {
                     emailVerificationPort.isVerified("user@example.com")
                     passwordEncoderPort.encode("Password1!")

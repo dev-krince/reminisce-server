@@ -43,8 +43,8 @@ class UserMapperTest : FunSpec({
                 val result = UserMapper.toDomain(aggregate)
 
                 result.userId.value shouldBe userIdStr
-                result.email.value shouldBe "user@example.com"
-                result.password.value shouldBe "\$2a\$10\$hashedvalue"
+                result.email!!.value shouldBe "user@example.com"
+                result.password!!.value shouldBe "\$2a\$10\$hashedvalue"
                 result.nickname.value shouldBe "홍길동"
                 result.provider shouldBe AuthProvider.LOCAL
                 result.role.value shouldBe "ROLE_USER"

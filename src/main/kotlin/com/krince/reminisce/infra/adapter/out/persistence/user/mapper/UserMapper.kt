@@ -23,22 +23,24 @@ object UserMapper {
 
     private fun toUser(ormEntity: UserOrmEntity): User = User(
         userId = UserId(ormEntity.userId),
-        email = Email(ormEntity.email),
-        password = Password(ormEntity.password),
+        email = ormEntity.email?.let { Email(it) },
+        password = ormEntity.password?.let { Password(it) },
         nickname = Nickname(ormEntity.nickname),
         provider = AuthProvider.valueOf(ormEntity.provider),
         role = Role(ormEntity.role),
+        providerId = ormEntity.providerId,
         createdDate = ormEntity.createdDate,
         modifiedDate = ormEntity.modifiedDate,
     )
 
     private fun toUserOrmEntity(domain: User): UserOrmEntity = UserOrmEntity(
         userId = domain.userId.value,
-        email = domain.email.value,
-        password = domain.password.value,
+        email = domain.email?.value,
+        password = domain.password?.value,
         nickname = domain.nickname.value,
         provider = domain.provider.name,
         role = domain.role.value,
+        providerId = domain.providerId,
     ).apply {
         createdDate = domain.createdDate
         modifiedDate = domain.modifiedDate

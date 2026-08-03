@@ -14,7 +14,7 @@ class UserResult(
     companion object {
         fun from(user: User): UserResult = UserResult(
             userId = user.userId.value,
-            email = user.email.value,
+            email = requireNotNull(user.email).value,
             nickname = user.nickname.value,
             role = user.role.value,
             createdDate = requireNotNull(user.createdDate),

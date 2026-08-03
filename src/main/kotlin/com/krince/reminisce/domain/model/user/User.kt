@@ -11,11 +11,12 @@ import java.time.LocalDateTime
 
 class User(
     val userId: UserId,
-    val email: Email,
-    val password: Password,
+    val email: Email?,
+    val password: Password?,
     val nickname: Nickname,
     val provider: AuthProvider,
     val role: Role,
+    val providerId: String? = null,
     val createdDate: LocalDateTime? = null,
     val modifiedDate: LocalDateTime? = null,
 ) {
@@ -27,6 +28,16 @@ class User(
             nickname = nickname,
             provider = AuthProvider.LOCAL,
             role = Role.user(),
+        )
+
+        fun kakao(providerId: String, email: Email?, nickname: Nickname): User = User(
+            userId = UserId(UuidGenerator.generate()),
+            email = email,
+            password = null,
+            nickname = nickname,
+            provider = AuthProvider.KAKAO,
+            role = Role.user(),
+            providerId = providerId,
         )
     }
 }

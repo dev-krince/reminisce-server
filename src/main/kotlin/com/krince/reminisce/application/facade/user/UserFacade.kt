@@ -27,7 +27,7 @@ class UserFacade(
 
     @Transactional
     fun persistNewUser(user: User): User {
-        SignUpValidator.validateNotDuplicated(loadPort.existsByEmail(user.email))
+        SignUpValidator.validateNotDuplicated(loadPort.existsByEmail(requireNotNull(user.email)))
 
         return runCatching { commandPort.save(user) }
             .getOrElse { throw resolvePersistFailure(it) }

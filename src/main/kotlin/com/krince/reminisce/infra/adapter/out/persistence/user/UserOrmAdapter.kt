@@ -3,6 +3,7 @@ package com.krince.reminisce.infra.adapter.out.persistence.user
 import com.krince.reminisce.application.port.out.user.CommandUserPort
 import com.krince.reminisce.application.port.out.user.LoadUserPort
 import com.krince.reminisce.domain.model.user.User
+import com.krince.reminisce.domain.model.user.vo.AuthProvider
 import com.krince.reminisce.domain.model.user.vo.Email
 import com.krince.reminisce.domain.model.user.vo.UserId
 import com.krince.reminisce.infra.adapter.out.persistence.user.dto.UserAggregateEntity
@@ -27,6 +28,14 @@ class UserOrmAdapter(
 
     override fun findByUserId(userId: UserId): User? {
         val userOrmEntity: UserOrmEntity = repository.findByIdOrNull(userId.value) ?: return null
+        val userAggregateEntity = UserAggregateEntity(userOrmEntity = userOrmEntity)
+
+        return UserMapper.toDomain(userAggregateEntity)
+    }
+
+    override fun findByProviderAndProviderId(provider: AuthProvider, providerId: String): User? {
+        val userOrmEntity: UserOrmEntity =
+            repository.findByProviderAndProviderId(provider.name, providerId) ?: return null
         val userAggregateEntity = UserAggregateEntity(userOrmEntity = userOrmEntity)
 
         return UserMapper.toDomain(userAggregateEntity)

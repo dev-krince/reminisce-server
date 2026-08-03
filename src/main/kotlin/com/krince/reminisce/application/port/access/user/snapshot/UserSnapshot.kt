@@ -15,7 +15,7 @@ class UserSnapshot(
     companion object {
         fun from(user: User): UserSnapshot = UserSnapshot(
             userId = user.userId,
-            email = user.email.value,
+            email = requireNotNull(user.email).value,
             nickname = user.nickname.value,
             role = user.role.value,
             createdDate = requireNotNull(user.createdDate),

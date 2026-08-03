@@ -40,7 +40,7 @@ class UserTest : FunSpec({
                 user.modifiedDate shouldBe null
             }
             test("createdDate와 modifiedDate를 넣으면 그대로 보존된다") {
-                val user = User(userId, email, password, nickname, AuthProvider.LOCAL, role, now, now)
+                val user = User(userId, email, password, nickname, AuthProvider.LOCAL, role, createdDate = now, modifiedDate = now)
 
                 user.createdDate.shouldNotBeNull() shouldBe now
                 user.modifiedDate.shouldNotBeNull() shouldBe now
@@ -59,10 +59,41 @@ class UserTest : FunSpec({
                 user.nickname shouldBe nickname
                 user.provider shouldBe AuthProvider.LOCAL
                 user.role shouldBe Role.user()
+                user.providerId shouldBe null
             }
             test("매 호출마다 서로 다른 userId를 생성한다") {
                 val first = User.signUp(email = email, password = password, nickname = nickname)
                 val second = User.signUp(email = email, password = password, nickname = nickname)
+
+                (first.userId == second.userId) shouldBe false
+            }
+        }
+    }
+
+    context("kakao 팩토리") {
+        context("성공") {
+            test("provider는 KAKAO, password는 null, providerId가 채워지고 role은 ROLE_USER로 만든다") {
+                val user = User.kakao(providerId = "1234567890", email = email, nickname = nickname)
+
+                user.userId.value.shouldNotBeBlank()
+                user.email shouldBe email
+                user.password shouldBe null
+                user.nickname shouldBe nickname
+                user.provider shouldBe AuthProvider.KAKAO
+                user.providerId shouldBe "1234567890"
+                user.role shouldBe Role.user()
+            }
+            test("이메일을 주지 않으면 email이 null인 채로 생성한다") {
+                val user = User.kakao(providerId = "9999", email = null, nickname = nickname)
+
+                user.email shouldBe null
+                user.password shouldBe null
+                user.providerId shouldBe "9999"
+                user.provider shouldBe AuthProvider.KAKAO
+            }
+            test("매 호출마다 서로 다른 userId를 생성한다") {
+                val first = User.kakao(providerId = "1", email = null, nickname = nickname)
+                val second = User.kakao(providerId = "2", email = null, nickname = nickname)
 
                 (first.userId == second.userId) shouldBe false
             }
