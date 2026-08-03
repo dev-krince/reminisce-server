@@ -43,6 +43,9 @@ class SecurityConfig(
     private val permitAllPostUrls = listOf(
         "/api/auth/tokens",
         "/api/auth/tokens/refresh",
+        "/api/users",
+        "/api/users/email-verifications",
+        "/api/users/email-verifications/confirm",
     )
     private val permitAllPutUrls = listOf<String>()
     private val permitAllPatchUrls = listOf<String>()

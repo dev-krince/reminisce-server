@@ -10,6 +10,8 @@ class TestUserFixture(
 ) {
     fun saveUser(entity: UserOrmEntity): UserOrmEntity = userRepository.save(entity)
 
+    fun findByEmail(email: String): UserOrmEntity? = userRepository.findByEmail(email)
+
     fun deleteAllBatch() {
         userRepository.deleteAllInBatch()
     }

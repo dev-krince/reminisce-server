@@ -32,6 +32,16 @@ class UserControllerImplTest(
     private val testJwtTokenFixture: TestJwtTokenFixture,
 ) : FunSpec({
 
+    fun userEntity(userId: String, email: String): UserOrmEntity =
+        UserOrmEntity(
+            userId = userId,
+            email = email,
+            password = "\$2a\$10\$hashedvaluehashedvaluehashedvalue",
+            nickname = "홍길동",
+            provider = "LOCAL",
+            role = "ROLE_USER",
+        )
+
     beforeSpec {
         RestAssured.port = port
         RestAssured.basePath = "/api"
@@ -46,10 +56,8 @@ class UserControllerImplTest(
         context("성공") {
             test("유효한 토큰으로 회원을 조회하면 200과 회원 정보를 반환한다") {
                 val userId = "user-${System.currentTimeMillis()}-${Thread.currentThread().id}"
-                val loginId = "testUser${System.currentTimeMillis()}"
-                val savedUser = testUserFixture.saveUser(
-                    UserOrmEntity(userId = userId, loginId = loginId, role = "ROLE_USER")
-                )
+                val email = "user${System.currentTimeMillis()}@example.com"
+                val savedUser = testUserFixture.saveUser(userEntity(userId, email))
                 val token = testJwtTokenFixture.generateAccessToken(savedUser.userId, savedUser.role)
 
                 RestAssured.given()
@@ -63,19 +71,21 @@ class UserControllerImplTest(
                     .body("code", equalTo(200))
                     .body("message", equalTo(SuccessResponseCode.OK.message))
                     .body("data", hasKey("id"))
-                    .body("data", hasKey("loginId"))
+                    .body("data", hasKey("email"))
+                    .body("data", hasKey("nickname"))
                     .body("data", hasKey("role"))
                     .body("data", hasKey("createdDate"))
                     .body("data", hasKey("modifiedDate"))
                     .body("data.id", equalTo(userId))
-                    .body("data.loginId", equalTo(loginId))
+                    .body("data.email", equalTo(email))
+                    .body("data.nickname", equalTo("홍길동"))
                     .body("data.role", equalTo("ROLE_USER"))
             }
         }
         context("예외케이스") {
             test("토큰이 없으면 401과 EMPTY_TOKEN을 반환한다") {
                 val userId = "user-${System.currentTimeMillis()}"
-                testUserFixture.saveUser(UserOrmEntity(userId = userId, loginId = "login$userId", role = "ROLE_USER"))
+                testUserFixture.saveUser(userEntity(userId, "empty$userId@example.com"))
 
                 RestAssured.given()
                     .contentType(ContentType.JSON)
@@ -90,7 +100,7 @@ class UserControllerImplTest(
             }
             test("유효하지 않은 토큰이면 401과 INVALID_TOKEN을 반환한다") {
                 val userId = "user-${System.currentTimeMillis()}"
-                testUserFixture.saveUser(UserOrmEntity(userId = userId, loginId = "login$userId", role = "ROLE_USER"))
+                testUserFixture.saveUser(userEntity(userId, "invalid$userId@example.com"))
 
                 RestAssured.given()
                     .header("Authorization", "Bearer invalid.token.here")
@@ -105,7 +115,7 @@ class UserControllerImplTest(
             }
             test("존재하지 않는 회원 ID로 조회하면 404와 NOT_FOUND_USER를 반환한다") {
                 val existingUser = testUserFixture.saveUser(
-                    UserOrmEntity(userId = "auth-user-${System.currentTimeMillis()}", loginId = "authLogin", role = "ROLE_USER")
+                    userEntity("auth-user-${System.currentTimeMillis()}", "auth${System.currentTimeMillis()}@example.com")
                 )
                 val token = testJwtTokenFixture.generateAccessToken(existingUser.userId, existingUser.role)
                 val nonExistentUserId = "non-existent-${System.currentTimeMillis()}"
