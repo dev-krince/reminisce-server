@@ -39,4 +39,5 @@ enum class ExceptionResponseCode(
     INTERNAL_SERVER_ERROR(false, 500, "ISR-000", "Internal Server Error", "서버 에러입니다. 개발자에게 문의해주세요."),
     BAD_GATEWAY(false, 502, "BG-000", "Bad Gateway", "게이트웨이 오류입니다."),
     MAIL_SEND_FAILED(false, 502, "BG-001", "Mail Send Failed", "인증 메일 발송에 실패했습니다."),
+    SOCIAL_AUTH_FAILED(false, 502, "BG-002", "Social Auth Failed", "소셜 인증에 실패했습니다."),
 }

@@ -6,6 +6,7 @@ import com.krince.reminisce.shared.exception.ConflictException
 import com.krince.reminisce.shared.exception.ForbiddenException
 import com.krince.reminisce.shared.exception.MailSendException
 import com.krince.reminisce.shared.exception.NotFoundException
+import com.krince.reminisce.shared.exception.SocialAuthException
 import com.krince.reminisce.shared.exception.UnauthorizedRefreshTokenException
 import com.krince.reminisce.shared.response.ExceptionResponse
 import com.krince.reminisce.shared.response.ExceptionResponseCode.*
@@ -246,6 +247,21 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(MailSendException::class)
     fun handleMailSendException(exception: MailSendException): ResponseEntity<ExceptionResponse> {
+        printExceptionInfo(exception)
+
+        val exceptionResponseCode = exception.exceptionResponseCode
+        val message = exception.message
+        val exceptionResponse = ExceptionResponse(
+            responseCode = exceptionResponseCode,
+            message = message,
+            requestId = MDC.get(REQUEST_ID_VALUE)
+        )
+
+        return ResponseEntity.status(exceptionResponse.code).body(exceptionResponse)
+    }
+
+    @ExceptionHandler(SocialAuthException::class)
+    fun handleSocialAuthException(exception: SocialAuthException): ResponseEntity<ExceptionResponse> {
         printExceptionInfo(exception)
 
         val exceptionResponseCode = exception.exceptionResponseCode
