@@ -4,6 +4,7 @@ import com.krince.reminisce.application.port.out.auth.TokenProviderPort
 import com.krince.reminisce.infra.security.JwtProvider
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.stereotype.Component
+import java.time.Duration
 
 @Component
 class JwtProviderAdapter(private val jwtProvider: JwtProvider) : TokenProviderPort {
@@ -22,4 +23,6 @@ class JwtProviderAdapter(private val jwtProvider: JwtProvider) : TokenProviderPo
     override fun getRole(token: String): String = jwtProvider.getRole(token)
 
     override fun getUserIdFromRequest(request: HttpServletRequest): String? = jwtProvider.getUserIdFromRequest(request)
+
+    override fun getRefreshTokenExpiration(): Duration = jwtProvider.getRefreshTokenExpiration()
 }

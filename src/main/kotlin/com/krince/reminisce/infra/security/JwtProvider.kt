@@ -2,6 +2,7 @@ package com.krince.reminisce.infra.security
 
 import com.krince.reminisce.shared.exception.UnauthorizedRefreshTokenException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.*
+import com.krince.reminisce.shared.util.UuidGenerator
 import io.jsonwebtoken.Claims
 import io.jsonwebtoken.ExpiredJwtException
 import io.jsonwebtoken.Jws
@@ -12,6 +13,7 @@ import io.jsonwebtoken.security.Keys
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import java.time.Duration
 import java.util.Date
 import javax.crypto.SecretKey
 
@@ -57,6 +59,7 @@ class JwtProvider(
 
         return TOKEN_PREFIX + Jwts.builder()
             .subject(id)
+            .id(UuidGenerator.generate())
             .issuedAt(now)
             .expiration(validity)
             .claim(ROLE, role)
@@ -96,6 +99,8 @@ class JwtProvider(
             throw UnauthorizedRefreshTokenException(INVALID_REFRESH_TOKEN, INVALID_REFRESH_TOKEN.message)
         }
     }
+
+    fun getRefreshTokenExpiration(): Duration = Duration.ofMillis(REFRESH_TOKEN_EXPIRED)
 
     fun getId(token: String): String = getClaimsJws(token)
         .payload
