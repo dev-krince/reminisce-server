@@ -70,4 +70,15 @@ class PasswordEncoderAdapterTest : FunSpec({
             }
         }
     }
+
+    context("matchDummyPassword") {
+        test("더미 해시로 비교만 수행하고 예외를 던지지 않는다") {
+            clearMocks(encoder)
+            every { encoder.matches("Password1!", any()) } returns false
+
+            adapter.matchDummyPassword("Password1!")
+
+            verify(exactly = 1) { encoder.matches("Password1!", any()) }
+        }
+    }
 })

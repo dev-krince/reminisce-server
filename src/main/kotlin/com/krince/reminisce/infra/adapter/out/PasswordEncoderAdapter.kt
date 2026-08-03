@@ -16,4 +16,13 @@ class PasswordEncoderAdapter(private val encoder: PasswordEncoder) : PasswordEnc
             .takeIf { it }
             ?: throw BadCredentialsException(INVALID_PASSWORD.message)
     }
+
+    override fun matchDummyPassword(rawPassword: String) {
+        encoder.matches(rawPassword, DUMMY_ENCODED_PASSWORD)
+    }
+
+    companion object {
+        private const val DUMMY_ENCODED_PASSWORD =
+            "\$2a\$10\$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
+    }
 }
