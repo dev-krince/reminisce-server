@@ -65,6 +65,14 @@ file:
     path: ${FILE_STORAGE_PATH}
     cache-period: ${FILE_STORAGE_CACHE_PERIOD}
 
+oauth:
+  kakao:
+    client-id: ${KAKAO_CLIENT_ID}
+    client-secret: ${KAKAO_CLIENT_SECRET}
+    redirect-uri: ${KAKAO_REDIRECT_URI}
+    token-uri: ${KAKAO_TOKEN_URI}
+    user-info-uri: ${KAKAO_USER_INFO_URI}
+
 LOG_HOST: ${LOG_HOST}
 LOG_INDEX_ID: ${LOG_INDEX_ID}
 NODE_ID: ${NODE_ID}
