@@ -20,6 +20,10 @@ class JwtProviderAdapter(private val jwtProvider: JwtProvider) : TokenProviderPo
 
     override fun getUserId(token: String): String = jwtProvider.getId(token)
 
+    override fun getTokenId(token: String): String? = jwtProvider.getTokenId(token)
+
+    override fun getRemainingExpiration(token: String): Duration = jwtProvider.getRemainingExpiration(token)
+
     override fun getRole(token: String): String = jwtProvider.getRole(token)
 
     override fun getUserIdFromRequest(request: HttpServletRequest): String? = jwtProvider.getUserIdFromRequest(request)

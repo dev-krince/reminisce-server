@@ -14,6 +14,7 @@ import jakarta.servlet.http.HttpServletRequest
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.time.Duration
+import java.time.Instant
 import java.util.Date
 import javax.crypto.SecretKey
 
@@ -44,6 +45,7 @@ class JwtProvider(
 
         return TOKEN_PREFIX + Jwts.builder()
             .subject(id)
+            .id(UuidGenerator.generate())
             .issuedAt(now)
             .expiration(validity)
             .claim(ROLE, role)
@@ -101,6 +103,19 @@ class JwtProvider(
     }
 
     fun getRefreshTokenExpiration(): Duration = Duration.ofMillis(REFRESH_TOKEN_EXPIRED)
+
+    fun getTokenId(token: String): String? = getClaimsJws(token)
+        .payload
+        .id
+
+    fun getRemainingExpiration(token: String): Duration {
+        val expiration: Instant = getClaimsJws(token).payload.expiration.toInstant()
+        val remaining: Duration = Duration.between(Instant.now(), expiration)
+
+        if (remaining.isNegative) return Duration.ZERO
+
+        return remaining
+    }
 
     fun getId(token: String): String = getClaimsJws(token)
         .payload

@@ -14,6 +14,10 @@ interface TokenProviderPort {
 
     fun getUserId(token: String): String
 
+    fun getTokenId(token: String): String?
+
+    fun getRemainingExpiration(token: String): Duration
+
     fun getRole(token: String): String
 
     fun getUserIdFromRequest(request: HttpServletRequest): String?

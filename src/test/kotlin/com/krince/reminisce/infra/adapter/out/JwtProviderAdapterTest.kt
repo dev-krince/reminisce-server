@@ -104,6 +104,35 @@ class JwtProviderAdapterTest : FunSpec({
         }
     }
 
+    context("getTokenId") {
+        context("성공") {
+            test("jwtProvider.getTokenId 결과를 반환한다") {
+                clearMocks(jwtProvider)
+                every { jwtProvider.getTokenId("rawToken") } returns "jti-1"
+
+                val result = adapter.getTokenId("rawToken")
+
+                result shouldBe "jti-1"
+                verify(exactly = 1) { jwtProvider.getTokenId("rawToken") }
+            }
+        }
+    }
+
+    context("getRemainingExpiration") {
+        context("성공") {
+            test("jwtProvider.getRemainingExpiration 결과를 반환한다") {
+                clearMocks(jwtProvider)
+                val remaining = java.time.Duration.ofMinutes(30)
+                every { jwtProvider.getRemainingExpiration("rawToken") } returns remaining
+
+                val result = adapter.getRemainingExpiration("rawToken")
+
+                result shouldBe remaining
+                verify(exactly = 1) { jwtProvider.getRemainingExpiration("rawToken") }
+            }
+        }
+    }
+
     context("getUserIdFromRequest") {
         context("성공") {
             test("jwtProvider.getUserIdFromRequest 결과를 반환한다") {

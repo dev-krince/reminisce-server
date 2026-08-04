@@ -8,10 +8,14 @@ import io.kotest.core.annotation.Tags
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
+import io.jsonwebtoken.Jwts
+import io.jsonwebtoken.io.Decoders
+import io.jsonwebtoken.security.Keys
 import io.mockk.every
 import io.mockk.mockk
 import jakarta.servlet.http.HttpServletRequest
 import java.util.Base64
+import java.util.Date
 
 @Tags("test", "unitTest")
 @DisplayName("JwtProvider 단위테스트")
@@ -36,6 +40,45 @@ class JwtProviderTest : FunSpec({
                 token.shouldStartWith("Bearer ")
                 provider.getId(token.rawToken()) shouldBe uuid1
                 provider.getRole(token.rawToken()) shouldBe "ROLE_USER"
+            }
+            test("jti(id claim)를 포함한다") {
+                val token = provider.createAccessToken(uuid1, "ROLE_USER").rawToken()
+                provider.getTokenId(token)?.isNotBlank() shouldBe true
+            }
+        }
+    }
+
+    context("getTokenId") {
+        context("성공") {
+            test("액세스 토큰마다 서로 다른 jti를 반환한다") {
+                val first = provider.createAccessToken(uuid1, "ROLE_USER").rawToken()
+                val second = provider.createAccessToken(uuid1, "ROLE_USER").rawToken()
+                (provider.getTokenId(first) == provider.getTokenId(second)) shouldBe false
+            }
+        }
+        context("실패") {
+            test("jti가 없는 토큰이면 예외 없이 null을 반환한다") {
+                val secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKeyBase64))
+                val now = Date()
+                val tokenWithoutJti = Jwts.builder()
+                    .subject(uuid1)
+                    .issuedAt(now)
+                    .expiration(Date(now.time + accessExpired))
+                    .signWith(secretKey)
+                    .compact()
+
+                provider.getTokenId(tokenWithoutJti) shouldBe null
+            }
+        }
+    }
+
+    context("getRemainingExpiration") {
+        context("성공") {
+            test("남은 수명은 0 초과이고 설정된 액세스 만료 이하이다") {
+                val token = provider.createAccessToken(uuid1, "ROLE_USER").rawToken()
+                val remaining = provider.getRemainingExpiration(token)
+                (remaining > java.time.Duration.ZERO) shouldBe true
+                (remaining <= java.time.Duration.ofMillis(accessExpired)) shouldBe true
             }
         }
     }
