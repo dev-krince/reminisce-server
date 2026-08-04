@@ -58,7 +58,7 @@ interface AuthController {
         refreshToken: String?,
     ): ResponseEntity<Void>
 
-    @Operation(summary = "로그아웃", description = "리프레시 토큰을 무효화해 로그아웃합니다.")
+    @Operation(summary = "로그아웃", description = "리프레시 토큰을 무효화하고 Authorization 헤더의 액세스 토큰을 블랙리스트에 등록해 로그아웃합니다. 액세스 토큰 헤더는 선택이며 없거나 만료된 경우 리프레시 무효화만 수행합니다.")
     @SwaggerSuccessResponse(responseCode = NO_CONTENT, description = "로그아웃 성공")
     @SwaggerExceptionResponse(
         examples = [
@@ -66,10 +66,12 @@ interface AuthController {
             ExceptionExample(code = UNAUTHORIZED_REFRESH_TOKEN, name = "리프레시 토큰 오류", message = "리프레시 토큰 정보가 올바르지 않습니다.", description = "리프레시 토큰 타입이 올바르지 않은 경우"),
             ExceptionExample(code = EXPIRED_REFRESH_TOKEN, name = "리프레시 토큰 만료", message = "만료된 리프레시 토큰입니다.", description = "리프레시 토큰이 만료된 경우"),
             ExceptionExample(code = INVALID_REFRESH_TOKEN, name = "유효하지 않은 리프레시 토큰", message = "유효하지 않은 리프레시 토큰입니다.", description = "형식이 잘못되었거나 저장분과 일치하지 않는 경우"),
+            ExceptionExample(code = LOGGED_OUT_TOKEN, name = "로그아웃된 토큰", message = "로그아웃된 토큰입니다.", description = "로그아웃되어 블랙리스트에 등록된 액세스 토큰으로 인증 API를 재요청한 경우"),
             ExceptionExample(code = INTERNAL_SERVER_ERROR, name = "서버 오류", message = "서버 에러입니다. 개발자에게 문의해주세요.", description = "예상치 못한 서버 오류가 발생한 경우"),
         ]
     )
     fun logout(
         refreshToken: String?,
+        accessToken: String?,
     ): ResponseEntity<Void>
 }

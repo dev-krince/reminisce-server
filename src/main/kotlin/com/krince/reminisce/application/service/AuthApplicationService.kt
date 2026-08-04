@@ -9,6 +9,7 @@ import com.krince.reminisce.application.port.`in`.auth.usecase.KakaoLoginUseCase
 import com.krince.reminisce.application.port.`in`.auth.usecase.LoginUseCase
 import com.krince.reminisce.application.port.`in`.auth.usecase.LogoutUseCase
 import com.krince.reminisce.application.port.`in`.auth.usecase.ReissueTokenUseCase
+import com.krince.reminisce.application.port.out.auth.AccessTokenBlacklistPort
 import com.krince.reminisce.application.port.out.auth.KakaoOAuthPort
 import com.krince.reminisce.application.port.out.auth.KakaoUserInfo
 import com.krince.reminisce.application.port.out.auth.PasswordEncoderPort
@@ -26,6 +27,7 @@ import com.krince.reminisce.shared.response.ExceptionResponseCode.INVALID_PASSWO
 import com.krince.reminisce.shared.response.ExceptionResponseCode.INVALID_REFRESH_TOKEN
 import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.stereotype.Service
+import java.time.Duration
 
 @Service
 class AuthApplicationService(
@@ -34,6 +36,7 @@ class AuthApplicationService(
     private val passwordEncoderPort: PasswordEncoderPort,
     private val tokenProviderPort: TokenProviderPort,
     private val refreshTokenPort: RefreshTokenPort,
+    private val accessTokenBlacklistPort: AccessTokenBlacklistPort,
     private val kakaoOAuthPort: KakaoOAuthPort,
 ) : LoginUseCase, ReissueTokenUseCase, LogoutUseCase, KakaoLoginUseCase {
 
@@ -75,6 +78,37 @@ class AuthApplicationService(
         ReissueTokenValidator.validateMatches(command.refreshToken, storedToken)
 
         refreshTokenPort.delete(userId)
+        blacklistAccessToken(command.accessToken)
+    }
+
+    private fun blacklistAccessToken(rawAccessToken: String?) {
+        val extractedAccessToken: String = extractAccessToken(rawAccessToken) ?: return
+
+        registerBlacklist(extractedAccessToken)
+    }
+
+    private fun extractAccessToken(rawAccessToken: String?): String? {
+        val provided: String = rawAccessToken?.takeIf { it.isNotBlank() } ?: return null
+
+        return try {
+            tokenProviderPort.extractToken(provided)
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+    }
+
+    private fun registerBlacklist(extractedAccessToken: String) {
+        val remaining: Duration
+        val tokenId: String
+        try {
+            remaining = tokenProviderPort.getRemainingExpiration(extractedAccessToken)
+            if (remaining <= Duration.ZERO) return
+            tokenId = tokenProviderPort.getTokenId(extractedAccessToken) ?: return
+        } catch (_: RuntimeException) {
+            return
+        }
+
+        accessTokenBlacklistPort.register(tokenId, remaining)
     }
 
     private fun registerKakaoUser(kakaoUser: KakaoUserInfo): User {

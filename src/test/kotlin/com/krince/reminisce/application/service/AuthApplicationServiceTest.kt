@@ -4,6 +4,7 @@ import com.krince.reminisce.application.port.`in`.auth.command.KakaoLoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.LoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.LogoutCommand
 import com.krince.reminisce.application.port.`in`.auth.command.ReissueTokenCommand
+import com.krince.reminisce.application.port.out.auth.AccessTokenBlacklistPort
 import com.krince.reminisce.application.port.out.auth.KakaoOAuthPort
 import com.krince.reminisce.application.port.out.auth.KakaoUserInfo
 import com.krince.reminisce.application.port.out.auth.PasswordEncoderPort
@@ -33,6 +34,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import io.mockk.verifyOrder
+import org.springframework.dao.DataAccessResourceFailureException
 import org.springframework.security.authentication.BadCredentialsException
 import java.time.Duration
 
@@ -45,6 +47,7 @@ class AuthApplicationServiceTest : FunSpec({
     val passwordEncoderPort = mockk<PasswordEncoderPort>()
     val tokenProviderPort = mockk<TokenProviderPort>()
     val refreshTokenPort = mockk<RefreshTokenPort>()
+    val accessTokenBlacklistPort = mockk<AccessTokenBlacklistPort>()
     val kakaoOAuthPort = mockk<KakaoOAuthPort>()
     val service = AuthApplicationService(
         loadUserPort = loadUserPort,
@@ -52,6 +55,7 @@ class AuthApplicationServiceTest : FunSpec({
         passwordEncoderPort = passwordEncoderPort,
         tokenProviderPort = tokenProviderPort,
         refreshTokenPort = refreshTokenPort,
+        accessTokenBlacklistPort = accessTokenBlacklistPort,
         kakaoOAuthPort = kakaoOAuthPort,
     )
 
@@ -243,7 +247,52 @@ class AuthApplicationServiceTest : FunSpec({
     }
 
     context("LogoutUseCase") {
-        test("저장분과 일치하면 리프레시 토큰의 userId로 Redis 저장분을 삭제한다") {
+        val providedAccess = "Bearer access-token"
+        val extractedAccess = "access-token"
+        val accessJti = "access-jti-1"
+        val accessRemaining = Duration.ofHours(2)
+
+        test("액세스가 유효하면 refresh 삭제 후 jti·남은 수명으로 블랙리스트에 등록한다") {
+            val providedRefresh = "Bearer stored-refresh"
+            val extracted = "stored-refresh"
+            every { tokenProviderPort.extractToken(providedRefresh) } returns extracted
+            every { tokenProviderPort.validateRefreshToken(extracted) } returns Unit
+            every { tokenProviderPort.getUserId(extracted) } returns userIdStr
+            every { refreshTokenPort.find(userIdStr) } returns providedRefresh
+            every { refreshTokenPort.delete(userIdStr) } returns Unit
+            every { tokenProviderPort.extractToken(providedAccess) } returns extractedAccess
+            every { tokenProviderPort.getRemainingExpiration(extractedAccess) } returns accessRemaining
+            every { tokenProviderPort.getTokenId(extractedAccess) } returns accessJti
+            every { accessTokenBlacklistPort.register(accessJti, accessRemaining) } returns Unit
+
+            service.execute(LogoutCommand(refreshToken = providedRefresh, accessToken = providedAccess))
+
+            verifyOrder {
+                tokenProviderPort.validateRefreshToken(extracted)
+                refreshTokenPort.find(userIdStr)
+                refreshTokenPort.delete(userIdStr)
+                accessTokenBlacklistPort.register(accessJti, accessRemaining)
+            }
+        }
+        test("블랙리스트 등록 중 Redis 예외는 삼키지 않고 전파한다") {
+            val providedRefresh = "Bearer stored-refresh"
+            val extracted = "stored-refresh"
+            every { tokenProviderPort.extractToken(providedRefresh) } returns extracted
+            every { tokenProviderPort.validateRefreshToken(extracted) } returns Unit
+            every { tokenProviderPort.getUserId(extracted) } returns userIdStr
+            every { refreshTokenPort.find(userIdStr) } returns providedRefresh
+            every { refreshTokenPort.delete(userIdStr) } returns Unit
+            every { tokenProviderPort.extractToken(providedAccess) } returns extractedAccess
+            every { tokenProviderPort.getRemainingExpiration(extractedAccess) } returns accessRemaining
+            every { tokenProviderPort.getTokenId(extractedAccess) } returns accessJti
+            every { accessTokenBlacklistPort.register(accessJti, accessRemaining) } throws
+                DataAccessResourceFailureException("redis down")
+
+            shouldThrow<DataAccessResourceFailureException> {
+                service.execute(LogoutCommand(refreshToken = providedRefresh, accessToken = providedAccess))
+            }
+        }
+        test("액세스 헤더가 없으면 refresh만 삭제하고 블랙리스트에 등록하지 않는다") {
             val providedRefresh = "Bearer stored-refresh"
             val extracted = "stored-refresh"
             every { tokenProviderPort.extractToken(providedRefresh) } returns extracted
@@ -252,13 +301,44 @@ class AuthApplicationServiceTest : FunSpec({
             every { refreshTokenPort.find(userIdStr) } returns providedRefresh
             every { refreshTokenPort.delete(userIdStr) } returns Unit
 
-            service.execute(LogoutCommand(providedRefresh))
+            service.execute(LogoutCommand(refreshToken = providedRefresh, accessToken = null))
 
-            verifyOrder {
-                tokenProviderPort.validateRefreshToken(extracted)
-                refreshTokenPort.find(userIdStr)
-                refreshTokenPort.delete(userIdStr)
-            }
+            verify(exactly = 1) { refreshTokenPort.delete(userIdStr) }
+            verify(exactly = 0) { accessTokenBlacklistPort.register(any(), any()) }
+        }
+        test("액세스가 유효하지만 jti가 없으면 예외 없이 refresh 삭제만 하고 블랙리스트에 등록하지 않는다") {
+            val providedRefresh = "Bearer stored-refresh"
+            val extracted = "stored-refresh"
+            every { tokenProviderPort.extractToken(providedRefresh) } returns extracted
+            every { tokenProviderPort.validateRefreshToken(extracted) } returns Unit
+            every { tokenProviderPort.getUserId(extracted) } returns userIdStr
+            every { refreshTokenPort.find(userIdStr) } returns providedRefresh
+            every { refreshTokenPort.delete(userIdStr) } returns Unit
+            every { tokenProviderPort.extractToken(providedAccess) } returns extractedAccess
+            every { tokenProviderPort.getRemainingExpiration(extractedAccess) } returns accessRemaining
+            every { tokenProviderPort.getTokenId(extractedAccess) } returns null
+
+            service.execute(LogoutCommand(refreshToken = providedRefresh, accessToken = providedAccess))
+
+            verify(exactly = 1) { refreshTokenPort.delete(userIdStr) }
+            verify(exactly = 0) { accessTokenBlacklistPort.register(any(), any()) }
+        }
+        test("액세스가 만료·무효면 예외 없이 refresh 삭제만 하고 블랙리스트에 등록하지 않는다") {
+            val providedRefresh = "Bearer stored-refresh"
+            val extracted = "stored-refresh"
+            every { tokenProviderPort.extractToken(providedRefresh) } returns extracted
+            every { tokenProviderPort.validateRefreshToken(extracted) } returns Unit
+            every { tokenProviderPort.getUserId(extracted) } returns userIdStr
+            every { refreshTokenPort.find(userIdStr) } returns providedRefresh
+            every { refreshTokenPort.delete(userIdStr) } returns Unit
+            every { tokenProviderPort.extractToken(providedAccess) } returns extractedAccess
+            every { tokenProviderPort.getRemainingExpiration(extractedAccess) } throws
+                io.jsonwebtoken.ExpiredJwtException(null, null, "expired")
+
+            service.execute(LogoutCommand(refreshToken = providedRefresh, accessToken = providedAccess))
+
+            verify(exactly = 1) { refreshTokenPort.delete(userIdStr) }
+            verify(exactly = 0) { accessTokenBlacklistPort.register(any(), any()) }
         }
         test("제공된 리프레시가 저장분과 다르면(회전된 옛 토큰) INVALID_REFRESH_TOKEN을 던지고 삭제하지 않는다") {
             val providedRefresh = "Bearer old-refresh"
@@ -269,11 +349,12 @@ class AuthApplicationServiceTest : FunSpec({
             every { refreshTokenPort.find(userIdStr) } returns "Bearer current-refresh"
 
             val exception = shouldThrow<UnauthorizedRefreshTokenException> {
-                service.execute(LogoutCommand(providedRefresh))
+                service.execute(LogoutCommand(refreshToken = providedRefresh, accessToken = providedAccess))
             }
 
             exception.exceptionResponseCode shouldBe INVALID_REFRESH_TOKEN
             verify(exactly = 0) { refreshTokenPort.delete(any()) }
+            verify(exactly = 0) { accessTokenBlacklistPort.register(any(), any()) }
         }
         test("만료·손상된 리프레시면 검증에서 URT 예외를 던지고 삭제하지 않는다") {
             val providedRefresh = "Bearer broken-refresh"
@@ -283,22 +364,24 @@ class AuthApplicationServiceTest : FunSpec({
                 UnauthorizedRefreshTokenException(EXPIRED_REFRESH_TOKEN, EXPIRED_REFRESH_TOKEN.message)
 
             val exception = shouldThrow<UnauthorizedRefreshTokenException> {
-                service.execute(LogoutCommand(providedRefresh))
+                service.execute(LogoutCommand(refreshToken = providedRefresh, accessToken = providedAccess))
             }
 
             exception.exceptionResponseCode shouldBe EXPIRED_REFRESH_TOKEN
             verify(exactly = 0) { refreshTokenPort.delete(any()) }
+            verify(exactly = 0) { accessTokenBlacklistPort.register(any(), any()) }
         }
         test("Bearer 접두어가 없으면 INVALID_REFRESH_TOKEN을 던지고 삭제하지 않는다") {
             val providedRefresh = "no-prefix-refresh"
             every { tokenProviderPort.extractToken(providedRefresh) } throws IllegalArgumentException("bad prefix")
 
             val exception = shouldThrow<UnauthorizedRefreshTokenException> {
-                service.execute(LogoutCommand(providedRefresh))
+                service.execute(LogoutCommand(refreshToken = providedRefresh, accessToken = providedAccess))
             }
 
             exception.exceptionResponseCode shouldBe INVALID_REFRESH_TOKEN
             verify(exactly = 0) { refreshTokenPort.delete(any()) }
+            verify(exactly = 0) { accessTokenBlacklistPort.register(any(), any()) }
         }
     }
 

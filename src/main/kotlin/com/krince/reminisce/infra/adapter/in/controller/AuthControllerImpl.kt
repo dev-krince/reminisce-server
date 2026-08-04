@@ -74,9 +74,10 @@ class AuthControllerImpl(
     @DeleteMapping("/tokens")
     override fun logout(
         @RequestHeader(name = REFRESH_TOKEN_HEADER_NAME, required = false) refreshToken: String?,
+        @RequestHeader(name = ACCESS_TOKEN_HEADER_NAME, required = false) accessToken: String?,
     ): ResponseEntity<Void> {
         val providedToken: String = requireRefreshToken(refreshToken)
-        val command = LogoutCommand(refreshToken = providedToken)
+        val command = LogoutCommand(refreshToken = providedToken, accessToken = accessToken)
         logoutUseCase.execute(command)
 
         return ResponseEntity.status(NO_CONTENT.code).build()
