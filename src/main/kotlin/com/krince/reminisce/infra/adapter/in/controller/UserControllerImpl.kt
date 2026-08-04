@@ -16,6 +16,7 @@ import com.krince.reminisce.infra.adapter.`in`.dto.user.response.SignUpResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.user.response.UserResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.user.response.signUpResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.user.response.userResponse
+import com.krince.reminisce.infra.security.CustomUserDetails
 import com.krince.reminisce.shared.response.SuccessResponse
 import com.krince.reminisce.shared.response.SuccessResponseCode.CREATED
 import com.krince.reminisce.shared.response.SuccessResponseCode.NO_CONTENT
@@ -23,9 +24,9 @@ import com.krince.reminisce.shared.response.SuccessResponseCode.OK
 import com.krince.reminisce.shared.response.successResponse
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -71,9 +72,11 @@ class UserControllerImpl(
         return ResponseEntity.status(NO_CONTENT.code).build()
     }
 
-    @GetMapping("/{userId}")
-    override fun getUser(@PathVariable userId: String): ResponseEntity<SuccessResponse<UserResponse>> {
-        val command = GetUserCommand(userId = userId)
+    @GetMapping("/me")
+    override fun getUser(
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<SuccessResponse<UserResponse>> {
+        val command = GetUserCommand(userId = userDetails.getId())
         val result: UserResult = getUserUseCase.execute(command)
         val response: UserResponse = userResponse(userResult = result)
         val responseBody: SuccessResponse<UserResponse> = successResponse(responseCode = OK, data = response)

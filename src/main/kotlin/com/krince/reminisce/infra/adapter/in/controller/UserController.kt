@@ -5,6 +5,7 @@ import com.krince.reminisce.infra.adapter.`in`.dto.user.request.SendEmailVerific
 import com.krince.reminisce.infra.adapter.`in`.dto.user.request.SignUpRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.user.response.SignUpResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.user.response.UserResponse
+import com.krince.reminisce.infra.security.CustomUserDetails
 import com.krince.reminisce.infra.swagger.ExceptionExample
 import com.krince.reminisce.infra.swagger.SwaggerExceptionResponse
 import com.krince.reminisce.infra.swagger.SwaggerSuccessResponse
@@ -12,12 +13,10 @@ import com.krince.reminisce.shared.response.ExceptionResponseCode.*
 import com.krince.reminisce.shared.response.SuccessResponse
 import com.krince.reminisce.shared.response.SuccessResponseCode.*
 import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
-import jakarta.validation.constraints.NotBlank
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.RequestBody
 
 @Tag(name = "회원(Users)")
@@ -70,12 +69,11 @@ interface UserController {
         @Valid @RequestBody request: ConfirmEmailVerificationRequest,
     ): ResponseEntity<Void>
 
-    //[GET] /api/users/{userId}
-    @Operation(summary = "회원 단건 조회", description = "회원 고유 식별자로 특정 회원의 상세 정보를 조회합니다.")
+    //[GET] /api/users/me
+    @Operation(summary = "내 정보 조회", description = "토큰의 본인 식별자로 로그인한 회원 본인의 상세 정보를 조회합니다.")
     @SwaggerSuccessResponse(responseCode = OK, description = "회원 조회 성공")
     @SwaggerExceptionResponse(
         examples = [
-            ExceptionExample(code = INVALID_DTO_PARAMETER, name = "유효하지 않은 회원 ID", message = "회원 ID는 비어있을 수 없습니다.", description = "회원 ID가 비어있는 경우"),
             ExceptionExample(code = EMPTY_TOKEN, name = "토큰 없음", message = "토큰이 없습니다.", description = "인증 토큰이 제공되지 않은 경우"),
             ExceptionExample(code = INVALID_TOKEN, name = "유효하지 않은 토큰", message = "유효하지 않은 토큰입니다.", description = "토큰이 유효하지 않거나 서명이 잘못된 경우"),
             ExceptionExample(code = EXPIRED_TOKEN, name = "만료된 토큰", message = "만료된 토큰입니다.", description = "토큰의 유효기간이 만료된 경우"),
@@ -84,9 +82,6 @@ interface UserController {
         ]
     )
     fun getUser(
-        @Parameter(description = "회원 고유 식별자", example = "e443e5c3-0243-4d28-ba79-37cf3b923023", required = true)
-        @NotBlank(message = "회원 식별자는 비어있을 수 없습니다.")
-        @PathVariable
-        userId: String,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<UserResponse>>
 }
