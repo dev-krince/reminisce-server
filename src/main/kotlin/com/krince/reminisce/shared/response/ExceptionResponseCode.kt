@@ -21,6 +21,7 @@ enum class ExceptionResponseCode(
     INVALID_VERIFICATION_CODE(false, 400, "BR-011", "Invalid Verification Code", "인증코드가 일치하지 않습니다."),
     EXPIRED_VERIFICATION_CODE(false, 400, "BR-012", "Expired Verification Code", "인증코드가 만료되었습니다."),
     INVALID_CHILD_NICKNAME_LENGTH(false, 400, "BR-013", "Invalid Child Nickname Length", "아이 애칭 길이가 올바르지 않습니다."),
+    INVALID_BIRTH_YEAR(false, 400, "BR-014", "Invalid Birth Year", "출생연도가 올바르지 않습니다."),
     UNAUTHORIZED(false, 401, "UA-000", "Unauthorized", "인증 정보가 올바르지 않습니다."),
     INVALID_TOKEN(false, 401, "UA-001", "Invalid Token", "유효하지 않은 토큰입니다."),
     EMPTY_TOKEN(false, 401, "UA-002", "Empty Token", "토큰이 없습니다."),
