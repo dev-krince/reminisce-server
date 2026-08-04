@@ -26,6 +26,7 @@ enum class ExceptionResponseCode(
     EXPIRED_TOKEN(false, 401, "UA-003", "Expired Token", "만료된 토큰입니다."),
     WRONG_TOKEN(false, 401, "UA-004", "Expired Token", "토큰 형식을 확인해주세요."),
     INVALID_PASSWORD(false, 401, "UA-005", "Invalid Password", "비밀번호를 확인해주세요."),
+    LOGGED_OUT_TOKEN(false, 401, "UA-006", "Logged Out Token", "로그아웃된 토큰입니다."),
     UNAUTHORIZED_REFRESH_TOKEN(false, 402, "URT-000", "Unauthorized Refresh Token", "리프레시 토큰 정보가 올바르지 않습니다."),
     EXPIRED_REFRESH_TOKEN(false, 402, "URT-001", "Expired Refresh Token", "만료된 리프레시 토큰입니다."),
     INVALID_REFRESH_TOKEN(false, 402, "URT-002", "Invalid Refresh Token", "유효하지 않은 리프레시 토큰입니다."),
