@@ -1,5 +1,6 @@
 package com.krince.reminisce.infra.security
 
+import com.krince.reminisce.application.port.out.auth.AccessTokenBlacklistPort
 import com.krince.reminisce.shared.response.ExceptionResponseCode.*
 import io.jsonwebtoken.ExpiredJwtException
 import jakarta.servlet.FilterChain
@@ -15,6 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter
 class JwtAuthFilter(
     private val jwtProvider: JwtProvider,
     private val userDetailsService: CustomUserDetailsService,
+    private val accessTokenBlacklistPort: AccessTokenBlacklistPort,
 ) : OncePerRequestFilter() {
 
     companion object {
@@ -57,11 +59,25 @@ class JwtAuthFilter(
             return
         }
 
-        val id: String = jwtProvider.getId(token)
-        val userDetails: UserDetails = userDetailsService.loadUserById(id)
-        val usernamePasswordAuthenticationToken =
-            UsernamePasswordAuthenticationToken(userDetails, null, userDetails.authorities)
-        SecurityContextHolder.getContext().authentication = usernamePasswordAuthenticationToken
+        try {
+            val tokenId: String? = jwtProvider.getTokenId(token)
+
+            if (tokenId != null && accessTokenBlacklistPort.isBlacklisted(tokenId)) {
+                request.setAttribute(ATTRIBUTE_KEY, LOGGED_OUT_TOKEN.message)
+                filterChain.doFilter(request, response)
+                return
+            }
+
+            val id: String = jwtProvider.getId(token)
+            val userDetails: UserDetails = userDetailsService.loadUserById(id)
+            val usernamePasswordAuthenticationToken =
+                UsernamePasswordAuthenticationToken(userDetails, null, userDetails.authorities)
+            SecurityContextHolder.getContext().authentication = usernamePasswordAuthenticationToken
+        } catch (_: ExpiredJwtException) {
+            request.setAttribute(ATTRIBUTE_KEY, EXPIRED_TOKEN.message)
+            filterChain.doFilter(request, response)
+            return
+        }
 
         filterChain.doFilter(request, response)
     }
