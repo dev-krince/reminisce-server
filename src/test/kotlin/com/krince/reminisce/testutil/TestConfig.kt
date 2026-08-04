@@ -1,9 +1,11 @@
 package com.krince.reminisce.testutil
 
 import com.krince.reminisce.application.port.out.auth.PasswordEncoderPort
+import com.krince.reminisce.infra.adapter.out.persistence.child.ChildRepository
 import com.krince.reminisce.infra.adapter.out.persistence.user.UserRepository
 import com.krince.reminisce.infra.security.JwtProvider
 import com.krince.reminisce.testutil.fixture.TestAuthUserFixture
+import com.krince.reminisce.testutil.fixture.TestChildFixture
 import com.krince.reminisce.testutil.fixture.TestJwtTokenFixture
 import com.krince.reminisce.testutil.fixture.TestUserFixture
 import org.springframework.boot.test.context.TestConfiguration
@@ -15,6 +17,10 @@ class TestConfig {
     @Bean
     fun testUserFixture(userRepository: UserRepository): TestUserFixture =
         TestUserFixture(userRepository = userRepository)
+
+    @Bean
+    fun testChildFixture(childRepository: ChildRepository): TestChildFixture =
+        TestChildFixture(childRepository = childRepository)
 
     @Bean
     fun testAuthUserFixture(
