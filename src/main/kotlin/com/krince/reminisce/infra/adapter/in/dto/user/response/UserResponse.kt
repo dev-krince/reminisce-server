@@ -10,8 +10,8 @@ class UserResponse(
     @field:Schema(description = "회원 고유 식별자", example = "e443e5c3-0243-4d28-ba79-37cf3b923023", required = true)
     val id: String,
 
-    @field:Schema(description = "이메일", example = "user@example.com", required = true)
-    val email: String,
+    @field:Schema(description = "이메일 (소셜 계정은 이메일이 없을 수 있음)", example = "user@example.com", required = false)
+    val email: String?,
 
     @field:Schema(description = "닉네임", example = "홍길동", required = true)
     val nickname: String,

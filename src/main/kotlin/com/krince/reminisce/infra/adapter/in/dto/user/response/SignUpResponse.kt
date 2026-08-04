@@ -20,7 +20,7 @@ class SignUpResponse(
 
 fun signUpResponse(userResult: UserResult): SignUpResponse = SignUpResponse(
     id = userResult.userId,
-    email = userResult.email,
+    email = requireNotNull(userResult.email),
     nickname = userResult.nickname,
     role = userResult.role,
 )

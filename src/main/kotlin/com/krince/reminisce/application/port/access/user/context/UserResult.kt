@@ -5,7 +5,7 @@ import java.time.LocalDateTime
 
 class UserResult(
     val userId: String,
-    val email: String,
+    val email: String?,
     val nickname: String,
     val role: String,
     val createdDate: LocalDateTime,
@@ -14,7 +14,7 @@ class UserResult(
     companion object {
         fun from(user: User): UserResult = UserResult(
             userId = user.userId.value,
-            email = requireNotNull(user.email).value,
+            email = user.email?.value,
             nickname = user.nickname.value,
             role = user.role.value,
             createdDate = requireNotNull(user.createdDate),

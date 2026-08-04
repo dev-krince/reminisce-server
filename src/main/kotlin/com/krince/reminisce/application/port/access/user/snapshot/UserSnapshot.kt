@@ -6,7 +6,7 @@ import java.time.LocalDateTime
 
 class UserSnapshot(
     val userId: UserId,
-    val email: String,
+    val email: String?,
     val nickname: String,
     val role: String,
     val createdDate: LocalDateTime,
@@ -15,7 +15,7 @@ class UserSnapshot(
     companion object {
         fun from(user: User): UserSnapshot = UserSnapshot(
             userId = user.userId,
-            email = requireNotNull(user.email).value,
+            email = user.email?.value,
             nickname = user.nickname.value,
             role = user.role.value,
             createdDate = requireNotNull(user.createdDate),
