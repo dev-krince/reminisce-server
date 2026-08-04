@@ -8,4 +8,7 @@ class RegisterChildRequest(
     @field:Schema(description = "아이 애칭", example = "토토", required = true)
     @field:NotBlank(message = "애칭은 비어있을 수 없습니다.")
     val nickname: String,
+
+    @field:Schema(description = "출생연도", example = "2019", required = true)
+    val birthYear: Int,
 )

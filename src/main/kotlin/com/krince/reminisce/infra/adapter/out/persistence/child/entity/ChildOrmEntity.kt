@@ -33,6 +33,10 @@ class ChildOrmEntity(
     @Column(nullable = false)
     @Comment("아이 애칭")
     val nickname: String,
+
+    @Column(name = "birth_year", nullable = false)
+    @Comment("출생연도")
+    val birthYear: Short,
 ) {
     @Column(name = "created_date", nullable = false, updatable = false)
     @CreatedDate

@@ -11,6 +11,7 @@ import com.krince.reminisce.application.port.out.child.CommandChildPort
 import com.krince.reminisce.application.port.out.child.LoadChildPort
 import com.krince.reminisce.application.validator.child.RegisterChildValidator
 import com.krince.reminisce.domain.model.child.Child
+import com.krince.reminisce.domain.model.child.vo.BirthYear
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.child.vo.ChildNickname
 import com.krince.reminisce.domain.model.user.vo.UserId
@@ -20,6 +21,8 @@ import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND_CHIL
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
+import java.time.Year
 
 @Service
 @EnableConfigurationProperties(ChildPolicyProperties::class)
@@ -27,6 +30,7 @@ class ChildApplicationService(
     private val loadChildPort: LoadChildPort,
     private val commandChildPort: CommandChildPort,
     private val childPolicyProperties: ChildPolicyProperties,
+    private val clock: Clock,
 ) : RegisterChildUseCase, GetChildrenUseCase, GetChildUseCase {
 
     @Transactional
@@ -35,7 +39,10 @@ class ChildApplicationService(
         val currentCount: Long = loadChildPort.countByGuardianId(guardianId)
         RegisterChildValidator.validateWithinLimit(currentCount, childPolicyProperties.maxPerGuardian)
 
-        val child: Child = Child.register(guardianId, ChildNickname(command.nickname))
+        val birthYear = BirthYear(command.birthYear)
+        RegisterChildValidator.validateBirthYearNotInFuture(command.birthYear, Year.now(clock).value)
+
+        val child: Child = Child.register(guardianId, ChildNickname(command.nickname), birthYear)
         val savedChild: Child = commandChildPort.save(child)
 
         return ChildResult.from(savedChild)

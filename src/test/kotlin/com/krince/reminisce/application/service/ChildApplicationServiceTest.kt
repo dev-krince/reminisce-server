@@ -6,13 +6,16 @@ import com.krince.reminisce.application.port.`in`.child.command.RegisterChildCom
 import com.krince.reminisce.application.port.out.child.CommandChildPort
 import com.krince.reminisce.application.port.out.child.LoadChildPort
 import com.krince.reminisce.domain.model.child.Child
+import com.krince.reminisce.domain.model.child.vo.BirthYear
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.child.vo.ChildNickname
 import com.krince.reminisce.domain.model.user.vo.UserId
 import com.krince.reminisce.infra.config.properties.ChildPolicyProperties
+import com.krince.reminisce.shared.exception.BadRequestException
 import com.krince.reminisce.shared.exception.BusinessRuleViolationException
 import com.krince.reminisce.shared.exception.NotFoundException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.CHILD_LIMIT_EXCEEDED
+import com.krince.reminisce.shared.response.ExceptionResponseCode.INVALID_BIRTH_YEAR
 import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND_CHILD
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.annotation.DisplayName
@@ -25,7 +28,10 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import java.time.Clock
+import java.time.Instant
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 @Tags("test", "unitTest")
 @DisplayName("ChildApplicationService 단위테스트")
@@ -35,10 +41,14 @@ class ChildApplicationServiceTest : FunSpec({
     val commandChildPort = mockk<CommandChildPort>()
     val maxPerGuardian = 3
     val childPolicyProperties = ChildPolicyProperties(maxPerGuardian = maxPerGuardian)
+    val fixedYear = 2026
+    val fixedInstant = Instant.parse("2026-06-01T00:00:00Z")
+    val fixedClock = Clock.fixed(fixedInstant, ZoneOffset.UTC)
     val service = ChildApplicationService(
         loadChildPort = loadChildPort,
         commandChildPort = commandChildPort,
         childPolicyProperties = childPolicyProperties,
+        clock = fixedClock,
     )
 
     beforeEach { clearAllMocks() }
@@ -47,11 +57,13 @@ class ChildApplicationServiceTest : FunSpec({
     val guardianId = UserId(guardianIdStr)
     val otherGuardianId = UserId("guardian-uuid-2")
     val now = LocalDateTime.now()
+    val birthYearValue = 2019
 
     fun child(childIdStr: String, ownerId: UserId, nickname: String): Child = Child(
         childId = ChildId(childIdStr),
         guardianId = ownerId,
         nickname = ChildNickname(nickname),
+        birthYear = BirthYear(birthYearValue),
         createdDate = now,
         modifiedDate = now,
     )
@@ -65,10 +77,12 @@ class ChildApplicationServiceTest : FunSpec({
                     child(savedSlot.captured.childId.value, savedSlot.captured.guardianId, "토토")
                 }
 
-                val result = service.execute(RegisterChildCommand(guardianIdStr, "토토"))
+                val result = service.execute(RegisterChildCommand(guardianIdStr, "토토", birthYearValue))
 
                 result.nickname shouldBe "토토"
+                result.birthYear shouldBe birthYearValue
                 savedSlot.captured.guardianId shouldBe guardianId
+                savedSlot.captured.birthYear shouldBe BirthYear(birthYearValue)
                 verify(exactly = 1) { commandChildPort.save(any()) }
             }
         }
@@ -77,10 +91,21 @@ class ChildApplicationServiceTest : FunSpec({
                 every { loadChildPort.countByGuardianId(guardianId) } returns maxPerGuardian.toLong()
 
                 val exception = shouldThrow<BusinessRuleViolationException> {
-                    service.execute(RegisterChildCommand(guardianIdStr, "토토"))
+                    service.execute(RegisterChildCommand(guardianIdStr, "토토", birthYearValue))
                 }
 
                 exception.exceptionResponseCode shouldBe CHILD_LIMIT_EXCEEDED
+                verify(exactly = 0) { commandChildPort.save(any()) }
+            }
+
+            test("미래연도로 등록하면 INVALID_BIRTH_YEAR를 던지고 저장하지 않는다") {
+                every { loadChildPort.countByGuardianId(guardianId) } returns 0
+
+                val exception = shouldThrow<BadRequestException> {
+                    service.execute(RegisterChildCommand(guardianIdStr, "토토", fixedYear + 1))
+                }
+
+                exception.exceptionResponseCode shouldBe INVALID_BIRTH_YEAR
                 verify(exactly = 0) { commandChildPort.save(any()) }
             }
         }

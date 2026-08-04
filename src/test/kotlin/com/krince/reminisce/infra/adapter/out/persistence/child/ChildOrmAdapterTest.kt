@@ -1,6 +1,7 @@
 package com.krince.reminisce.infra.adapter.out.persistence.child
 
 import com.krince.reminisce.domain.model.child.Child
+import com.krince.reminisce.domain.model.child.vo.BirthYear
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.child.vo.ChildNickname
 import com.krince.reminisce.domain.model.user.vo.UserId
@@ -27,8 +28,10 @@ class ChildOrmAdapterTest : FunSpec({
 
     val childIdStr = "child-uuid-1"
     val guardianIdStr = "guardian-uuid-1"
+    val birthYearValue = 2019
 
-    fun ormEntity(): ChildOrmEntity = ChildOrmEntity(childIdStr, guardianIdStr, "토토")
+    fun ormEntity(): ChildOrmEntity =
+        ChildOrmEntity(childIdStr, guardianIdStr, "토토", birthYearValue.toShort())
 
     context("findById") {
         context("성공") {
@@ -42,6 +45,7 @@ class ChildOrmAdapterTest : FunSpec({
                 result.childId.value shouldBe childIdStr
                 result.guardianId.value shouldBe guardianIdStr
                 result.nickname.value shouldBe "토토"
+                result.birthYear.value shouldBe birthYearValue
                 verify(exactly = 1) { repository.findById(childIdStr) }
             }
         }
@@ -97,13 +101,16 @@ class ChildOrmAdapterTest : FunSpec({
                     childId = ChildId(childIdStr),
                     guardianId = UserId(guardianIdStr),
                     nickname = ChildNickname("토토"),
+                    birthYear = BirthYear(birthYearValue),
                 )
 
                 val result = adapter.save(child)
 
                 result.childId.value shouldBe childIdStr
                 result.guardianId.value shouldBe guardianIdStr
+                result.birthYear.value shouldBe birthYearValue
                 entitySlot.captured.guardianId shouldBe guardianIdStr
+                entitySlot.captured.birthYear shouldBe birthYearValue.toShort()
                 verify(exactly = 1) { repository.saveAndFlush(any()) }
             }
         }

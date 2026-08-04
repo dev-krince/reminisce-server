@@ -40,7 +40,11 @@ class ChildControllerImpl(
         @Valid @RequestBody request: RegisterChildRequest,
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<ChildResponse>> {
-        val command = RegisterChildCommand(guardianId = userDetails.getId(), nickname = request.nickname)
+        val command = RegisterChildCommand(
+            guardianId = userDetails.getId(),
+            nickname = request.nickname,
+            birthYear = request.birthYear,
+        )
         val result: ChildResult = registerChildUseCase.execute(command)
         val response: ChildResponse = childResponse(childResult = result)
         val responseBody: SuccessResponse<ChildResponse> = successResponse(responseCode = CREATED, data = response)

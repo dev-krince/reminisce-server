@@ -52,8 +52,15 @@ class ChildControllerImplTest(
             role = "ROLE_USER",
         )
 
-    fun childEntity(childId: String, guardianId: String, nickname: String): ChildOrmEntity =
-        ChildOrmEntity(childId = childId, guardianId = guardianId, nickname = nickname)
+    val defaultBirthYear: Short = 2019
+
+    fun childEntity(
+        childId: String,
+        guardianId: String,
+        nickname: String,
+        birthYear: Short = defaultBirthYear,
+    ): ChildOrmEntity =
+        ChildOrmEntity(childId = childId, guardianId = guardianId, nickname = nickname, birthYear = birthYear)
 
     fun uniqueSuffix(): String = "${System.currentTimeMillis()}-${System.nanoTime()}"
 
@@ -78,7 +85,7 @@ class ChildControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("nickname" to "토토"))
+                    .body(mapOf("nickname" to "토토", "birthYear" to 2019))
                     .`when`()
                     .post("/children")
                     .then()
@@ -88,19 +95,22 @@ class ChildControllerImplTest(
                     .body("message", equalTo(SuccessResponseCode.CREATED.message))
                     .body("data", hasKey("childId"))
                     .body("data", hasKey("nickname"))
+                    .body("data", hasKey("birthYear"))
                     .body("data", hasKey("createdDate"))
                     .body("data.nickname", equalTo("토토"))
+                    .body("data.birthYear", equalTo(2019))
 
                 val stored = testChildFixture.findAllByGuardianId(guardianId)
                 stored.size shouldBe 1
                 stored.first().guardianId shouldBe guardianId
+                stored.first().birthYear shouldBe 2019.toShort()
             }
         }
         context("예외케이스") {
             test("토큰이 없으면 401과 EMPTY_TOKEN을 반환한다") {
                 RestAssured.given()
                     .contentType(ContentType.JSON)
-                    .body(mapOf("nickname" to "토토"))
+                    .body(mapOf("nickname" to "토토", "birthYear" to 2019))
                     .`when`()
                     .post("/children")
                     .then()
@@ -122,7 +132,7 @@ class ChildControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("nickname" to "코코"))
+                    .body(mapOf("nickname" to "코코", "birthYear" to 2019))
                     .`when`()
                     .post("/children")
                     .then()
@@ -131,6 +141,66 @@ class ChildControllerImplTest(
                     .body("code", equalTo(422))
                     .body("detailCode", equalTo(ExceptionResponseCode.CHILD_LIMIT_EXCEEDED.detailCode))
                     .body("message", equalTo("등록 가능한 아이 수를 초과했습니다."))
+            }
+
+            test("미래연도로 등록하면 400과 INVALID_BIRTH_YEAR를 반환한다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+                val futureYear = java.time.Year.now().value + 1
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("nickname" to "토토", "birthYear" to futureYear))
+                    .`when`()
+                    .post("/children")
+                    .then()
+                    .statusCode(400)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(400))
+                    .body("detailCode", equalTo(ExceptionResponseCode.INVALID_BIRTH_YEAR.detailCode))
+
+                testChildFixture.findAllByGuardianId(guardianId).size shouldBe 0
+            }
+
+            test("구조를 위반한 출생연도로 등록하면 400과 INVALID_BIRTH_YEAR를 반환한다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("nickname" to "토토", "birthYear" to 1800))
+                    .`when`()
+                    .post("/children")
+                    .then()
+                    .statusCode(400)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(400))
+                    .body("detailCode", equalTo(ExceptionResponseCode.INVALID_BIRTH_YEAR.detailCode))
+
+                testChildFixture.findAllByGuardianId(guardianId).size shouldBe 0
+            }
+
+            test("출생연도가 누락되면 400을 반환한다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("nickname" to "토토"))
+                    .`when`()
+                    .post("/children")
+                    .then()
+                    .statusCode(400)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(400))
+
+                testChildFixture.findAllByGuardianId(guardianId).size shouldBe 0
             }
         }
     }
@@ -159,6 +229,7 @@ class ChildControllerImplTest(
                     .body("message", equalTo(SuccessResponseCode.OK.message))
                     .body("data", hasSize<Any>(2))
                     .body("data.childId", containsInAnyOrder("mine-1-$guardianId", "mine-2-$guardianId"))
+                    .body("data.birthYear", containsInAnyOrder(2019, 2019))
             }
         }
     }
@@ -182,6 +253,7 @@ class ChildControllerImplTest(
                     .body("success", equalTo(true))
                     .body("data.childId", equalTo(childId))
                     .body("data.nickname", equalTo("토토"))
+                    .body("data.birthYear", equalTo(2019))
             }
         }
         context("예외케이스") {

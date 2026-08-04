@@ -1,6 +1,7 @@
 package com.krince.reminisce.infra.adapter.out.persistence.child.mapper
 
 import com.krince.reminisce.domain.model.child.Child
+import com.krince.reminisce.domain.model.child.vo.BirthYear
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.child.vo.ChildNickname
 import com.krince.reminisce.domain.model.user.vo.UserId
@@ -11,6 +12,7 @@ object ChildMapper {
         childId = ChildId(ormEntity.childId),
         guardianId = UserId(ormEntity.guardianId),
         nickname = ChildNickname(ormEntity.nickname),
+        birthYear = BirthYear(ormEntity.birthYear.toInt()),
         createdDate = ormEntity.createdDate,
         modifiedDate = ormEntity.modifiedDate,
     )
@@ -19,6 +21,7 @@ object ChildMapper {
         childId = domain.childId.value,
         guardianId = domain.guardianId.value,
         nickname = domain.nickname.value,
+        birthYear = domain.birthYear.value.toShort(),
     ).apply {
         createdDate = domain.createdDate
         modifiedDate = domain.modifiedDate

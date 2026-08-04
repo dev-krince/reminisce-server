@@ -13,6 +13,9 @@ class ChildResponse(
     @field:Schema(description = "아이 애칭", example = "토토", required = true)
     val nickname: String,
 
+    @field:Schema(description = "출생연도", example = "2019", required = true)
+    val birthYear: Int,
+
     @field:JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     @field:Schema(description = "생성일시", example = "2026-01-09 14:30:25", required = true)
     val createdDate: LocalDateTime,
@@ -21,5 +24,6 @@ class ChildResponse(
 fun childResponse(childResult: ChildResult): ChildResponse = ChildResponse(
     childId = childResult.childId,
     nickname = childResult.nickname,
+    birthYear = childResult.birthYear,
     createdDate = childResult.createdDate,
 )
