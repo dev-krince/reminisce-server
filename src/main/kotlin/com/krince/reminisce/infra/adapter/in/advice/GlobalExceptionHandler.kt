@@ -23,6 +23,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
+import org.springframework.web.servlet.resource.NoResourceFoundException
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
@@ -269,6 +270,20 @@ class GlobalExceptionHandler {
         val exceptionResponse = ExceptionResponse(
             responseCode = exceptionResponseCode,
             message = message,
+            requestId = MDC.get(REQUEST_ID_VALUE)
+        )
+
+        return ResponseEntity.status(exceptionResponse.code).body(exceptionResponse)
+    }
+
+    @ExceptionHandler(NoResourceFoundException::class)
+    fun handleNoResourceFoundException(exception: NoResourceFoundException): ResponseEntity<ExceptionResponse> {
+        printExceptionInfo(exception)
+
+        val exceptionResponseCode = NOT_FOUND
+        val exceptionResponse = ExceptionResponse(
+            responseCode = exceptionResponseCode,
+            message = exceptionResponseCode.message,
             requestId = MDC.get(REQUEST_ID_VALUE)
         )
 
