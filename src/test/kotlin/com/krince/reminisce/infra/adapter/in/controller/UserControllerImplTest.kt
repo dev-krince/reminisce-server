@@ -9,11 +9,13 @@ import com.krince.reminisce.testutil.fixture.TestUserFixture
 import io.kotest.common.ExperimentalKotest
 import io.kotest.core.annotation.DisplayName
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.string.shouldNotContain
 import io.restassured.RestAssured
 import io.restassured.http.ContentType
 import io.restassured.parsing.Parser
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasKey
+import org.hamcrest.Matchers.nullValue
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT
 import org.springframework.boot.test.web.server.LocalServerPort
@@ -32,7 +34,7 @@ class UserControllerImplTest(
     private val testJwtTokenFixture: TestJwtTokenFixture,
 ) : FunSpec({
 
-    fun userEntity(userId: String, email: String): UserOrmEntity =
+    fun localUserEntity(userId: String, email: String): UserOrmEntity =
         UserOrmEntity(
             userId = userId,
             email = email,
@@ -41,6 +43,19 @@ class UserControllerImplTest(
             provider = "LOCAL",
             role = "ROLE_USER",
         )
+
+    fun kakaoUserEntity(userId: String, providerId: String): UserOrmEntity =
+        UserOrmEntity(
+            userId = userId,
+            email = null,
+            password = null,
+            nickname = "카카오",
+            provider = "KAKAO",
+            role = "ROLE_USER",
+            providerId = providerId,
+        )
+
+    fun uniqueSuffix(): String = "${System.currentTimeMillis()}-${System.nanoTime()}"
 
     beforeSpec {
         RestAssured.port = port
@@ -54,17 +69,17 @@ class UserControllerImplTest(
 
     context("getUser") {
         context("성공") {
-            test("유효한 토큰으로 회원을 조회하면 200과 회원 정보를 반환한다") {
-                val userId = "user-${System.currentTimeMillis()}-${Thread.currentThread().id}"
-                val email = "user${System.currentTimeMillis()}@example.com"
-                val savedUser = testUserFixture.saveUser(userEntity(userId, email))
+            test("유효한 토큰으로 /me를 조회하면 200과 본인 정보를 반환한다") {
+                val userId = "user-${uniqueSuffix()}"
+                val email = "user${uniqueSuffix()}@example.com"
+                val savedUser = testUserFixture.saveUser(localUserEntity(userId, email))
                 val token = testJwtTokenFixture.generateAccessToken(savedUser.userId, savedUser.role)
 
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
                     .`when`()
-                    .get("/users/${savedUser.userId}")
+                    .get("/users/me")
                     .then()
                     .statusCode(200)
                     .body("success", equalTo(true))
@@ -81,16 +96,36 @@ class UserControllerImplTest(
                     .body("data.nickname", equalTo("홍길동"))
                     .body("data.role", equalTo("ROLE_USER"))
             }
+
+            test("email이 null인 카카오 계정 토큰으로 /me를 조회하면 200과 email null을 반환한다") {
+                val userId = "kakao-${uniqueSuffix()}"
+                val savedUser = testUserFixture.saveUser(kakaoUserEntity(userId, "kakao-${uniqueSuffix()}"))
+                val token = testJwtTokenFixture.generateAccessToken(savedUser.userId, savedUser.role)
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/users/me")
+                    .then()
+                    .statusCode(200)
+                    .body("success", equalTo(true))
+                    .body("code", equalTo(200))
+                    .body("data.id", equalTo(userId))
+                    .body("data.email", nullValue())
+                    .body("data.nickname", equalTo("카카오"))
+                    .body("data.role", equalTo("ROLE_USER"))
+            }
         }
         context("예외케이스") {
             test("토큰이 없으면 401과 EMPTY_TOKEN을 반환한다") {
-                val userId = "user-${System.currentTimeMillis()}"
-                testUserFixture.saveUser(userEntity(userId, "empty$userId@example.com"))
+                val userId = "user-${uniqueSuffix()}"
+                testUserFixture.saveUser(localUserEntity(userId, "empty$userId@example.com"))
 
                 RestAssured.given()
                     .contentType(ContentType.JSON)
                     .`when`()
-                    .get("/users/$userId")
+                    .get("/users/me")
                     .then()
                     .statusCode(401)
                     .body("success", equalTo(false))
@@ -98,39 +133,43 @@ class UserControllerImplTest(
                     .body("detailCode", equalTo(ExceptionResponseCode.EMPTY_TOKEN.detailCode))
                     .body("message", equalTo("토큰이 없습니다."))
             }
-            test("유효하지 않은 토큰이면 401과 INVALID_TOKEN을 반환한다") {
-                val userId = "user-${System.currentTimeMillis()}"
-                testUserFixture.saveUser(userEntity(userId, "invalid$userId@example.com"))
 
-                RestAssured.given()
-                    .header("Authorization", "Bearer invalid.token.here")
-                    .contentType(ContentType.JSON)
-                    .`when`()
-                    .get("/users/$userId")
-                    .then()
-                    .statusCode(401)
-                    .body("success", equalTo(false))
-                    .body("detailCode", equalTo(ExceptionResponseCode.INVALID_TOKEN.detailCode))
-                    .body("message", equalTo("유효하지 않은 토큰입니다."))
-            }
-            test("존재하지 않는 회원 ID로 조회하면 404와 NOT_FOUND_USER를 반환한다") {
-                val existingUser = testUserFixture.saveUser(
-                    userEntity("auth-user-${System.currentTimeMillis()}", "auth${System.currentTimeMillis()}@example.com")
-                )
-                val token = testJwtTokenFixture.generateAccessToken(existingUser.userId, existingUser.role)
-                val nonExistentUserId = "non-existent-${System.currentTimeMillis()}"
+            test("타인의 userId 경로로 조회하면 매핑이 사라져 404 NOT_FOUND를 반환하고 타인 정보를 노출하지 않는다") {
+                val userId = "user-${uniqueSuffix()}"
+                val savedUser = testUserFixture.saveUser(localUserEntity(userId, "owner${uniqueSuffix()}@example.com"))
+                val token = testJwtTokenFixture.generateAccessToken(savedUser.userId, savedUser.role)
+                val otherUserId = "other-${uniqueSuffix()}"
+                val otherEmail = "other${uniqueSuffix()}@example.com"
+                testUserFixture.saveUser(localUserEntity(otherUserId, otherEmail))
 
-                RestAssured.given()
+                val response = RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
                     .`when`()
-                    .get("/users/$nonExistentUserId")
+                    .get("/users/$otherUserId")
                     .then()
                     .statusCode(404)
                     .body("success", equalTo(false))
                     .body("code", equalTo(404))
-                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND_USER.detailCode))
-                    .body("message", equalTo("회원이 존재하지 않습니다."))
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+                    .extract()
+
+                response.body().asString() shouldNotContain otherEmail
+                response.body().asString() shouldNotContain otherUserId
+            }
+
+            test("유효하지 않은 토큰이면 401과 INVALID_TOKEN을 반환한다") {
+                RestAssured.given()
+                    .header("Authorization", "Bearer invalid.token.value")
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/users/me")
+                    .then()
+                    .statusCode(401)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(401))
+                    .body("detailCode", equalTo(ExceptionResponseCode.INVALID_TOKEN.detailCode))
+                    .body("message", equalTo("유효하지 않은 토큰입니다."))
             }
         }
     }
