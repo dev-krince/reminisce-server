@@ -65,6 +65,10 @@ file:
     path: ${FILE_STORAGE_PATH}
     cache-period: ${FILE_STORAGE_CACHE_PERIOD}
 
+child:
+  policy:
+    max-per-guardian: ${CHILD_MAX_PER_GUARDIAN}
+
 oauth:
   kakao:
     client-id: ${KAKAO_CLIENT_ID}
