@@ -65,6 +65,10 @@ file:
     path: ${FILE_STORAGE_PATH}
     cache-period: ${FILE_STORAGE_CACHE_PERIOD}
 
+child:
+  policy:
+    max-per-guardian: ${CHILD_MAX_PER_GUARDIAN}
+
 LOG_HOST: ${LOG_HOST}
 LOG_INDEX_ID: ${LOG_INDEX_ID}
 NODE_ID: ${NODE_ID}
