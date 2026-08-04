@@ -201,7 +201,7 @@ class AuthTokenControllerImplTest(
             RestAssured.given()
                 .header("Authorization", access)
                 .`when`()
-                .get("/users/$userId")
+                .get("/users/me")
                 .then()
                 .statusCode(200)
 
@@ -223,7 +223,7 @@ class AuthTokenControllerImplTest(
             RestAssured.given()
                 .header("Authorization", access)
                 .`when`()
-                .get("/users/$userId")
+                .get("/users/me")
                 .then()
                 .statusCode(401)
                 .body("detailCode", equalTo(ExceptionResponseCode.LOGGED_OUT_TOKEN.detailCode))
