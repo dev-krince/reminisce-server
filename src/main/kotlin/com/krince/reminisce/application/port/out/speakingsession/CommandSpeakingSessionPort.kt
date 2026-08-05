@@ -1,0 +1,7 @@
+package com.krince.reminisce.application.port.out.speakingsession
+
+import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
+
+interface CommandSpeakingSessionPort {
+    fun save(session: SpeakingSession): SpeakingSession
+}
