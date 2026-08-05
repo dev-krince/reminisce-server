@@ -7,4 +7,6 @@ interface ChildRepository : JpaRepository<ChildOrmEntity, String> {
     fun findAllByGuardianId(guardianId: String): List<ChildOrmEntity>
 
     fun countByGuardianId(guardianId: String): Long
+
+    fun deleteAllByGuardianId(guardianId: String)
 }

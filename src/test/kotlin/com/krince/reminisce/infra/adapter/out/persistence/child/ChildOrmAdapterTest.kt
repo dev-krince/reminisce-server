@@ -91,6 +91,19 @@ class ChildOrmAdapterTest : FunSpec({
         }
     }
 
+    context("deleteAllByGuardianId") {
+        context("성공") {
+            test("repository의 보호자 기준 삭제에 위임한다") {
+                clearMocks(repository)
+                every { repository.deleteAllByGuardianId(guardianIdStr) } returns Unit
+
+                adapter.deleteAllByGuardianId(UserId(guardianIdStr))
+
+                verify(exactly = 1) { repository.deleteAllByGuardianId(guardianIdStr) }
+            }
+        }
+    }
+
     context("save") {
         context("성공") {
             test("Child 도메인을 엔티티로 저장하고 저장된 값을 도메인으로 되돌린다") {

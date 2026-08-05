@@ -47,4 +47,8 @@ class UserOrmAdapter(
 
         return UserMapper.toDomain(UserAggregateEntity(userOrmEntity = savedEntity))
     }
+
+    override fun delete(userId: UserId) {
+        repository.deleteById(userId.value)
+    }
 }

@@ -7,4 +7,6 @@ interface ChildConsentRepository : JpaRepository<ChildConsentOrmEntity, String> 
     fun existsByChildIdAndWithdrawnAtIsNull(childId: String): Boolean
 
     fun findAllByChildId(childId: String): List<ChildConsentOrmEntity>
+
+    fun deleteAllByChildIdIn(childIds: List<String>)
 }

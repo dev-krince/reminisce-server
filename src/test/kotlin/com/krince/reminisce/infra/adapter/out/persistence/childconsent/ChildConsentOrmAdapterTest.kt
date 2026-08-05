@@ -60,6 +60,19 @@ class ChildConsentOrmAdapterTest : FunSpec({
         }
     }
 
+    context("deleteAllByChildIds") {
+        context("성공") {
+            test("아이 식별자 값 리스트로 repository의 IN 삭제에 위임한다") {
+                clearMocks(repository)
+                every { repository.deleteAllByChildIdIn(listOf("child-1", "child-2")) } returns Unit
+
+                adapter.deleteAllByChildIds(listOf(ChildId("child-1"), ChildId("child-2")))
+
+                verify(exactly = 1) { repository.deleteAllByChildIdIn(listOf("child-1", "child-2")) }
+            }
+        }
+    }
+
     context("existsActiveByChildId") {
         context("성공") {
             test("철회되지 않은 동의 존재 여부 조회에 위임한다") {
