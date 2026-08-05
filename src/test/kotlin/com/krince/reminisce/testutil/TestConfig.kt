@@ -3,12 +3,16 @@ package com.krince.reminisce.testutil
 import com.krince.reminisce.application.port.out.auth.PasswordEncoderPort
 import com.krince.reminisce.infra.adapter.out.persistence.child.ChildRepository
 import com.krince.reminisce.infra.adapter.out.persistence.childconsent.ChildConsentRepository
+import com.krince.reminisce.infra.adapter.out.persistence.story.SceneRepository
+import com.krince.reminisce.infra.adapter.out.persistence.story.StoryRepository
+import com.krince.reminisce.infra.adapter.out.persistence.story.StoryTopicRepository
 import com.krince.reminisce.infra.adapter.out.persistence.user.UserRepository
 import com.krince.reminisce.infra.security.JwtProvider
 import com.krince.reminisce.testutil.fixture.TestAuthUserFixture
 import com.krince.reminisce.testutil.fixture.TestChildConsentFixture
 import com.krince.reminisce.testutil.fixture.TestChildFixture
 import com.krince.reminisce.testutil.fixture.TestJwtTokenFixture
+import com.krince.reminisce.testutil.fixture.TestStoryFixture
 import com.krince.reminisce.testutil.fixture.TestUserFixture
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
@@ -38,4 +42,15 @@ class TestConfig {
     @Bean
     fun testJwtTokenFixture(jwtProvider: JwtProvider): TestJwtTokenFixture =
         TestJwtTokenFixture(jwtProvider = jwtProvider)
+
+    @Bean
+    fun testStoryFixture(
+        storyRepository: StoryRepository,
+        sceneRepository: SceneRepository,
+        storyTopicRepository: StoryTopicRepository,
+    ): TestStoryFixture = TestStoryFixture(
+        storyRepository = storyRepository,
+        sceneRepository = sceneRepository,
+        storyTopicRepository = storyTopicRepository,
+    )
 }
