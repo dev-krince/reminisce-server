@@ -1,4 +1,4 @@
-package com.krince.reminisce.application.service
+package com.krince.reminisce.application.service.user
 
 import com.krince.reminisce.application.facade.user.UserFacade
 import com.krince.reminisce.application.port.out.auth.PasswordEncoderPort

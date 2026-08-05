@@ -1,4 +1,4 @@
-package com.krince.reminisce.application.service
+package com.krince.reminisce.application.service.auth
 
 import com.krince.reminisce.application.port.`in`.auth.command.KakaoLoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.LoginCommand

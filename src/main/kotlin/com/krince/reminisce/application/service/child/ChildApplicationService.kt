@@ -1,4 +1,4 @@
-package com.krince.reminisce.application.service
+package com.krince.reminisce.application.service.child
 
 import com.krince.reminisce.application.port.`in`.child.command.GetChildCommand
 import com.krince.reminisce.application.port.`in`.child.command.GetChildrenCommand
