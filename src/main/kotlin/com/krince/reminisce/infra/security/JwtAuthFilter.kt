@@ -1,6 +1,7 @@
 package com.krince.reminisce.infra.security
 
 import com.krince.reminisce.application.port.out.auth.AccessTokenBlacklistPort
+import com.krince.reminisce.shared.exception.NotFoundException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.*
 import io.jsonwebtoken.ExpiredJwtException
 import jakarta.servlet.FilterChain
@@ -75,6 +76,10 @@ class JwtAuthFilter(
             SecurityContextHolder.getContext().authentication = usernamePasswordAuthenticationToken
         } catch (_: ExpiredJwtException) {
             request.setAttribute(ATTRIBUTE_KEY, EXPIRED_TOKEN.message)
+            filterChain.doFilter(request, response)
+            return
+        } catch (_: NotFoundException) {
+            request.setAttribute(ATTRIBUTE_KEY, INVALID_TOKEN.message)
             filterChain.doFilter(request, response)
             return
         }

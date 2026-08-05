@@ -1,14 +1,22 @@
 package com.krince.reminisce.infra.adapter.`in`.controller
 
+import com.krince.reminisce.infra.adapter.out.persistence.child.entity.ChildOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.childconsent.entity.ChildConsentOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.user.entity.UserOrmEntity
 import com.krince.reminisce.shared.response.ExceptionResponseCode
 import com.krince.reminisce.shared.response.SuccessResponseCode
+import com.krince.reminisce.shared.util.UuidGenerator
 import com.krince.reminisce.testutil.TestConfig
+import com.krince.reminisce.testutil.fixture.TestAuthUserFixture
+import com.krince.reminisce.testutil.fixture.TestChildConsentFixture
+import com.krince.reminisce.testutil.fixture.TestChildFixture
 import com.krince.reminisce.testutil.fixture.TestJwtTokenFixture
 import com.krince.reminisce.testutil.fixture.TestUserFixture
 import io.kotest.common.ExperimentalKotest
 import io.kotest.core.annotation.DisplayName
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldNotContain
 import io.restassured.RestAssured
 import io.restassured.http.ContentType
@@ -20,7 +28,9 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.context.annotation.Import
+import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.test.context.ActiveProfiles
+import java.time.LocalDateTime
 
 @OptIn(ExperimentalKotest::class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
@@ -31,8 +41,14 @@ import org.springframework.test.context.ActiveProfiles
 class UserControllerImplTest(
     @param:LocalServerPort private val port: Int,
     private val testUserFixture: TestUserFixture,
+    private val testAuthUserFixture: TestAuthUserFixture,
+    private val testChildFixture: TestChildFixture,
+    private val testChildConsentFixture: TestChildConsentFixture,
     private val testJwtTokenFixture: TestJwtTokenFixture,
+    private val redisTemplate: StringRedisTemplate,
 ) : FunSpec({
+
+    val rawPassword = "Password1!"
 
     fun localUserEntity(userId: String, email: String): UserOrmEntity =
         UserOrmEntity(
@@ -43,6 +59,35 @@ class UserControllerImplTest(
             provider = "LOCAL",
             role = "ROLE_USER",
         )
+
+    fun childEntity(guardianId: String): ChildOrmEntity =
+        ChildOrmEntity(
+            childId = UuidGenerator.generate(),
+            guardianId = guardianId,
+            nickname = "토토",
+            birthYear = 2019,
+        )
+
+    fun consentEntity(childId: String): ChildConsentOrmEntity =
+        ChildConsentOrmEntity(
+            consentId = UuidGenerator.generate(),
+            childId = childId,
+            consentVersion = "v1.0",
+            verificationMethod = "AUTHENTICATED_PARENT",
+            consentedAt = LocalDateTime.of(2026, 6, 1, 0, 0),
+        )
+
+    fun login(email: String, password: String) =
+        RestAssured.given()
+            .contentType(ContentType.JSON)
+            .body(mapOf("email" to email, "password" to password))
+            .`when`()
+            .post("/auth/tokens")
+            .then()
+            .statusCode(200)
+            .extract()
+
+    fun storedRefresh(userId: String): String? = redisTemplate.opsForValue().get("auth:refresh:$userId")
 
     fun kakaoUserEntity(userId: String, providerId: String): UserOrmEntity =
         UserOrmEntity(
@@ -64,7 +109,10 @@ class UserControllerImplTest(
     }
 
     beforeTest {
+        testChildConsentFixture.deleteAllBatch()
+        testChildFixture.deleteAllBatch()
         testUserFixture.deleteAllBatch()
+        redisTemplate.connectionFactory?.connection?.serverCommands()?.flushAll()
     }
 
     context("getUser") {
@@ -170,6 +218,128 @@ class UserControllerImplTest(
                     .body("code", equalTo(401))
                     .body("detailCode", equalTo(ExceptionResponseCode.INVALID_TOKEN.detailCode))
                     .body("message", equalTo("유효하지 않은 토큰입니다."))
+            }
+        }
+    }
+
+    context("withdraw") {
+        context("성공") {
+            test("아이2·동의2를 가진 보호자가 탈퇴하면 204이고 본인·아이·동의가 사라지며 타 보호자 데이터는 남는다") {
+                val email = "withdraw${uniqueSuffix()}@example.com"
+                val guardianId = testAuthUserFixture.saveLocalUser(email, rawPassword)
+                val firstChild = testChildFixture.saveChild(childEntity(guardianId))
+                val secondChild = testChildFixture.saveChild(childEntity(guardianId))
+                testChildConsentFixture.saveConsent(consentEntity(firstChild.childId))
+                testChildConsentFixture.saveConsent(consentEntity(secondChild.childId))
+
+                val otherEmail = "other${uniqueSuffix()}@example.com"
+                val otherGuardianId = testAuthUserFixture.saveLocalUser(otherEmail, rawPassword)
+                val otherChild = testChildFixture.saveChild(childEntity(otherGuardianId))
+                testChildConsentFixture.saveConsent(consentEntity(otherChild.childId))
+
+                val loggedIn = login(email, rawPassword)
+                val access = loggedIn.header("Authorization")
+                access.shouldNotBeNull()
+                storedRefresh(guardianId).shouldNotBeNull()
+
+                RestAssured.given()
+                    .header("Authorization", access)
+                    .`when`()
+                    .delete("/users/me")
+                    .then()
+                    .statusCode(204)
+
+                testUserFixture.findByEmail(email) shouldBe null
+                testChildFixture.countByGuardianId(guardianId) shouldBe 0L
+                testChildConsentFixture.findAllByChildId(firstChild.childId).size shouldBe 0
+                testChildConsentFixture.findAllByChildId(secondChild.childId).size shouldBe 0
+
+                testUserFixture.findByEmail(otherEmail).shouldNotBeNull()
+                testChildFixture.countByGuardianId(otherGuardianId) shouldBe 1L
+                testChildConsentFixture.findAllByChildId(otherChild.childId).size shouldBe 1
+            }
+
+            test("탈퇴에 쓴 액세스 토큰으로 인증 API 재요청하면 401 LOGGED_OUT_TOKEN이다") {
+                val email = "blacklist${uniqueSuffix()}@example.com"
+                testAuthUserFixture.saveLocalUser(email, rawPassword)
+                val access = login(email, rawPassword).header("Authorization")
+                access.shouldNotBeNull()
+
+                RestAssured.given()
+                    .header("Authorization", access)
+                    .`when`()
+                    .delete("/users/me")
+                    .then()
+                    .statusCode(204)
+
+                RestAssured.given()
+                    .header("Authorization", access)
+                    .`when`()
+                    .get("/users/me")
+                    .then()
+                    .statusCode(401)
+                    .body("detailCode", equalTo(ExceptionResponseCode.LOGGED_OUT_TOKEN.detailCode))
+            }
+
+            test("탈퇴한 유저의 비블랙리스트 액세스 토큰으로 인증 API 요청하면 500이 아니라 401 INVALID_TOKEN이다") {
+                val email = "deleted${uniqueSuffix()}@example.com"
+                val guardianId = testAuthUserFixture.saveLocalUser(email, rawPassword)
+                val access = login(email, rawPassword).header("Authorization")
+                access.shouldNotBeNull()
+                val separateAccess = testJwtTokenFixture.generateAccessToken(guardianId)
+
+                RestAssured.given()
+                    .header("Authorization", access)
+                    .`when`()
+                    .delete("/users/me")
+                    .then()
+                    .statusCode(204)
+
+                RestAssured.given()
+                    .header("Authorization", separateAccess)
+                    .`when`()
+                    .get("/users/me")
+                    .then()
+                    .statusCode(401)
+                    .body("detailCode", equalTo(ExceptionResponseCode.INVALID_TOKEN.detailCode))
+            }
+
+            test("탈퇴하면 Redis 저장 리프레시가 삭제되어 그 리프레시로 재발급하면 거부한다") {
+                val email = "refresh${uniqueSuffix()}@example.com"
+                val guardianId = testAuthUserFixture.saveLocalUser(email, rawPassword)
+                val loggedIn = login(email, rawPassword)
+                val access = loggedIn.header("Authorization")
+                val refresh = loggedIn.header("refreshToken")
+                access.shouldNotBeNull()
+                refresh.shouldNotBeNull()
+
+                RestAssured.given()
+                    .header("Authorization", access)
+                    .`when`()
+                    .delete("/users/me")
+                    .then()
+                    .statusCode(204)
+
+                storedRefresh(guardianId) shouldBe null
+
+                RestAssured.given()
+                    .header("refreshToken", refresh)
+                    .`when`()
+                    .post("/auth/tokens/refresh")
+                    .then()
+                    .statusCode(402)
+                    .body("detailCode", equalTo(ExceptionResponseCode.INVALID_REFRESH_TOKEN.detailCode))
+            }
+        }
+        context("예외케이스") {
+            test("토큰 없이 탈퇴를 요청하면 401 EMPTY_TOKEN이다") {
+                RestAssured.given()
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .delete("/users/me")
+                    .then()
+                    .statusCode(401)
+                    .body("detailCode", equalTo(ExceptionResponseCode.EMPTY_TOKEN.detailCode))
             }
         }
     }

@@ -8,6 +8,8 @@ import org.springframework.stereotype.Component
 class TestChildConsentFixture(
     private val childConsentRepository: ChildConsentRepository,
 ) {
+    fun saveConsent(entity: ChildConsentOrmEntity): ChildConsentOrmEntity = childConsentRepository.save(entity)
+
     fun findAllByChildId(childId: String): List<ChildConsentOrmEntity> =
         childConsentRepository.findAllByChildId(childId)
 

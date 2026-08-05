@@ -5,10 +5,12 @@ import com.krince.reminisce.application.port.`in`.user.command.ConfirmEmailVerif
 import com.krince.reminisce.application.port.`in`.user.command.GetUserCommand
 import com.krince.reminisce.application.port.`in`.user.command.SendEmailVerificationCommand
 import com.krince.reminisce.application.port.`in`.user.command.SignUpCommand
+import com.krince.reminisce.application.port.`in`.user.command.WithdrawGuardianCommand
 import com.krince.reminisce.application.port.`in`.user.usecase.ConfirmEmailVerificationUseCase
 import com.krince.reminisce.application.port.`in`.user.usecase.GetUserUseCase
 import com.krince.reminisce.application.port.`in`.user.usecase.SendEmailVerificationUseCase
 import com.krince.reminisce.application.port.`in`.user.usecase.SignUpUseCase
+import com.krince.reminisce.application.port.`in`.user.usecase.WithdrawGuardianUseCase
 import com.krince.reminisce.infra.adapter.`in`.dto.user.request.ConfirmEmailVerificationRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.user.request.SendEmailVerificationRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.user.request.SignUpRequest
@@ -26,9 +28,11 @@ import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
@@ -40,6 +44,7 @@ class UserControllerImpl(
     private val sendEmailVerificationUseCase: SendEmailVerificationUseCase,
     private val confirmEmailVerificationUseCase: ConfirmEmailVerificationUseCase,
     private val getUserUseCase: GetUserUseCase,
+    private val withdrawGuardianUseCase: WithdrawGuardianUseCase,
 ) : UserController {
 
     @PostMapping
@@ -82,5 +87,16 @@ class UserControllerImpl(
         val responseBody: SuccessResponse<UserResponse> = successResponse(responseCode = OK, data = response)
 
         return ResponseEntity.status(responseBody.code).body(responseBody)
+    }
+
+    @DeleteMapping("/me")
+    override fun withdraw(
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+        @RequestHeader(name = UserController.ACCESS_TOKEN_HEADER_NAME, required = false) accessToken: String?,
+    ): ResponseEntity<Void> {
+        val command = WithdrawGuardianCommand(userId = userDetails.getId(), accessToken = accessToken)
+        withdrawGuardianUseCase.execute(command)
+
+        return ResponseEntity.status(NO_CONTENT.code).build()
     }
 }
