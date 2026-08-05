@@ -1,0 +1,176 @@
+package com.krince.reminisce.application.service.story
+
+import com.krince.reminisce.application.port.`in`.story.command.GetStoriesCommand
+import com.krince.reminisce.application.port.`in`.story.command.GetStoryCommand
+import com.krince.reminisce.application.port.out.story.LoadStoryPort
+import com.krince.reminisce.domain.model.story.Scene
+import com.krince.reminisce.domain.model.story.Story
+import com.krince.reminisce.domain.model.story.vo.Difficulty
+import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
+import com.krince.reminisce.domain.model.story.vo.SceneId
+import com.krince.reminisce.domain.model.story.vo.SceneType
+import com.krince.reminisce.domain.model.story.vo.StoryId
+import com.krince.reminisce.domain.model.story.vo.StoryStatus
+import com.krince.reminisce.domain.model.story.vo.ThinkingElement
+import com.krince.reminisce.shared.exception.NotFoundException
+import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND_STORY
+import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.core.annotation.DisplayName
+import io.kotest.core.annotation.Tags
+import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
+import io.mockk.clearAllMocks
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+
+@Tags("test", "unitTest")
+@DisplayName("StoryQueryService 단위테스트")
+class StoryQueryServiceTest : FunSpec({
+
+    val loadStoryPort = mockk<LoadStoryPort>()
+    val service = StoryQueryService(loadStoryPort)
+
+    beforeEach { clearAllMocks() }
+
+    val storyIdStr = "story-uuid-1"
+    val postActivityConfig = PostActivityConfig(
+        cards = listOf(PostActivityConfig.Card(id = "card_1", text = "카드 내용", correctOrder = 1)),
+        retellingKeywords = listOf("며느리", "방귀"),
+    )
+
+    fun narrationScene(sceneId: String, sceneOrder: Int): Scene = Scene(
+        sceneId = SceneId(sceneId),
+        storyId = StoryId(storyIdStr),
+        sceneOrder = sceneOrder,
+        sceneType = SceneType.NARRATION,
+        sceneDescription = "전개 설명 $sceneOrder",
+    )
+
+    fun dialogueScene(sceneId: String, sceneOrder: Int): Scene = Scene(
+        sceneId = SceneId(sceneId),
+        storyId = StoryId(storyIdStr),
+        sceneOrder = sceneOrder,
+        sceneType = SceneType.DIALOGUE,
+        sceneDescription = "대화 설명 $sceneOrder",
+        characterName = "ch_banggui_daughter_in_law",
+        characterDisplayName = "방귀쟁이 며느리",
+        characterOpening = "고정 첫 대사",
+        characterClosing = "고정 마지막 대사",
+        sceneGoal = "장면 발화 목표",
+        requiredElements = listOf(ThinkingElement.PERSPECTIVE, ThinkingElement.EMOTION),
+        maxTurns = 4,
+    )
+
+    fun story(scenes: List<Scene>): Story = Story(
+        storyId = StoryId(storyIdStr),
+        title = "방귀 뀌는 며느리",
+        summary = "이야기 요약",
+        intro = "이야기 도입",
+        situation = "이야기 상황",
+        childRole = "아이 역할",
+        difficulty = Difficulty("보통"),
+        estimatedMinutes = 20,
+        representativeImageUrl = "/files/story.png",
+        status = StoryStatus.PUBLISHED,
+        postActivityConfig = postActivityConfig,
+        topics = listOf("다름", "자기이해"),
+        scenes = scenes,
+    )
+
+    context("GetStoriesUseCase") {
+        context("성공") {
+            test("topic이 없으면 전체 공개 이야기를 요약 결과로 반환한다") {
+                every { loadStoryPort.findAllPublished() } returns listOf(story(scenes = emptyList()))
+
+                val results = service.execute(GetStoriesCommand(topic = null))
+
+                results shouldHaveSize 1
+                results.first().storyId shouldBe storyIdStr
+                results.first().title shouldBe "방귀 뀌는 며느리"
+                results.first().representativeImageUrl shouldBe "/files/story.png"
+                results.first().estimatedMinutes shouldBe 20
+                results.first().topics shouldContainExactly listOf("다름", "자기이해")
+                verify(exactly = 1) { loadStoryPort.findAllPublished() }
+                verify(exactly = 0) { loadStoryPort.findAllPublishedByTopic(any()) }
+            }
+
+            test("topic이 있으면 주제 필터 조회 결과만 반환한다") {
+                every { loadStoryPort.findAllPublishedByTopic("다름") } returns listOf(story(scenes = emptyList()))
+
+                val results = service.execute(GetStoriesCommand(topic = "다름"))
+
+                results shouldHaveSize 1
+                results.first().storyId shouldBe storyIdStr
+                verify(exactly = 1) { loadStoryPort.findAllPublishedByTopic("다름") }
+                verify(exactly = 0) { loadStoryPort.findAllPublished() }
+            }
+
+            test("공개 이야기가 없으면 빈 목록을 반환한다") {
+                every { loadStoryPort.findAllPublished() } returns emptyList()
+
+                val results = service.execute(GetStoriesCommand(topic = null))
+
+                results shouldHaveSize 0
+            }
+        }
+    }
+
+    context("GetStoryUseCase") {
+        context("성공") {
+            test("이야기 상세를 장면 순서와 타입별 필드 그대로 조립한다") {
+                every { loadStoryPort.findByIdWithScenesPublished(StoryId(storyIdStr)) } returns story(
+                    scenes = listOf(
+                        narrationScene("sc-1", 1),
+                        dialogueScene("sc-2", 2),
+                    ),
+                )
+
+                val result = service.execute(GetStoryCommand(storyId = storyIdStr))
+
+                result.storyId shouldBe storyIdStr
+                result.title shouldBe "방귀 뀌는 며느리"
+                result.intro shouldBe "이야기 도입"
+                result.situation shouldBe "이야기 상황"
+                result.childRole shouldBe "아이 역할"
+                val postActivity = result.postActivity.shouldNotBeNull()
+                postActivity.cards.map { it.id } shouldContainExactly listOf("card_1")
+                postActivity.retellingKeywords shouldContainExactly listOf("며느리", "방귀")
+                result.scenes.map { it.sceneOrder } shouldContainExactly listOf(1, 2)
+
+                val narration = result.scenes[0]
+                narration.sceneType shouldBe SceneType.NARRATION
+                narration.sceneDescription shouldBe "전개 설명 1"
+                narration.characterName shouldBe null
+
+                val dialogue = result.scenes[1]
+                dialogue.sceneType shouldBe SceneType.DIALOGUE
+                dialogue.characterName shouldBe "ch_banggui_daughter_in_law"
+                dialogue.characterDisplayName shouldBe "방귀쟁이 며느리"
+                dialogue.characterOpening shouldBe "고정 첫 대사"
+                dialogue.characterClosing shouldBe "고정 마지막 대사"
+                dialogue.sceneGoal shouldBe "장면 발화 목표"
+                val requiredElements = dialogue.requiredElements.shouldNotBeNull()
+                requiredElements shouldContainExactly listOf(
+                    ThinkingElement.PERSPECTIVE,
+                    ThinkingElement.EMOTION,
+                )
+                dialogue.maxTurns shouldBe 4
+            }
+        }
+        context("실패") {
+            test("공개 이야기가 없으면 NOT_FOUND_STORY로 NotFoundException을 던진다") {
+                every { loadStoryPort.findByIdWithScenesPublished(StoryId("unknown-story")) } returns null
+
+                val exception = shouldThrow<NotFoundException> {
+                    service.execute(GetStoryCommand(storyId = "unknown-story"))
+                }
+
+                exception.exceptionResponseCode shouldBe NOT_FOUND_STORY
+            }
+        }
+    }
+})

@@ -37,6 +37,7 @@ enum class ExceptionResponseCode(
     NOT_FOUND(false, 404, "NF-000", "Not Found", "리소스가 존재하지 않습니다."),
     NOT_FOUND_USER(false, 404, "NF-001", "Not Found User", "회원이 존재하지 않습니다."),
     NOT_FOUND_CHILD(false, 404, "NF-002", "Not Found Child", "아이가 존재하지 않습니다."),
+    NOT_FOUND_STORY(false, 404, "NF-003", "Not Found Story", "이야기가 존재하지 않습니다."),
     CONFLICT(false, 409, "CF-000", "Conflict", "현재 리소스 상태와 충돌하여 처리할 수 없습니다."),
     DUPLICATE_EMAIL(false, 409, "CF-001", "Duplicate Email", "이미 사용 중인 이메일입니다."),
     BUSINESS_RULE_VIOLATION(false, 422, "BRV-000", "Business Rule Violation", "도메인 정책에 의해 실행할 수 없습니다."),
