@@ -9,11 +9,14 @@ import com.krince.reminisce.application.port.`in`.child.usecase.GetChildrenUseCa
 import com.krince.reminisce.application.port.`in`.child.usecase.RegisterChildUseCase
 import com.krince.reminisce.application.port.out.child.CommandChildPort
 import com.krince.reminisce.application.port.out.child.LoadChildPort
+import com.krince.reminisce.application.port.out.childconsent.CommandChildConsentPort
 import com.krince.reminisce.application.validator.child.RegisterChildValidator
 import com.krince.reminisce.domain.model.child.Child
 import com.krince.reminisce.domain.model.child.vo.BirthYear
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.child.vo.ChildNickname
+import com.krince.reminisce.domain.model.childconsent.ChildConsent
+import com.krince.reminisce.domain.model.childconsent.vo.ConsentVersion
 import com.krince.reminisce.domain.model.user.vo.UserId
 import com.krince.reminisce.infra.config.properties.ChildPolicyProperties
 import com.krince.reminisce.shared.exception.NotFoundException
@@ -22,6 +25,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
+import java.time.LocalDateTime
 import java.time.Year
 
 @Service
@@ -29,6 +33,7 @@ import java.time.Year
 class ChildApplicationService(
     private val loadChildPort: LoadChildPort,
     private val commandChildPort: CommandChildPort,
+    private val commandChildConsentPort: CommandChildConsentPort,
     private val childPolicyProperties: ChildPolicyProperties,
     private val clock: Clock,
 ) : RegisterChildUseCase, GetChildrenUseCase, GetChildUseCase {
@@ -44,6 +49,13 @@ class ChildApplicationService(
 
         val child: Child = Child.register(guardianId, ChildNickname(command.nickname), birthYear)
         val savedChild: Child = commandChildPort.save(child)
+
+        val consent: ChildConsent = ChildConsent.givenByAuthenticatedParent(
+            childId = savedChild.childId,
+            consentVersion = ConsentVersion(command.consentVersion),
+            consentedAt = LocalDateTime.now(clock),
+        )
+        commandChildConsentPort.save(consent)
 
         return ChildResult.from(savedChild)
     }

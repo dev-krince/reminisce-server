@@ -11,4 +11,8 @@ class RegisterChildRequest(
 
     @field:Schema(description = "출생연도", example = "2019", required = true)
     val birthYear: Int,
+
+    @field:Schema(description = "동의서 버전", example = "v1.0", required = true)
+    @field:NotBlank(message = "동의서 버전은 비어있을 수 없습니다.")
+    val consentVersion: String,
 )

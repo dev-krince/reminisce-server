@@ -44,6 +44,7 @@ class ChildControllerImpl(
             guardianId = userDetails.getId(),
             nickname = request.nickname,
             birthYear = request.birthYear,
+            consentVersion = request.consentVersion,
         )
         val result: ChildResult = registerChildUseCase.execute(command)
         val response: ChildResponse = childResponse(childResult = result)

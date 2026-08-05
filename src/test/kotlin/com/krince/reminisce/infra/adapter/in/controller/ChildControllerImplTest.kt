@@ -1,17 +1,21 @@
 package com.krince.reminisce.infra.adapter.`in`.controller
 
+import com.krince.reminisce.application.port.access.childconsent.ChildConsentAccessPort
+import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.infra.adapter.out.persistence.child.entity.ChildOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.user.entity.UserOrmEntity
 import com.krince.reminisce.infra.config.properties.ChildPolicyProperties
 import com.krince.reminisce.shared.response.ExceptionResponseCode
 import com.krince.reminisce.shared.response.SuccessResponseCode
 import com.krince.reminisce.testutil.TestConfig
+import com.krince.reminisce.testutil.fixture.TestChildConsentFixture
 import com.krince.reminisce.testutil.fixture.TestChildFixture
 import com.krince.reminisce.testutil.fixture.TestJwtTokenFixture
 import com.krince.reminisce.testutil.fixture.TestUserFixture
 import io.kotest.common.ExperimentalKotest
 import io.kotest.core.annotation.DisplayName
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.restassured.RestAssured
 import io.restassured.http.ContentType
@@ -36,11 +40,14 @@ class ChildControllerImplTest(
     @param:LocalServerPort private val port: Int,
     private val testUserFixture: TestUserFixture,
     private val testChildFixture: TestChildFixture,
+    private val testChildConsentFixture: TestChildConsentFixture,
+    private val childConsentAccessPort: ChildConsentAccessPort,
     private val testJwtTokenFixture: TestJwtTokenFixture,
     private val childPolicyProperties: ChildPolicyProperties,
 ) : FunSpec({
 
     val maxPerGuardian = childPolicyProperties.maxPerGuardian
+    val defaultConsentVersion = "v1.0"
 
     fun userEntity(userId: String): UserOrmEntity =
         UserOrmEntity(
@@ -71,6 +78,7 @@ class ChildControllerImplTest(
     }
 
     beforeTest {
+        testChildConsentFixture.deleteAllBatch()
         testChildFixture.deleteAllBatch()
         testUserFixture.deleteAllBatch()
     }
@@ -85,7 +93,7 @@ class ChildControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("nickname" to "토토", "birthYear" to 2019))
+                    .body(mapOf("nickname" to "토토", "birthYear" to 2019, "consentVersion" to defaultConsentVersion))
                     .`when`()
                     .post("/children")
                     .then()
@@ -104,6 +112,53 @@ class ChildControllerImplTest(
                 stored.size shouldBe 1
                 stored.first().guardianId shouldBe guardianId
                 stored.first().birthYear shouldBe 2019.toShort()
+            }
+
+            test("아이 등록 시 보호자 온라인 동의가 같은 childId로 1건 함께 저장된다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+
+                val childId = RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("nickname" to "토토", "birthYear" to 2019, "consentVersion" to defaultConsentVersion))
+                    .`when`()
+                    .post("/children")
+                    .then()
+                    .statusCode(201)
+                    .extract()
+                    .path<String>("data.childId")
+
+                val consents = testChildConsentFixture.findAllByChildId(childId)
+                consents.size shouldBe 1
+                consents.first().childId shouldBe childId
+                consents.first().verificationMethod shouldBe "AUTHENTICATED_PARENT"
+                consents.first().consentVersion shouldBe defaultConsentVersion
+                consents.first().consentedAt.shouldNotBeNull()
+                consents.first().withdrawnAt shouldBe null
+                childConsentAccessPort.hasActiveConsent(ChildId(childId)) shouldBe true
+            }
+
+            test("동의서 버전이 누락되면 400을 반환하고 아이·동의 모두 저장되지 않는다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("nickname" to "토토", "birthYear" to 2019))
+                    .`when`()
+                    .post("/children")
+                    .then()
+                    .statusCode(400)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(400))
+                    .body("detailCode", equalTo(ExceptionResponseCode.INVALID_DTO_PARAMETER.detailCode))
+
+                testChildFixture.findAllByGuardianId(guardianId).size shouldBe 0
+                testChildConsentFixture.count() shouldBe 0L
             }
         }
         context("예외케이스") {
@@ -132,7 +187,7 @@ class ChildControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("nickname" to "코코", "birthYear" to 2019))
+                    .body(mapOf("nickname" to "코코", "birthYear" to 2019, "consentVersion" to defaultConsentVersion))
                     .`when`()
                     .post("/children")
                     .then()
@@ -152,7 +207,7 @@ class ChildControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("nickname" to "토토", "birthYear" to futureYear))
+                    .body(mapOf("nickname" to "토토", "birthYear" to futureYear, "consentVersion" to defaultConsentVersion))
                     .`when`()
                     .post("/children")
                     .then()
@@ -172,7 +227,7 @@ class ChildControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("nickname" to "토토", "birthYear" to 1800))
+                    .body(mapOf("nickname" to "토토", "birthYear" to 1800, "consentVersion" to defaultConsentVersion))
                     .`when`()
                     .post("/children")
                     .then()

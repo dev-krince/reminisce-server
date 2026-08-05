@@ -5,10 +5,13 @@ import com.krince.reminisce.application.port.`in`.child.command.GetChildrenComma
 import com.krince.reminisce.application.port.`in`.child.command.RegisterChildCommand
 import com.krince.reminisce.application.port.out.child.CommandChildPort
 import com.krince.reminisce.application.port.out.child.LoadChildPort
+import com.krince.reminisce.application.port.out.childconsent.CommandChildConsentPort
 import com.krince.reminisce.domain.model.child.Child
 import com.krince.reminisce.domain.model.child.vo.BirthYear
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.child.vo.ChildNickname
+import com.krince.reminisce.domain.model.childconsent.ChildConsent
+import com.krince.reminisce.domain.model.childconsent.vo.VerificationMethod
 import com.krince.reminisce.domain.model.user.vo.UserId
 import com.krince.reminisce.infra.config.properties.ChildPolicyProperties
 import com.krince.reminisce.shared.exception.BadRequestException
@@ -39,6 +42,7 @@ class ChildApplicationServiceTest : FunSpec({
 
     val loadChildPort = mockk<LoadChildPort>()
     val commandChildPort = mockk<CommandChildPort>()
+    val commandChildConsentPort = mockk<CommandChildConsentPort>()
     val maxPerGuardian = 3
     val childPolicyProperties = ChildPolicyProperties(maxPerGuardian = maxPerGuardian)
     val fixedYear = 2026
@@ -47,6 +51,7 @@ class ChildApplicationServiceTest : FunSpec({
     val service = ChildApplicationService(
         loadChildPort = loadChildPort,
         commandChildPort = commandChildPort,
+        commandChildConsentPort = commandChildConsentPort,
         childPolicyProperties = childPolicyProperties,
         clock = fixedClock,
     )
@@ -58,6 +63,7 @@ class ChildApplicationServiceTest : FunSpec({
     val otherGuardianId = UserId("guardian-uuid-2")
     val now = LocalDateTime.now()
     val birthYearValue = 2019
+    val consentVersionValue = "v1.0"
 
     fun child(childIdStr: String, ownerId: UserId, nickname: String): Child = Child(
         childId = ChildId(childIdStr),
@@ -70,20 +76,30 @@ class ChildApplicationServiceTest : FunSpec({
 
     context("RegisterChildUseCase") {
         context("성공") {
-            test("상한 미만이면 아이를 저장하고 결과를 반환한다") {
+            test("상한 미만이면 아이와 보호자 동의를 함께 저장하고 결과를 반환한다") {
                 every { loadChildPort.countByGuardianId(guardianId) } returns 0
                 val savedSlot = slot<Child>()
                 every { commandChildPort.save(capture(savedSlot)) } answers {
                     child(savedSlot.captured.childId.value, savedSlot.captured.guardianId, "토토")
                 }
+                val consentSlot = slot<ChildConsent>()
+                every { commandChildConsentPort.save(capture(consentSlot)) } answers { consentSlot.captured }
 
-                val result = service.execute(RegisterChildCommand(guardianIdStr, "토토", birthYearValue))
+                val result = service.execute(
+                    RegisterChildCommand(guardianIdStr, "토토", birthYearValue, consentVersionValue),
+                )
 
                 result.nickname shouldBe "토토"
                 result.birthYear shouldBe birthYearValue
                 savedSlot.captured.guardianId shouldBe guardianId
                 savedSlot.captured.birthYear shouldBe BirthYear(birthYearValue)
+                consentSlot.captured.childId shouldBe savedSlot.captured.childId
+                consentSlot.captured.consentVersion.value shouldBe consentVersionValue
+                consentSlot.captured.verificationMethod shouldBe VerificationMethod.AUTHENTICATED_PARENT
+                consentSlot.captured.withdrawnAt shouldBe null
+                consentSlot.captured.consentedAt shouldBe LocalDateTime.now(fixedClock)
                 verify(exactly = 1) { commandChildPort.save(any()) }
+                verify(exactly = 1) { commandChildConsentPort.save(any()) }
             }
         }
         context("실패") {
@@ -91,22 +107,24 @@ class ChildApplicationServiceTest : FunSpec({
                 every { loadChildPort.countByGuardianId(guardianId) } returns maxPerGuardian.toLong()
 
                 val exception = shouldThrow<BusinessRuleViolationException> {
-                    service.execute(RegisterChildCommand(guardianIdStr, "토토", birthYearValue))
+                    service.execute(RegisterChildCommand(guardianIdStr, "토토", birthYearValue, consentVersionValue))
                 }
 
                 exception.exceptionResponseCode shouldBe CHILD_LIMIT_EXCEEDED
                 verify(exactly = 0) { commandChildPort.save(any()) }
+                verify(exactly = 0) { commandChildConsentPort.save(any()) }
             }
 
             test("미래연도로 등록하면 INVALID_BIRTH_YEAR를 던지고 저장하지 않는다") {
                 every { loadChildPort.countByGuardianId(guardianId) } returns 0
 
                 val exception = shouldThrow<BadRequestException> {
-                    service.execute(RegisterChildCommand(guardianIdStr, "토토", fixedYear + 1))
+                    service.execute(RegisterChildCommand(guardianIdStr, "토토", fixedYear + 1, consentVersionValue))
                 }
 
                 exception.exceptionResponseCode shouldBe INVALID_BIRTH_YEAR
                 verify(exactly = 0) { commandChildPort.save(any()) }
+                verify(exactly = 0) { commandChildConsentPort.save(any()) }
             }
         }
     }
