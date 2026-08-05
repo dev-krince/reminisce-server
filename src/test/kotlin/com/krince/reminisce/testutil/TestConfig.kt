@@ -3,6 +3,7 @@ package com.krince.reminisce.testutil
 import com.krince.reminisce.application.port.out.auth.PasswordEncoderPort
 import com.krince.reminisce.infra.adapter.out.persistence.child.ChildRepository
 import com.krince.reminisce.infra.adapter.out.persistence.childconsent.ChildConsentRepository
+import com.krince.reminisce.infra.adapter.out.persistence.speakingsession.SpeakingSessionRepository
 import com.krince.reminisce.infra.adapter.out.persistence.story.SceneRepository
 import com.krince.reminisce.infra.adapter.out.persistence.story.StoryRepository
 import com.krince.reminisce.infra.adapter.out.persistence.story.StoryTopicRepository
@@ -12,6 +13,7 @@ import com.krince.reminisce.testutil.fixture.TestAuthUserFixture
 import com.krince.reminisce.testutil.fixture.TestChildConsentFixture
 import com.krince.reminisce.testutil.fixture.TestChildFixture
 import com.krince.reminisce.testutil.fixture.TestJwtTokenFixture
+import com.krince.reminisce.testutil.fixture.TestSpeakingSessionFixture
 import com.krince.reminisce.testutil.fixture.TestStoryFixture
 import com.krince.reminisce.testutil.fixture.TestUserFixture
 import org.springframework.boot.test.context.TestConfiguration
@@ -52,5 +54,12 @@ class TestConfig {
         storyRepository = storyRepository,
         sceneRepository = sceneRepository,
         storyTopicRepository = storyTopicRepository,
+    )
+
+    @Bean
+    fun testSpeakingSessionFixture(
+        speakingSessionRepository: SpeakingSessionRepository,
+    ): TestSpeakingSessionFixture = TestSpeakingSessionFixture(
+        speakingSessionRepository = speakingSessionRepository,
     )
 }
