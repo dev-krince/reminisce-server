@@ -2,15 +2,14 @@ package com.krince.reminisce.application.service.user
 
 import com.krince.reminisce.application.port.`in`.user.command.WithdrawGuardianCommand
 import com.krince.reminisce.application.port.`in`.user.usecase.WithdrawGuardianUseCase
-import com.krince.reminisce.application.port.out.auth.AccessTokenBlacklistPort
 import com.krince.reminisce.application.port.out.auth.RefreshTokenPort
-import com.krince.reminisce.application.port.out.auth.TokenProviderPort
 import com.krince.reminisce.application.port.out.child.CommandChildPort
 import com.krince.reminisce.application.port.out.child.LoadChildPort
 import com.krince.reminisce.application.port.out.childconsent.CommandChildConsentPort
 import com.krince.reminisce.application.port.out.email.EmailVerificationPort
 import com.krince.reminisce.application.port.out.user.CommandUserPort
 import com.krince.reminisce.application.port.out.user.LoadUserPort
+import com.krince.reminisce.application.service.auth.AccessTokenBlacklister
 import com.krince.reminisce.domain.model.child.Child
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.user.User
@@ -22,7 +21,6 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionSynchronization
 import org.springframework.transaction.support.TransactionSynchronizationManager
-import java.time.Duration
 
 @Service
 class WithdrawGuardianApplicationService(
@@ -33,8 +31,7 @@ class WithdrawGuardianApplicationService(
     private val commandUserPort: CommandUserPort,
     private val refreshTokenPort: RefreshTokenPort,
     private val emailVerificationPort: EmailVerificationPort,
-    private val accessTokenBlacklistPort: AccessTokenBlacklistPort,
-    private val tokenProviderPort: TokenProviderPort,
+    private val accessTokenBlacklister: AccessTokenBlacklister,
 ) : WithdrawGuardianUseCase {
 
     @Transactional
@@ -70,39 +67,9 @@ class WithdrawGuardianApplicationService(
         })
     }
 
-    private fun cleanupSessionState(userId: UserId, email: Email?, accessToken: String?) {
+    internal fun cleanupSessionState(userId: UserId, email: Email?, accessToken: String?) {
         refreshTokenPort.delete(userId.value)
         email?.let { emailVerificationPort.deleteCode(it.value) }
-        blacklistAccessToken(accessToken)
-    }
-
-    private fun blacklistAccessToken(rawAccessToken: String?) {
-        val extractedAccessToken: String = extractAccessToken(rawAccessToken) ?: return
-
-        registerBlacklist(extractedAccessToken)
-    }
-
-    private fun extractAccessToken(rawAccessToken: String?): String? {
-        val provided: String = rawAccessToken?.takeIf { it.isNotBlank() } ?: return null
-
-        return try {
-            tokenProviderPort.extractToken(provided)
-        } catch (_: IllegalArgumentException) {
-            null
-        }
-    }
-
-    private fun registerBlacklist(extractedAccessToken: String) {
-        val remaining: Duration
-        val tokenId: String
-        try {
-            remaining = tokenProviderPort.getRemainingExpiration(extractedAccessToken)
-            if (remaining <= Duration.ZERO) return
-            tokenId = tokenProviderPort.getTokenId(extractedAccessToken) ?: return
-        } catch (_: RuntimeException) {
-            return
-        }
-
-        accessTokenBlacklistPort.register(tokenId, remaining)
+        accessTokenBlacklister.blacklist(accessToken)
     }
 }

@@ -1,15 +1,14 @@
 package com.krince.reminisce.application.service.user
 
 import com.krince.reminisce.application.port.`in`.user.command.WithdrawGuardianCommand
-import com.krince.reminisce.application.port.out.auth.AccessTokenBlacklistPort
 import com.krince.reminisce.application.port.out.auth.RefreshTokenPort
-import com.krince.reminisce.application.port.out.auth.TokenProviderPort
 import com.krince.reminisce.application.port.out.child.CommandChildPort
 import com.krince.reminisce.application.port.out.child.LoadChildPort
 import com.krince.reminisce.application.port.out.childconsent.CommandChildConsentPort
 import com.krince.reminisce.application.port.out.email.EmailVerificationPort
 import com.krince.reminisce.application.port.out.user.CommandUserPort
 import com.krince.reminisce.application.port.out.user.LoadUserPort
+import com.krince.reminisce.application.service.auth.AccessTokenBlacklister
 import com.krince.reminisce.domain.model.child.Child
 import com.krince.reminisce.domain.model.child.vo.BirthYear
 import com.krince.reminisce.domain.model.child.vo.ChildId
@@ -33,7 +32,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import io.mockk.verifyOrder
-import java.time.Duration
 
 @Tags("test", "unitTest")
 @DisplayName("WithdrawGuardianApplicationService 단위테스트")
@@ -46,8 +44,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
     val commandUserPort = mockk<CommandUserPort>()
     val refreshTokenPort = mockk<RefreshTokenPort>()
     val emailVerificationPort = mockk<EmailVerificationPort>()
-    val accessTokenBlacklistPort = mockk<AccessTokenBlacklistPort>()
-    val tokenProviderPort = mockk<TokenProviderPort>()
+    val accessTokenBlacklister = mockk<AccessTokenBlacklister>()
     val service = WithdrawGuardianApplicationService(
         loadUserPort = loadUserPort,
         loadChildPort = loadChildPort,
@@ -56,8 +53,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
         commandUserPort = commandUserPort,
         refreshTokenPort = refreshTokenPort,
         emailVerificationPort = emailVerificationPort,
-        accessTokenBlacklistPort = accessTokenBlacklistPort,
-        tokenProviderPort = tokenProviderPort,
+        accessTokenBlacklister = accessTokenBlacklister,
     )
 
     beforeEach { clearAllMocks() }
@@ -65,10 +61,6 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
     val guardianIdStr = "guardian-uuid-1"
     val emailValue = "guardian@example.com"
     val providedAccess = "Bearer access-token"
-    val extractedAccess = "access-token"
-    val noPrefixAccess = "no-prefix"
-    val accessJti = "access-jti-1"
-    val accessRemaining = Duration.ofHours(2)
 
     fun providerOf(email: Email?): AuthProvider {
         email ?: return AuthProvider.KAKAO
@@ -102,6 +94,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
             every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
             every { emailVerificationPort.deleteCode(emailValue) } returns Unit
+            every { accessTokenBlacklister.blacklist(null) } returns Unit
 
             service.execute(WithdrawGuardianCommand(userId = guardianIdStr, accessToken = null))
 
@@ -122,6 +115,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
             every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
             every { emailVerificationPort.deleteCode(emailValue) } returns Unit
+            every { accessTokenBlacklister.blacklist(null) } returns Unit
 
             service.execute(WithdrawGuardianCommand(userId = guardianIdStr, accessToken = null))
 
@@ -144,97 +138,45 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
         }
     }
 
-    fun stubHardDelete(user: User) {
-        every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns user
-        every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns emptyList()
-        every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
-        every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
-    }
-
-    fun withdraw(accessToken: String?) {
-        service.execute(WithdrawGuardianCommand(userId = guardianIdStr, accessToken = accessToken))
-    }
-
     context("커밋 이후 Redis 정리") {
-        test("액세스가 유효하면 refresh 삭제·이메일코드 삭제 후 jti·남은 수명으로 블랙리스트에 등록한다") {
-            stubHardDelete(localGuardian())
+        val userId = UserId(guardianIdStr)
+
+        test("refresh 삭제·이메일코드 삭제 후 accessTokenBlacklister.blacklist에 위임한다") {
+            val email = Email(emailValue)
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
             every { emailVerificationPort.deleteCode(emailValue) } returns Unit
-            every { tokenProviderPort.extractToken(providedAccess) } returns extractedAccess
-            every { tokenProviderPort.getRemainingExpiration(extractedAccess) } returns accessRemaining
-            every { tokenProviderPort.getTokenId(extractedAccess) } returns accessJti
-            every { accessTokenBlacklistPort.register(accessJti, accessRemaining) } returns Unit
+            every { accessTokenBlacklister.blacklist(providedAccess) } returns Unit
 
-            withdraw(providedAccess)
+            service.cleanupSessionState(userId, email, providedAccess)
 
             verifyOrder {
                 refreshTokenPort.delete(guardianIdStr)
                 emailVerificationPort.deleteCode(emailValue)
-                accessTokenBlacklistPort.register(accessJti, accessRemaining)
+                accessTokenBlacklister.blacklist(providedAccess)
             }
         }
 
-        test("email이 null인 카카오 보호자는 이메일코드 삭제를 호출하지 않는다") {
-            stubHardDelete(localGuardian(email = null))
+        test("email이 null이면 이메일코드 삭제를 호출하지 않는다") {
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
-            every { tokenProviderPort.extractToken(providedAccess) } returns extractedAccess
-            every { tokenProviderPort.getRemainingExpiration(extractedAccess) } returns accessRemaining
-            every { tokenProviderPort.getTokenId(extractedAccess) } returns accessJti
-            every { accessTokenBlacklistPort.register(accessJti, accessRemaining) } returns Unit
+            every { accessTokenBlacklister.blacklist(providedAccess) } returns Unit
 
-            withdraw(providedAccess)
+            service.cleanupSessionState(userId, null, providedAccess)
 
             verify(exactly = 1) { refreshTokenPort.delete(guardianIdStr) }
             verify(exactly = 0) { emailVerificationPort.deleteCode(any()) }
-            verify(exactly = 1) { accessTokenBlacklistPort.register(accessJti, accessRemaining) }
+            verify(exactly = 1) { accessTokenBlacklister.blacklist(providedAccess) }
         }
 
-        test("액세스 헤더가 없으면 refresh만 삭제하고 블랙리스트에 등록하지 않는다") {
-            stubHardDelete(localGuardian())
+        test("accessToken이 null이면 blacklist(null)에 위임한다") {
+            val email = Email(emailValue)
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
             every { emailVerificationPort.deleteCode(emailValue) } returns Unit
+            every { accessTokenBlacklister.blacklist(null) } returns Unit
 
-            withdraw(null)
+            service.cleanupSessionState(userId, email, null)
 
             verify(exactly = 1) { refreshTokenPort.delete(guardianIdStr) }
-            verify(exactly = 0) { accessTokenBlacklistPort.register(any(), any()) }
-        }
-
-        test("액세스가 유효하지만 jti가 없으면 예외 없이 블랙리스트에 등록하지 않는다") {
-            stubHardDelete(localGuardian())
-            every { refreshTokenPort.delete(guardianIdStr) } returns Unit
-            every { emailVerificationPort.deleteCode(emailValue) } returns Unit
-            every { tokenProviderPort.extractToken(providedAccess) } returns extractedAccess
-            every { tokenProviderPort.getRemainingExpiration(extractedAccess) } returns accessRemaining
-            every { tokenProviderPort.getTokenId(extractedAccess) } returns null
-
-            withdraw(providedAccess)
-
-            verify(exactly = 0) { accessTokenBlacklistPort.register(any(), any()) }
-        }
-
-        test("액세스가 만료·무효면 예외 없이 블랙리스트에 등록하지 않는다") {
-            stubHardDelete(localGuardian())
-            every { refreshTokenPort.delete(guardianIdStr) } returns Unit
-            every { emailVerificationPort.deleteCode(emailValue) } returns Unit
-            every { tokenProviderPort.extractToken(providedAccess) } returns extractedAccess
-            every { tokenProviderPort.getRemainingExpiration(extractedAccess) } throws
-                io.jsonwebtoken.ExpiredJwtException(null, null, "expired")
-
-            withdraw(providedAccess)
-
-            verify(exactly = 0) { accessTokenBlacklistPort.register(any(), any()) }
-        }
-
-        test("액세스 접두어가 잘못되면 예외 없이 블랙리스트에 등록하지 않는다") {
-            stubHardDelete(localGuardian())
-            every { refreshTokenPort.delete(guardianIdStr) } returns Unit
-            every { emailVerificationPort.deleteCode(emailValue) } returns Unit
-            every { tokenProviderPort.extractToken(noPrefixAccess) } throws IllegalArgumentException("bad prefix")
-
-            withdraw(noPrefixAccess)
-
-            verify(exactly = 0) { accessTokenBlacklistPort.register(any(), any()) }
+            verify(exactly = 1) { accessTokenBlacklister.blacklist(null) }
         }
     }
 })
