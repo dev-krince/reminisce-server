@@ -11,4 +11,6 @@ interface StoryAccessPort {
     fun findFirstSceneId(storyId: StoryId): String?
 
     fun findScene(storyId: StoryId, sceneId: String): Scene?
+
+    fun findNextScene(storyId: StoryId, currentSceneId: String): Scene?
 }

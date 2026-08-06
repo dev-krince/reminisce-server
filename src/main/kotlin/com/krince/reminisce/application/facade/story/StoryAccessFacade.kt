@@ -32,4 +32,12 @@ class StoryAccessFacade(
 
         return story.scenes.firstOrNull { it.sceneId.value == sceneId }
     }
+
+    override fun findNextScene(storyId: StoryId, currentSceneId: String): Scene? {
+        val story: Story = loadStoryPort.findByIdWithScenesPublished(storyId) ?: return null
+        val orderedScenes: List<Scene> = story.scenes.sortedBy { it.sceneOrder }
+        val currentScene: Scene = orderedScenes.firstOrNull { it.sceneId.value == currentSceneId } ?: return null
+
+        return orderedScenes.firstOrNull { it.sceneOrder > currentScene.sceneOrder }
+    }
 }
