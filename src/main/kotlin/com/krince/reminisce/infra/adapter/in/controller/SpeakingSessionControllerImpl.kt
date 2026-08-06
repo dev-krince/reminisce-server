@@ -1,5 +1,8 @@
 package com.krince.reminisce.infra.adapter.`in`.controller
 
+import com.krince.reminisce.application.port.`in`.message.command.SubmitUtteranceCommand
+import com.krince.reminisce.application.port.`in`.message.result.UtteranceResult
+import com.krince.reminisce.application.port.`in`.message.usecase.SubmitUtteranceUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.command.AdvanceSpeakingSceneCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.command.GetSpeakingSessionViewCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.command.StartSpeakingSessionCommand
@@ -8,6 +11,9 @@ import com.krince.reminisce.application.port.`in`.speakingsession.result.Speakin
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.AdvanceSpeakingSceneUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GetSpeakingSessionViewUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.StartSpeakingSessionUseCase
+import com.krince.reminisce.infra.adapter.`in`.dto.message.request.SubmitUtteranceRequest
+import com.krince.reminisce.infra.adapter.`in`.dto.message.response.UtteranceResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.message.response.utteranceResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.request.StartSpeakingSessionRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionViewResponse
@@ -37,6 +43,7 @@ class SpeakingSessionControllerImpl(
     private val startSpeakingSessionUseCase: StartSpeakingSessionUseCase,
     private val getSpeakingSessionViewUseCase: GetSpeakingSessionViewUseCase,
     private val advanceSpeakingSceneUseCase: AdvanceSpeakingSceneUseCase,
+    private val submitUtteranceUseCase: SubmitUtteranceUseCase,
 ) : SpeakingSessionController {
 
     @PostMapping
@@ -78,6 +85,25 @@ class SpeakingSessionControllerImpl(
         val result: SpeakingSessionViewResult = advanceSpeakingSceneUseCase.execute(command)
 
         return viewResponseEntity(result)
+    }
+
+    @PostMapping("/{sessionId}/utterances")
+    override fun submitUtterance(
+        @PathVariable sessionId: String,
+        @Valid @RequestBody request: SubmitUtteranceRequest,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<SuccessResponse<UtteranceResponse>> {
+        val command = SubmitUtteranceCommand(
+            sessionId = sessionId,
+            guardianId = userDetails.getId(),
+            audio = request.audio,
+        )
+        val result: UtteranceResult = submitUtteranceUseCase.execute(command)
+        val response: UtteranceResponse = utteranceResponse(result)
+        val responseBody: SuccessResponse<UtteranceResponse> =
+            successResponse(responseCode = CREATED, data = response)
+
+        return ResponseEntity.status(responseBody.code).body(responseBody)
     }
 
     private fun viewResponseEntity(
