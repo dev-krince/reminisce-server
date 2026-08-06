@@ -4,11 +4,14 @@ import com.krince.reminisce.application.port.`in`.message.command.SubmitUtteranc
 import com.krince.reminisce.application.port.`in`.message.result.UtteranceResult
 import com.krince.reminisce.application.port.`in`.message.usecase.SubmitUtteranceUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.command.AdvanceSpeakingSceneCommand
+import com.krince.reminisce.application.port.`in`.speakingsession.command.GetResumableSessionsCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.command.GetSpeakingSessionViewCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.command.StartSpeakingSessionCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.result.SpeakingSessionResult
+import com.krince.reminisce.application.port.`in`.speakingsession.result.SpeakingSessionSummaryResult
 import com.krince.reminisce.application.port.`in`.speakingsession.result.SpeakingSessionViewResult
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.AdvanceSpeakingSceneUseCase
+import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GetResumableSessionsUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GetSpeakingSessionViewUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.StartSpeakingSessionUseCase
 import com.krince.reminisce.infra.adapter.`in`.dto.message.request.SubmitUtteranceRequest
@@ -16,8 +19,10 @@ import com.krince.reminisce.infra.adapter.`in`.dto.message.response.UtteranceRes
 import com.krince.reminisce.infra.adapter.`in`.dto.message.response.utteranceResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.request.StartSpeakingSessionRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionSummaryResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionViewResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.speakingSessionResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.speakingSessionSummaryResponses
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.speakingSessionViewResponse
 import com.krince.reminisce.infra.security.CustomUserDetails
 import com.krince.reminisce.shared.response.SuccessResponse
@@ -34,6 +39,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @Validated
@@ -44,6 +50,7 @@ class SpeakingSessionControllerImpl(
     private val getSpeakingSessionViewUseCase: GetSpeakingSessionViewUseCase,
     private val advanceSpeakingSceneUseCase: AdvanceSpeakingSceneUseCase,
     private val submitUtteranceUseCase: SubmitUtteranceUseCase,
+    private val getResumableSessionsUseCase: GetResumableSessionsUseCase,
 ) : SpeakingSessionController {
 
     @PostMapping
@@ -102,6 +109,20 @@ class SpeakingSessionControllerImpl(
         val response: UtteranceResponse = utteranceResponse(result)
         val responseBody: SuccessResponse<UtteranceResponse> =
             successResponse(responseCode = CREATED, data = response)
+
+        return ResponseEntity.status(responseBody.code).body(responseBody)
+    }
+
+    @GetMapping(params = ["childId"])
+    override fun getResumableSessions(
+        @RequestParam childId: String,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<SuccessResponse<List<SpeakingSessionSummaryResponse>>> {
+        val command = GetResumableSessionsCommand(childId = childId, guardianId = userDetails.getId())
+        val results: List<SpeakingSessionSummaryResult> = getResumableSessionsUseCase.execute(command)
+        val responses: List<SpeakingSessionSummaryResponse> = speakingSessionSummaryResponses(results)
+        val responseBody: SuccessResponse<List<SpeakingSessionSummaryResponse>> =
+            successResponse(responseCode = OK, data = responses)
 
         return ResponseEntity.status(responseBody.code).body(responseBody)
     }

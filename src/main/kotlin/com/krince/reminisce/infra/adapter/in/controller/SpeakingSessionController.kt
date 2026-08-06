@@ -4,6 +4,7 @@ import com.krince.reminisce.infra.adapter.`in`.dto.message.request.SubmitUtteran
 import com.krince.reminisce.infra.adapter.`in`.dto.message.response.UtteranceResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.request.StartSpeakingSessionRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionSummaryResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionViewResponse
 import com.krince.reminisce.infra.security.CustomUserDetails
 import com.krince.reminisce.infra.swagger.ExceptionExample
@@ -31,6 +32,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestParam
 
 @Tag(name = "말하기 세션(SpeakingSessions)")
 interface SpeakingSessionController {
@@ -117,4 +119,23 @@ interface SpeakingSessionController {
         @Valid @RequestBody request: SubmitUtteranceRequest,
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<UtteranceResponse>>
+
+    @Operation(
+        summary = "이어하기 세션 목록 조회",
+        description = "로그인한 보호자가 본인 아이의 진행 중(IN_PROGRESS) 세션 목록을 최근 활동 순으로 조회합니다.",
+    )
+    @SwaggerSuccessResponse(responseCode = OK, description = "이어하기 세션 목록 조회 성공")
+    @SwaggerExceptionResponse(
+        examples = [
+            ExceptionExample(code = EMPTY_TOKEN, name = "토큰 없음", message = "토큰이 없습니다.", description = "인증 토큰이 제공되지 않은 경우"),
+            ExceptionExample(code = INVALID_TOKEN, name = "유효하지 않은 토큰", message = "유효하지 않은 토큰입니다.", description = "토큰이 유효하지 않거나 서명이 잘못된 경우"),
+            ExceptionExample(code = EXPIRED_TOKEN, name = "만료된 토큰", message = "만료된 토큰입니다.", description = "토큰의 유효기간이 만료된 경우"),
+            ExceptionExample(code = NOT_FOUND, name = "아이 없음 또는 타 보호자 아이", message = "리소스가 존재하지 않습니다.", description = "아이가 없거나 다른 보호자의 아이인 경우"),
+            ExceptionExample(code = INTERNAL_SERVER_ERROR, name = "서버 오류", message = "서버 에러입니다. 개발자에게 문의해주세요.", description = "예상치 못한 서버 오류가 발생한 경우"),
+        ]
+    )
+    fun getResumableSessions(
+        @Parameter(description = "아이 고유 식별자", required = true) @RequestParam childId: String,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<SuccessResponse<List<SpeakingSessionSummaryResponse>>>
 }
