@@ -38,4 +38,10 @@ class SpeakingSessionOrmAdapter(
 
         return SpeakingSessionMapper.toDomain(ormEntity)
     }
+
+    override fun findInProgressByChild(childId: ChildId): List<SpeakingSession> =
+        repository.findAllByChildIdAndStatusOrderByLastActivityAtDesc(
+            childId.value,
+            SessionStatus.IN_PROGRESS.name,
+        ).map { SpeakingSessionMapper.toDomain(it) }
 }
