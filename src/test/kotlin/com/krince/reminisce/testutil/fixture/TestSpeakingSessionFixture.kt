@@ -13,6 +13,9 @@ class TestSpeakingSessionFixture(
     fun findAllByChildIdAndStoryId(childId: String, storyId: String): List<SpeakingSessionOrmEntity> =
         speakingSessionRepository.findAllByChildIdAndStoryId(childId, storyId)
 
+    fun findBySessionId(sessionId: String): SpeakingSessionOrmEntity? =
+        speakingSessionRepository.findBySessionId(sessionId)
+
     fun count(): Long = speakingSessionRepository.count()
 
     fun deleteAllBatch() {

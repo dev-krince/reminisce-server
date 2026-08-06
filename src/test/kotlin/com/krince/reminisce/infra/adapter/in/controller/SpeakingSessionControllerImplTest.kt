@@ -20,8 +20,10 @@ import com.krince.reminisce.testutil.fixture.TestMessageFixture
 import com.krince.reminisce.testutil.fixture.TestSpeakingSessionFixture
 import com.krince.reminisce.testutil.fixture.TestStoryFixture
 import com.krince.reminisce.testutil.fixture.TestUserFixture
+import com.krince.reminisce.testutil.fixture.TestUtteranceAnalysisFixture
 import io.kotest.core.annotation.DisplayName
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
 import io.restassured.RestAssured
 import io.restassured.http.ContentType
@@ -48,6 +50,7 @@ class SpeakingSessionControllerImplTest(
     private val testStoryFixture: TestStoryFixture,
     private val testSpeakingSessionFixture: TestSpeakingSessionFixture,
     private val testMessageFixture: TestMessageFixture,
+    private val testUtteranceAnalysisFixture: TestUtteranceAnalysisFixture,
     private val testJwtTokenFixture: TestJwtTokenFixture,
 ) : FunSpec({
 
@@ -158,6 +161,7 @@ class SpeakingSessionControllerImplTest(
     }
 
     beforeTest {
+        testUtteranceAnalysisFixture.deleteAllBatch()
         testMessageFixture.deleteAllBatch()
         testSpeakingSessionFixture.deleteAllBatch()
         testChildConsentFixture.deleteAllBatch()
@@ -607,15 +611,28 @@ class SpeakingSessionControllerImplTest(
                     .body("data.sceneId", equalTo(dialogueSceneId))
                     .body("data.turnOrder", equalTo(1))
                     .body("data.text", equalTo("며느리가 참 힘들었겠어요"))
+                    .body("data.validity", equalTo("VALID"))
+                    .body("data.detectedElements[0].type", equalTo("EMOTION"))
+                    .body("data.detectedElements[0].evidence", equalTo("힘들"))
+                    .body("data.accumulatedElements", equalTo(listOf("EMOTION")))
+                    .body("data.missingElements", equalTo(listOf("PERSPECTIVE")))
 
                 testMessageFixture.countBySessionId(sessionId) shouldBe 1L
                 val stored = testMessageFixture.findAllBySessionId(sessionId).first()
                 stored.speakerType shouldBe "CHILD"
                 stored.text shouldBe "며느리가 참 힘들었겠어요"
                 stored.sttRawText shouldBe "며느리가 참 힘들었겠어요"
+
+                testUtteranceAnalysisFixture.count() shouldBe 1L
+                val storedAnalysis = testUtteranceAnalysisFixture.findAll().first()
+                storedAnalysis.messageId shouldBe stored.id
+                storedAnalysis.detectedElements.map { it.type } shouldBe listOf(ThinkingElement.EMOTION)
+
+                val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
+                storedSession?.accumulatedElements shouldBe listOf(ThinkingElement.EMOTION)
             }
 
-            test("같은 세션에 두 번째 발화를 제출하면 201과 turnOrder=2가 된다") {
+            test("같은 세션에 두 번째 발화를 제출하면 201과 turnOrder=2가 되고 누적 요소가 중복 없이 늘어난다") {
                 val (guardianId, token) = authorizedGuardian()
                 val childId = "child-${uniqueSuffix()}"
                 val storyId = "story-${uniqueSuffix()}"
@@ -631,17 +648,18 @@ class SpeakingSessionControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("audio" to "첫 번째 발화"))
+                    .body(mapOf("audio" to "며느리가 참 힘들었겠어요"))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/utterances")
                     .then()
                     .statusCode(201)
                     .body("data.turnOrder", equalTo(1))
+                    .body("data.accumulatedElements", equalTo(listOf("EMOTION")))
 
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("audio" to "두 번째 발화"))
+                    .body(mapOf("audio" to "며느리 입장에서 생각하면 참 힘들었겠어요"))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/utterances")
                     .then()
@@ -649,6 +667,13 @@ class SpeakingSessionControllerImplTest(
                     .body("data.turnOrder", equalTo(2))
 
                 testMessageFixture.countBySessionId(sessionId) shouldBe 2L
+                testUtteranceAnalysisFixture.count() shouldBe 2L
+
+                val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
+                storedSession?.accumulatedElements shouldContainExactlyInAnyOrder listOf(
+                    ThinkingElement.EMOTION,
+                    ThinkingElement.PERSPECTIVE,
+                )
             }
         }
 
@@ -680,6 +705,7 @@ class SpeakingSessionControllerImplTest(
                     .body("message", equalTo("음성 인식에 실패해 발화를 저장할 수 없습니다."))
 
                 testMessageFixture.countBySessionId(sessionId) shouldBe 0L
+                testUtteranceAnalysisFixture.count() shouldBe 0L
             }
 
             test("도입 상태(current_scene_id null) 세션에 제출하면 422와 BUSINESS_RULE_VIOLATION을 반환하고 미생성이다") {
