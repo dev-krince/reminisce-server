@@ -17,8 +17,6 @@ import org.springframework.security.config.annotation.web.configurers.FormLoginC
 import org.springframework.security.config.annotation.web.configurers.HttpBasicConfigurer
 import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer
 import org.springframework.security.config.http.SessionCreationPolicy
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
-import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.web.cors.CorsConfiguration
@@ -41,22 +39,15 @@ class SecurityConfig(
     )
     private val permitAllGetUrls = listOf<String>()
     private val permitAllPostUrls = listOf(
-        "/api/auth/tokens",
         "/api/auth/tokens/kakao",
         "/api/auth/tokens/google",
         "/api/auth/tokens/refresh",
-        "/api/users",
-        "/api/users/email-verifications",
-        "/api/users/email-verifications/confirm",
     )
     private val permitAllPutUrls = listOf<String>()
     private val permitAllPatchUrls = listOf<String>()
     private val permitAllDeleteUrls = listOf(
         "/api/auth/tokens",
     )
-
-    @Bean
-    fun passwordEncoder(): PasswordEncoder = BCryptPasswordEncoder()
 
     @Bean
     fun filterChain(http: HttpSecurity): SecurityFilterChain = http

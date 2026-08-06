@@ -4,7 +4,6 @@ import com.krince.reminisce.shared.exception.BadRequestException
 import com.krince.reminisce.shared.exception.BusinessRuleViolationException
 import com.krince.reminisce.shared.exception.ConflictException
 import com.krince.reminisce.shared.exception.ForbiddenException
-import com.krince.reminisce.shared.exception.MailSendException
 import com.krince.reminisce.shared.exception.NotFoundException
 import com.krince.reminisce.shared.exception.SocialAuthException
 import com.krince.reminisce.shared.exception.UnauthorizedRefreshTokenException
@@ -17,7 +16,6 @@ import org.slf4j.MDC
 import org.springframework.dao.InvalidDataAccessApiUsageException
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
-import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authorization.AuthorizationDeniedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -142,20 +140,6 @@ class GlobalExceptionHandler {
         return ResponseEntity.status(exceptionResponse.code).body(exceptionResponse)
     }
 
-    @ExceptionHandler(BadCredentialsException::class)
-    fun handleBadCredentialsException(exception: BadCredentialsException): ResponseEntity<ExceptionResponse> {
-        printExceptionInfo(exception)
-
-        val exceptionResponseCode = INVALID_PASSWORD
-        val exceptionResponse = ExceptionResponse(
-            responseCode = exceptionResponseCode,
-            message = exceptionResponseCode.message,
-            requestId = MDC.get(REQUEST_ID_VALUE)
-        )
-
-        return ResponseEntity.status(exceptionResponse.code).body(exceptionResponse)
-    }
-
     @ExceptionHandler(UnauthorizedRefreshTokenException::class)
     fun handleUnauthorizedRefreshToken(exception: UnauthorizedRefreshTokenException): ResponseEntity<ExceptionResponse> {
         printExceptionInfo(exception)
@@ -233,21 +217,6 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessRuleViolationException::class)
     fun handleBusinessRuleViolationException(exception: BusinessRuleViolationException): ResponseEntity<ExceptionResponse> {
-        printExceptionInfo(exception)
-
-        val exceptionResponseCode = exception.exceptionResponseCode
-        val message = exception.message
-        val exceptionResponse = ExceptionResponse(
-            responseCode = exceptionResponseCode,
-            message = message,
-            requestId = MDC.get(REQUEST_ID_VALUE)
-        )
-
-        return ResponseEntity.status(exceptionResponse.code).body(exceptionResponse)
-    }
-
-    @ExceptionHandler(MailSendException::class)
-    fun handleMailSendException(exception: MailSendException): ResponseEntity<ExceptionResponse> {
         printExceptionInfo(exception)
 
         val exceptionResponseCode = exception.exceptionResponseCode

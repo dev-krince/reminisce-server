@@ -2,7 +2,6 @@ package com.krince.reminisce.infra.adapter.`in`.controller
 
 import com.krince.reminisce.infra.adapter.`in`.dto.auth.request.GoogleLoginRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.auth.request.KakaoLoginRequest
-import com.krince.reminisce.infra.adapter.`in`.dto.auth.request.LoginRequest
 import com.krince.reminisce.infra.swagger.ExceptionExample
 import com.krince.reminisce.infra.swagger.SwaggerExceptionResponse
 import com.krince.reminisce.infra.swagger.SwaggerSuccessResponse
@@ -16,20 +15,6 @@ import org.springframework.web.bind.annotation.RequestBody
 
 @Tag(name = "인증(Auth)")
 interface AuthController {
-
-    @Operation(summary = "이메일 로그인", description = "이메일과 비밀번호로 로그인해 액세스·리프레시 토큰을 헤더로 발급합니다.")
-    @SwaggerSuccessResponse(responseCode = OK, description = "로그인 성공")
-    @SwaggerExceptionResponse(
-        examples = [
-            ExceptionExample(code = INVALID_DTO_PARAMETER, name = "요청 값 오류", message = "요청 값이 올바르지 않습니다.(dto 검증 오류)", description = "요청 바디 검증에 실패한 경우"),
-            ExceptionExample(code = INVALID_EMAIL_FORMAT, name = "이메일 형식 오류", message = "올바르지 않은 이메일 형식입니다.", description = "이메일 형식이 올바르지 않은 경우"),
-            ExceptionExample(code = INVALID_PASSWORD, name = "자격증명 오류", message = "비밀번호를 확인해주세요.", description = "이메일이 없거나 비밀번호가 일치하지 않는 경우"),
-            ExceptionExample(code = INTERNAL_SERVER_ERROR, name = "서버 오류", message = "서버 에러입니다. 개발자에게 문의해주세요.", description = "예상치 못한 서버 오류가 발생한 경우"),
-        ]
-    )
-    fun login(
-        @Valid @RequestBody request: LoginRequest,
-    ): ResponseEntity<Void>
 
     @Operation(summary = "카카오 로그인", description = "카카오 인가코드로 계정을 upsert하고 액세스·리프레시 토큰을 헤더로 발급합니다.")
     @SwaggerSuccessResponse(responseCode = OK, description = "카카오 로그인 성공")

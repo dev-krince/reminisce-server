@@ -2,20 +2,17 @@ package com.krince.reminisce.application.service.auth
 
 import com.krince.reminisce.application.port.`in`.auth.command.GoogleLoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.KakaoLoginCommand
-import com.krince.reminisce.application.port.`in`.auth.command.LoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.LogoutCommand
 import com.krince.reminisce.application.port.`in`.auth.command.ReissueTokenCommand
 import com.krince.reminisce.application.port.`in`.auth.result.TokenResult
 import com.krince.reminisce.application.port.`in`.auth.usecase.GoogleLoginUseCase
 import com.krince.reminisce.application.port.`in`.auth.usecase.KakaoLoginUseCase
-import com.krince.reminisce.application.port.`in`.auth.usecase.LoginUseCase
 import com.krince.reminisce.application.port.`in`.auth.usecase.LogoutUseCase
 import com.krince.reminisce.application.port.`in`.auth.usecase.ReissueTokenUseCase
 import com.krince.reminisce.application.port.out.auth.GoogleOAuthPort
 import com.krince.reminisce.application.port.out.auth.GoogleUserInfo
 import com.krince.reminisce.application.port.out.auth.KakaoOAuthPort
 import com.krince.reminisce.application.port.out.auth.KakaoUserInfo
-import com.krince.reminisce.application.port.out.auth.PasswordEncoderPort
 import com.krince.reminisce.application.port.out.auth.RefreshTokenPort
 import com.krince.reminisce.application.port.out.auth.TokenProviderPort
 import com.krince.reminisce.application.port.out.user.CommandUserPort
@@ -26,32 +23,19 @@ import com.krince.reminisce.domain.model.user.vo.AuthProvider
 import com.krince.reminisce.domain.model.user.vo.Email
 import com.krince.reminisce.domain.model.user.vo.Nickname
 import com.krince.reminisce.shared.exception.UnauthorizedRefreshTokenException
-import com.krince.reminisce.shared.response.ExceptionResponseCode.INVALID_PASSWORD
 import com.krince.reminisce.shared.response.ExceptionResponseCode.INVALID_REFRESH_TOKEN
-import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.stereotype.Service
 
 @Service
 class AuthApplicationService(
     private val loadUserPort: LoadUserPort,
     private val commandUserPort: CommandUserPort,
-    private val passwordEncoderPort: PasswordEncoderPort,
     private val tokenProviderPort: TokenProviderPort,
     private val refreshTokenPort: RefreshTokenPort,
     private val accessTokenBlacklister: AccessTokenBlacklister,
     private val kakaoOAuthPort: KakaoOAuthPort,
     private val googleOAuthPort: GoogleOAuthPort,
-) : LoginUseCase, ReissueTokenUseCase, LogoutUseCase, KakaoLoginUseCase, GoogleLoginUseCase {
-
-    override fun execute(command: LoginCommand): TokenResult {
-        val user: User = loadUserPort.findByEmail(Email(command.email))
-            ?: throw loginFailure(command.password)
-        val encodedPassword: String = localPasswordOf(user)
-            ?: throw loginFailure(command.password)
-        passwordEncoderPort.matchPassword(command.password, encodedPassword)
-
-        return issueTokens(userId = user.userId.value, role = user.role.value)
-    }
+) : ReissueTokenUseCase, LogoutUseCase, KakaoLoginUseCase, GoogleLoginUseCase {
 
     override fun execute(command: KakaoLoginCommand): TokenResult {
         val kakaoUser: KakaoUserInfo = kakaoOAuthPort.exchangeCodeForUser(command.authorizationCode)
@@ -110,18 +94,6 @@ class AuthApplicationService(
         )
 
         return commandUserPort.save(user)
-    }
-
-    private fun localPasswordOf(user: User): String? {
-        if (user.provider != AuthProvider.LOCAL) return null
-
-        return user.password?.value
-    }
-
-    private fun loginFailure(rawPassword: String): BadCredentialsException {
-        passwordEncoderPort.matchDummyPassword(rawPassword)
-
-        return BadCredentialsException(INVALID_PASSWORD.message)
     }
 
     private fun extractRefreshToken(rawToken: String): String =

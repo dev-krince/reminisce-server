@@ -6,14 +6,12 @@ import com.krince.reminisce.application.port.out.auth.RefreshTokenPort
 import com.krince.reminisce.application.port.out.child.CommandChildPort
 import com.krince.reminisce.application.port.out.child.LoadChildPort
 import com.krince.reminisce.application.port.out.childconsent.CommandChildConsentPort
-import com.krince.reminisce.application.port.out.email.EmailVerificationPort
 import com.krince.reminisce.application.port.out.user.CommandUserPort
 import com.krince.reminisce.application.port.out.user.LoadUserPort
 import com.krince.reminisce.application.service.auth.AccessTokenBlacklister
 import com.krince.reminisce.domain.model.child.Child
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.user.User
-import com.krince.reminisce.domain.model.user.vo.Email
 import com.krince.reminisce.domain.model.user.vo.UserId
 import com.krince.reminisce.shared.exception.NotFoundException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND_USER
@@ -30,7 +28,6 @@ class WithdrawGuardianApplicationService(
     private val commandChildPort: CommandChildPort,
     private val commandUserPort: CommandUserPort,
     private val refreshTokenPort: RefreshTokenPort,
-    private val emailVerificationPort: EmailVerificationPort,
     private val accessTokenBlacklister: AccessTokenBlacklister,
 ) : WithdrawGuardianUseCase {
 
@@ -43,7 +40,7 @@ class WithdrawGuardianApplicationService(
         purgeChildData(userId)
         commandUserPort.delete(userId)
 
-        registerRedisCleanup(userId, user.email, command.accessToken)
+        registerRedisCleanup(user.userId, command.accessToken)
     }
 
     private fun purgeChildData(guardianId: UserId) {
@@ -55,21 +52,20 @@ class WithdrawGuardianApplicationService(
         commandChildPort.deleteAllByGuardianId(guardianId)
     }
 
-    private fun registerRedisCleanup(userId: UserId, email: Email?, accessToken: String?) {
+    private fun registerRedisCleanup(userId: UserId, accessToken: String?) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            cleanupSessionState(userId, email, accessToken)
+            cleanupSessionState(userId, accessToken)
             return
         }
         TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {
             override fun afterCommit() {
-                cleanupSessionState(userId, email, accessToken)
+                cleanupSessionState(userId, accessToken)
             }
         })
     }
 
-    internal fun cleanupSessionState(userId: UserId, email: Email?, accessToken: String?) {
+    internal fun cleanupSessionState(userId: UserId, accessToken: String?) {
         refreshTokenPort.delete(userId.value)
-        email?.let { emailVerificationPort.deleteCode(it.value) }
         accessTokenBlacklister.blacklist(accessToken)
     }
 }

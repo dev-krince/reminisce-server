@@ -27,12 +27,8 @@ class UserOrmEntity(
     val userId: String,
 
     @Column(nullable = true, unique = true)
-    @Comment("이메일 (로컬 로그인 식별자)")
+    @Comment("이메일 (소셜 제공자에서 수신, nullable)")
     val email: String?,
-
-    @Column(nullable = true)
-    @Comment("비밀번호 (BCrypt 해시)")
-    val password: String?,
 
     @Column(nullable = false)
     @Comment("닉네임")
