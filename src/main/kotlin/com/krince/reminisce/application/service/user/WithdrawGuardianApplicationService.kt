@@ -6,8 +6,15 @@ import com.krince.reminisce.application.port.out.auth.RefreshTokenPort
 import com.krince.reminisce.application.port.out.child.CommandChildPort
 import com.krince.reminisce.application.port.out.child.LoadChildPort
 import com.krince.reminisce.application.port.out.childconsent.CommandChildConsentPort
+import com.krince.reminisce.application.port.out.message.CommandMessagePort
+import com.krince.reminisce.application.port.out.message.LoadMessagePort
+import com.krince.reminisce.application.port.out.postactivityresult.CommandPostActivityResultPort
+import com.krince.reminisce.application.port.out.report.CommandReportPort
+import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
+import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
 import com.krince.reminisce.application.port.out.user.CommandUserPort
 import com.krince.reminisce.application.port.out.user.LoadUserPort
+import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
 import com.krince.reminisce.application.service.auth.AccessTokenBlacklister
 import com.krince.reminisce.domain.model.child.Child
 import com.krince.reminisce.domain.model.child.vo.ChildId
@@ -24,9 +31,16 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 class WithdrawGuardianApplicationService(
     private val loadUserPort: LoadUserPort,
     private val loadChildPort: LoadChildPort,
+    private val loadSpeakingSessionPort: LoadSpeakingSessionPort,
+    private val loadMessagePort: LoadMessagePort,
     private val commandChildConsentPort: CommandChildConsentPort,
     private val commandChildPort: CommandChildPort,
     private val commandUserPort: CommandUserPort,
+    private val commandSpeakingSessionPort: CommandSpeakingSessionPort,
+    private val commandMessagePort: CommandMessagePort,
+    private val commandReportPort: CommandReportPort,
+    private val commandPostActivityResultPort: CommandPostActivityResultPort,
+    private val commandUtteranceAnalysisPort: CommandUtteranceAnalysisPort,
     private val refreshTokenPort: RefreshTokenPort,
     private val accessTokenBlacklister: AccessTokenBlacklister,
 ) : WithdrawGuardianUseCase {
@@ -47,9 +61,25 @@ class WithdrawGuardianApplicationService(
         val children: List<Child> = loadChildPort.findAllByGuardianId(guardianId)
         val childIds: List<ChildId> = children.map { it.childId }
         if (childIds.isNotEmpty()) {
+            purgeSessionData(childIds)
             commandChildConsentPort.deleteAllByChildIds(childIds)
         }
         commandChildPort.deleteAllByGuardianId(guardianId)
+    }
+
+    private fun purgeSessionData(childIds: List<ChildId>) {
+        val sessionIds: List<String> = loadSpeakingSessionPort.findSessionIdsByChildIds(childIds)
+        if (sessionIds.isEmpty()) {
+            return
+        }
+        val messageIds: List<String> = loadMessagePort.findMessageIdsBySessionIds(sessionIds)
+        if (messageIds.isNotEmpty()) {
+            commandUtteranceAnalysisPort.deleteAllByMessageIds(messageIds)
+        }
+        commandMessagePort.deleteAllBySessionIds(sessionIds)
+        commandReportPort.deleteAllBySessionIds(sessionIds)
+        commandPostActivityResultPort.deleteAllBySessionIds(sessionIds)
+        commandSpeakingSessionPort.deleteAllByChildIds(childIds)
     }
 
     private fun registerRedisCleanup(userId: UserId, accessToken: String?) {
