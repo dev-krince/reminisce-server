@@ -2,6 +2,8 @@ package com.krince.reminisce.infra.adapter.`in`.controller
 
 import com.krince.reminisce.infra.adapter.`in`.dto.message.request.SubmitUtteranceRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.message.response.UtteranceResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.request.SubmitCardOrderRequest
+import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.CardOrderResultResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.request.StartSpeakingSessionRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionSummaryResponse
@@ -138,4 +140,26 @@ interface SpeakingSessionController {
         @Parameter(description = "아이 고유 식별자", required = true) @RequestParam childId: String,
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<List<SpeakingSessionSummaryResponse>>>
+
+    @Operation(
+        summary = "카드 순서 제출",
+        description = "로그인한 보호자가 본인 아이의 POST_ACTIVITY 세션에 카드 배열 순서를 제출합니다. 서버가 정답 여부를 계산합니다.",
+    )
+    @SwaggerSuccessResponse(responseCode = OK, description = "카드 순서 제출 성공")
+    @SwaggerExceptionResponse(
+        examples = [
+            ExceptionExample(code = INVALID_DTO_PARAMETER, name = "요청 값 오류", message = "요청 값이 올바르지 않습니다.(dto 검증 오류)", description = "요청 바디 검증에 실패한 경우"),
+            ExceptionExample(code = EMPTY_TOKEN, name = "토큰 없음", message = "토큰이 없습니다.", description = "인증 토큰이 제공되지 않은 경우"),
+            ExceptionExample(code = INVALID_TOKEN, name = "유효하지 않은 토큰", message = "유효하지 않은 토큰입니다.", description = "토큰이 유효하지 않거나 서명이 잘못된 경우"),
+            ExceptionExample(code = EXPIRED_TOKEN, name = "만료된 토큰", message = "만료된 토큰입니다.", description = "토큰의 유효기간이 만료된 경우"),
+            ExceptionExample(code = NOT_FOUND, name = "세션 없음", message = "리소스가 존재하지 않습니다.", description = "세션이 없거나 다른 보호자의 아이 세션인 경우"),
+            ExceptionExample(code = BUSINESS_RULE_VIOLATION, name = "후활동 불가", message = "도메인 정책에 의해 실행할 수 없습니다.", description = "POST_ACTIVITY 상태가 아닌 세션인 경우"),
+            ExceptionExample(code = INTERNAL_SERVER_ERROR, name = "서버 오류", message = "서버 에러입니다. 개발자에게 문의해주세요.", description = "예상치 못한 서버 오류가 발생한 경우"),
+        ]
+    )
+    fun submitCardOrder(
+        @Parameter(description = "말하기 세션 고유 식별자", required = true) @PathVariable sessionId: String,
+        @Valid @RequestBody request: SubmitCardOrderRequest,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<SuccessResponse<CardOrderResultResponse>>
 }
