@@ -6,6 +6,8 @@ import com.krince.reminisce.application.port.`in`.message.command.SubmitUtteranc
 import com.krince.reminisce.application.port.out.analysis.SpeechAnalysisPort
 import com.krince.reminisce.application.port.out.message.CommandMessagePort
 import com.krince.reminisce.application.port.out.message.LoadMessagePort
+import com.krince.reminisce.application.port.out.reply.CharacterReplyContext
+import com.krince.reminisce.application.port.out.reply.CharacterReplyPort
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
 import com.krince.reminisce.application.port.out.stt.SttPort
@@ -61,6 +63,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
     val speechAnalysisPort = mockk<SpeechAnalysisPort>()
     val commandUtteranceAnalysisPort = mockk<CommandUtteranceAnalysisPort>()
     val commandSpeakingSessionPort = mockk<CommandSpeakingSessionPort>()
+    val characterReplyPort = mockk<CharacterReplyPort>()
     val fixedInstant = Instant.parse("2026-06-01T00:00:00Z")
     val fixedClock = Clock.fixed(fixedInstant, ZoneOffset.UTC)
     val service = SubmitUtteranceApplicationService(
@@ -73,6 +76,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
         speechAnalysisPort = speechAnalysisPort,
         commandUtteranceAnalysisPort = commandUtteranceAnalysisPort,
         commandSpeakingSessionPort = commandSpeakingSessionPort,
+        characterReplyPort = characterReplyPort,
         clock = fixedClock,
     )
 
@@ -142,6 +146,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             verify(exactly = 0) { speechAnalysisPort.analyze(any()) }
             verify(exactly = 0) { commandUtteranceAnalysisPort.save(any()) }
             verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
+            verify(exactly = 0) { characterReplyPort.generate(any()) }
         }
 
         test("타 보호자의 아이 세션이면 NOT_FOUND로 은닉하고 저장하지 않는다") {
@@ -155,6 +160,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             verify(exactly = 0) { speechAnalysisPort.analyze(any()) }
             verify(exactly = 0) { commandUtteranceAnalysisPort.save(any()) }
             verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
+            verify(exactly = 0) { characterReplyPort.generate(any()) }
         }
 
         test("도입 상태(currentSceneId null)면 BUSINESS_RULE_VIOLATION을 던지고 저장하지 않는다") {
@@ -168,6 +174,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             verify(exactly = 0) { speechAnalysisPort.analyze(any()) }
             verify(exactly = 0) { commandUtteranceAnalysisPort.save(any()) }
             verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
+            verify(exactly = 0) { characterReplyPort.generate(any()) }
         }
 
         test("현재 장면이 대화 장면이 아니면 BUSINESS_RULE_VIOLATION을 던지고 저장하지 않는다") {
@@ -182,6 +189,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             verify(exactly = 0) { speechAnalysisPort.analyze(any()) }
             verify(exactly = 0) { commandUtteranceAnalysisPort.save(any()) }
             verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
+            verify(exactly = 0) { characterReplyPort.generate(any()) }
         }
 
         test("STT가 실패(null)하면 STT_TRANSCRIPTION_FAILED를 던지고 저장하지 않는다") {
@@ -197,6 +205,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             verify(exactly = 0) { speechAnalysisPort.analyze(any()) }
             verify(exactly = 0) { commandUtteranceAnalysisPort.save(any()) }
             verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
+            verify(exactly = 0) { characterReplyPort.generate(any()) }
         }
     }
 
@@ -204,32 +213,35 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
         test("대화 장면 진행 중이면 turnOrder=count+1로 아이 발화를 저장하고 결과를 반환한다") {
             val existingCount = 2L
             val transcript = "며느리가 참 힘들었겠어요"
+            val stubReply = "표시명: 스텁 대사"
             every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(dialogueSceneIdStr)
             every { childAccessPort.findGuardianId(childId) } returns guardianId
             every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
             every { sttPort.transcribe(validAudio) } returns transcript
             every { loadMessagePort.countBySession(SpeakingSessionId(sessionIdStr)) } returns existingCount
-            val savedSlot = slot<Message>()
-            every { commandMessagePort.save(capture(savedSlot)) } answers { savedSlot.captured }
+            val savedSlot = mutableListOf<Message>()
+            every { commandMessagePort.save(capture(savedSlot)) } answers { savedSlot.last() }
             every { speechAnalysisPort.analyze(transcript) } returns
                 rawAnalysis(listOf(DetectedElement(ThinkingElement.EMOTION, "힘들")))
             val savedAnalysisSlot = slot<UtteranceAnalysis>()
             every { commandUtteranceAnalysisPort.save(capture(savedAnalysisSlot)) } answers { savedAnalysisSlot.captured }
             val savedSessionSlot = slot<SpeakingSession>()
             every { commandSpeakingSessionPort.save(capture(savedSessionSlot)) } answers { savedSessionSlot.captured }
+            every { characterReplyPort.generate(any()) } returns stubReply
 
             val result = service.execute(command())
 
-            savedSlot.captured.speakerType shouldBe SpeakerType.CHILD
-            savedSlot.captured.turnOrder shouldBe existingCount + 1
-            savedSlot.captured.text shouldBe transcript
-            savedSlot.captured.sttRawText shouldBe transcript
-            savedSlot.captured.sceneId.value shouldBe dialogueSceneIdStr
-            savedSlot.captured.createdAt shouldBe LocalDateTime.now(fixedClock)
+            val childMessage = savedSlot.first()
+            childMessage.speakerType shouldBe SpeakerType.CHILD
+            childMessage.turnOrder shouldBe existingCount + 1
+            childMessage.text shouldBe transcript
+            childMessage.sttRawText shouldBe transcript
+            childMessage.sceneId.value shouldBe dialogueSceneIdStr
+            childMessage.createdAt shouldBe LocalDateTime.now(fixedClock)
             result.speakerType shouldBe SpeakerType.CHILD.name
             result.turnOrder shouldBe existingCount + 1
             result.text shouldBe transcript
-            savedAnalysisSlot.captured.messageId shouldBe savedSlot.captured.messageId
+            savedAnalysisSlot.captured.messageId shouldBe childMessage.messageId
             savedAnalysisSlot.captured.detectedElements.map { it.type } shouldBe listOf(ThinkingElement.EMOTION)
             savedSessionSlot.captured.accumulatedElements shouldBe listOf(ThinkingElement.EMOTION)
             savedSessionSlot.captured.lastActivityAt shouldBe LocalDateTime.now(fixedClock)
@@ -243,7 +255,16 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             savedSessionSlot.captured.currentChildTurnCount shouldBe 1
             savedSessionSlot.captured.turnsWithoutNewElement shouldBe 0
             savedSessionSlot.captured.lastResponseMode shouldBe ResponseMode.NORMAL
-            verify(exactly = 1) { commandMessagePort.save(any()) }
+            val characterMessage = savedSlot.last()
+            characterMessage.speakerType shouldBe SpeakerType.CHARACTER
+            characterMessage.turnOrder shouldBe childMessage.turnOrder + 1
+            characterMessage.text shouldBe stubReply
+            characterMessage.sttRawText shouldBe null
+            result.characterReply.speakerType shouldBe SpeakerType.CHARACTER.name
+            result.characterReply.turnOrder shouldBe childMessage.turnOrder + 1
+            result.characterReply.text shouldBe stubReply
+            verify(exactly = 2) { commandMessagePort.save(any()) }
+            verify(exactly = 1) { characterReplyPort.generate(any()) }
             verify(exactly = 1) { commandUtteranceAnalysisPort.save(any()) }
             verify(exactly = 1) { commandSpeakingSessionPort.save(any()) }
         }
@@ -255,13 +276,13 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
             every { sttPort.transcribe(validAudio) } returns transcript
             every { loadMessagePort.countBySession(SpeakingSessionId(sessionIdStr)) } returns 0L
-            val savedSlot = slot<Message>()
-            every { commandMessagePort.save(capture(savedSlot)) } answers { savedSlot.captured }
+            every { commandMessagePort.save(any()) } answers { firstArg() }
             every { speechAnalysisPort.analyze(transcript) } returns
                 rawAnalysis(listOf(DetectedElement(ThinkingElement.PERSPECTIVE, "원문에 없는 근거")))
             val savedSessionSlot = slot<SpeakingSession>()
             every { commandUtteranceAnalysisPort.save(any()) } answers { firstArg() }
             every { commandSpeakingSessionPort.save(capture(savedSessionSlot)) } answers { savedSessionSlot.captured }
+            every { characterReplyPort.generate(any()) } returns "표시명: 스텁 대사"
 
             val result = service.execute(command())
 
@@ -277,16 +298,80 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
             every { sttPort.transcribe(validAudio) } returns transcript
             every { loadMessagePort.countBySession(SpeakingSessionId(sessionIdStr)) } returns 0L
-            val savedSlot = slot<Message>()
-            every { commandMessagePort.save(capture(savedSlot)) } answers { savedSlot.captured }
+            val savedSlot = mutableListOf<Message>()
+            every { commandMessagePort.save(capture(savedSlot)) } answers { savedSlot.last() }
             every { speechAnalysisPort.analyze(transcript) } returns rawAnalysis(emptyList())
+            every { commandUtteranceAnalysisPort.save(any()) } answers { firstArg() }
+            every { commandSpeakingSessionPort.save(any()) } answers { firstArg() }
+            every { characterReplyPort.generate(any()) } returns "표시명: 스텁 대사"
+
+            val result = service.execute(command())
+
+            savedSlot.first().turnOrder shouldBe 1L
+            result.turnOrder shouldBe 1L
+        }
+    }
+
+    context("캐릭터 반응") {
+        test("mode=GUIDED면 포트로 대사를 생성하고 유도 대상을 전달해 character 메시지로 저장한다") {
+            val existingCount = 1L
+            val transcript = "며느리가 참 힘들었겠어요"
+            val stubReply = "표시명: 유도 대사"
+            val lowInfoSession = session(dialogueSceneIdStr).copy(
+                currentChildTurnCount = 1,
+                turnsWithoutNewElement = 1,
+            )
+            every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns lowInfoSession
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
+            every { sttPort.transcribe(validAudio) } returns transcript
+            every { loadMessagePort.countBySession(SpeakingSessionId(sessionIdStr)) } returns existingCount
+            val savedSlot = mutableListOf<Message>()
+            every { commandMessagePort.save(capture(savedSlot)) } answers { savedSlot.last() }
+            every { speechAnalysisPort.analyze(transcript) } returns rawAnalysis(emptyList())
+            every { commandUtteranceAnalysisPort.save(any()) } answers { firstArg() }
+            every { commandSpeakingSessionPort.save(any()) } answers { firstArg() }
+            val contextSlot = slot<CharacterReplyContext>()
+            every { characterReplyPort.generate(capture(contextSlot)) } returns stubReply
+
+            val result = service.execute(command())
+
+            result.mode shouldBe ResponseMode.GUIDED.name
+            contextSlot.captured.mode shouldBe ResponseMode.GUIDED
+            contextSlot.captured.characterDisplayName shouldBe "표시명"
+            contextSlot.captured.guidanceTarget shouldBe ThinkingElement.PERSPECTIVE
+            savedSlot.last().speakerType shouldBe SpeakerType.CHARACTER
+            savedSlot.last().text shouldBe stubReply
+            result.characterReply.text shouldBe stubReply
+            verify(exactly = 1) { characterReplyPort.generate(any()) }
+        }
+
+        test("mode=CLOSING이면 포트를 호출하지 않고 characterClosing을 character 메시지 text로 저장한다") {
+            val existingCount = 3L
+            val transcript = "며느리가 참 힘들었겠어요"
+            val closingSession = session(dialogueSceneIdStr).copy(currentChildTurnCount = 3)
+            every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns closingSession
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
+            every { sttPort.transcribe(validAudio) } returns transcript
+            every { loadMessagePort.countBySession(SpeakingSessionId(sessionIdStr)) } returns existingCount
+            val savedSlot = mutableListOf<Message>()
+            every { commandMessagePort.save(capture(savedSlot)) } answers { savedSlot.last() }
+            every { speechAnalysisPort.analyze(transcript) } returns
+                rawAnalysis(listOf(DetectedElement(ThinkingElement.EMOTION, "힘들")))
             every { commandUtteranceAnalysisPort.save(any()) } answers { firstArg() }
             every { commandSpeakingSessionPort.save(any()) } answers { firstArg() }
 
             val result = service.execute(command())
 
-            savedSlot.captured.turnOrder shouldBe 1L
-            result.turnOrder shouldBe 1L
+            result.mode shouldBe ResponseMode.CLOSING.name
+            val childMessage = savedSlot.first()
+            val characterMessage = savedSlot.last()
+            characterMessage.speakerType shouldBe SpeakerType.CHARACTER
+            characterMessage.turnOrder shouldBe childMessage.turnOrder + 1
+            characterMessage.text shouldBe dialogueScene().characterClosing
+            result.characterReply.text shouldBe dialogueScene().characterClosing
+            verify(exactly = 0) { characterReplyPort.generate(any()) }
         }
     }
 })

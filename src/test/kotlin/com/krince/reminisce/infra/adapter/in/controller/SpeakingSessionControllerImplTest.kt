@@ -28,7 +28,9 @@ import io.kotest.matchers.shouldBe
 import io.restassured.RestAssured
 import io.restassured.http.ContentType
 import io.restassured.parsing.Parser
+import org.hamcrest.Matchers.emptyOrNullString
 import org.hamcrest.Matchers.equalTo
+import org.hamcrest.Matchers.not
 import org.hamcrest.Matchers.nullValue
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT
@@ -620,8 +622,11 @@ class SpeakingSessionControllerImplTest(
                     .body("data.sceneEndReason", nullValue())
                     .body("data.sceneGoalMet", equalTo(false))
                     .body("data.guidanceTarget", nullValue())
+                    .body("data.characterReply.speakerType", equalTo("CHARACTER"))
+                    .body("data.characterReply.turnOrder", equalTo(2))
+                    .body("data.characterReply.text", not(emptyOrNullString()))
 
-                testMessageFixture.countBySessionId(sessionId) shouldBe 1L
+                testMessageFixture.countBySessionId(sessionId) shouldBe 2L
                 val stored = testMessageFixture.findAllBySessionId(sessionId).first()
                 stored.speakerType shouldBe "CHILD"
                 stored.text shouldBe "며느리가 참 힘들었겠어요"
@@ -663,6 +668,8 @@ class SpeakingSessionControllerImplTest(
                     .statusCode(201)
                     .body("data.turnOrder", equalTo(1))
                     .body("data.accumulatedElements", equalTo(listOf("EMOTION")))
+                    .body("data.characterReply.turnOrder", equalTo(2))
+                    .body("data.characterReply.text", not(emptyOrNullString()))
 
                 RestAssured.given()
                     .header("Authorization", token)
@@ -672,9 +679,10 @@ class SpeakingSessionControllerImplTest(
                     .post("/speaking-sessions/$sessionId/utterances")
                     .then()
                     .statusCode(201)
-                    .body("data.turnOrder", equalTo(2))
+                    .body("data.turnOrder", equalTo(3))
+                    .body("data.characterReply.turnOrder", equalTo(4))
 
-                testMessageFixture.countBySessionId(sessionId) shouldBe 2L
+                testMessageFixture.countBySessionId(sessionId) shouldBe 4L
                 testUtteranceAnalysisFixture.count() shouldBe 2L
 
                 val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
@@ -718,10 +726,13 @@ class SpeakingSessionControllerImplTest(
                     .post("/speaking-sessions/$sessionId/utterances")
                     .then()
                     .statusCode(201)
-                    .body("data.turnOrder", equalTo(4))
                     .body("data.mode", equalTo("CLOSING"))
                     .body("data.sceneEndReason", equalTo("MAX_TURNS"))
                     .body("data.sceneGoalMet", equalTo(false))
+                    .body("data.turnOrder", equalTo(7))
+                    .body("data.characterReply.speakerType", equalTo("CHARACTER"))
+                    .body("data.characterReply.turnOrder", equalTo(8))
+                    .body("data.characterReply.text", equalTo("그래도 아직은 못 말하겠어. 조금만 더 참아 볼게."))
 
                 val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
                 storedSession?.currentChildTurnCount shouldBe 4
