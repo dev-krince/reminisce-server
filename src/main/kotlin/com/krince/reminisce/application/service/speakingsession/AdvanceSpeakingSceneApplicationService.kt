@@ -10,6 +10,7 @@ import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSes
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
 import com.krince.reminisce.domain.model.story.Scene
+import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryId
 import com.krince.reminisce.domain.model.user.vo.UserId
 import com.krince.reminisce.shared.exception.BusinessRuleViolationException
@@ -33,18 +34,53 @@ class AdvanceSpeakingSceneApplicationService(
     @Transactional
     override fun execute(command: AdvanceSpeakingSceneCommand): SpeakingSessionViewResult {
         val session: SpeakingSession = loadOwnedSession(command.sessionId, command.guardianId)
-        verifyAtIntro(session)
+        val currentSceneId: String = session.currentSceneId
+            ?: return advanceToFirstScene(session)
 
+        val currentScene: Scene = storyAccessPort.findScene(session.storyId, currentSceneId)
+            ?: throw NotFoundException(NOT_FOUND, NOT_FOUND.message)
+        verifyLeavable(session, currentScene)
+
+        return advanceToNext(session, currentSceneId)
+    }
+
+    private fun advanceToFirstScene(session: SpeakingSession): SpeakingSessionViewResult {
         val storyId: StoryId = session.storyId
         val firstSceneId: String = storyAccessPort.findFirstSceneId(storyId)
             ?: throw NotFoundException(NOT_FOUND, NOT_FOUND.message)
-        val scene: Scene = storyAccessPort.findScene(storyId, firstSceneId)
+        val firstScene: Scene = storyAccessPort.findScene(storyId, firstSceneId)
             ?: throw NotFoundException(NOT_FOUND, NOT_FOUND.message)
 
-        val advanced: SpeakingSession = session.advanceToScene(firstSceneId, LocalDateTime.now(clock))
-        commandSpeakingSessionPort.save(advanced)
+        return transitionTo(session, firstScene)
+    }
+
+    private fun advanceToNext(session: SpeakingSession, currentSceneId: String): SpeakingSessionViewResult {
+        val nextScene: Scene? = storyAccessPort.findNextScene(session.storyId, currentSceneId)
+        if (nextScene == null) {
+            commandSpeakingSessionPort.save(session.enterPostActivity(LocalDateTime.now(clock)))
+
+            return SpeakingSessionViewResult.postActivity()
+        }
+
+        return transitionTo(session, nextScene)
+    }
+
+    private fun transitionTo(session: SpeakingSession, scene: Scene): SpeakingSessionViewResult {
+        val transitioned: SpeakingSession = session.transitionToScene(scene.sceneId.value, LocalDateTime.now(clock))
+        commandSpeakingSessionPort.save(transitioned)
 
         return SpeakingSessionViewResult.scene(scene)
+    }
+
+    private fun verifyLeavable(session: SpeakingSession, currentScene: Scene) {
+        if (currentScene.sceneType != SceneType.DIALOGUE) {
+            return
+        }
+        if (session.sceneEndReason != null) {
+            return
+        }
+
+        throw BusinessRuleViolationException(BUSINESS_RULE_VIOLATION, BUSINESS_RULE_VIOLATION.message)
     }
 
     private fun loadOwnedSession(sessionId: String, guardianId: String): SpeakingSession {
@@ -59,12 +95,6 @@ class AdvanceSpeakingSceneApplicationService(
         val ownerId: UserId? = childAccessPort.findGuardianId(session.childId)
         if (ownerId == null || ownerId != guardianId) {
             throw NotFoundException(NOT_FOUND, NOT_FOUND.message)
-        }
-    }
-
-    private fun verifyAtIntro(session: SpeakingSession) {
-        if (session.currentSceneId != null) {
-            throw BusinessRuleViolationException(BUSINESS_RULE_VIOLATION, BUSINESS_RULE_VIOLATION.message)
         }
     }
 }
