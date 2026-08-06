@@ -20,5 +20,11 @@ class SpeakingSessionViewResult(
             intro = null,
             scene = SceneResult.from(scene),
         )
+
+        fun postActivity(): SpeakingSessionViewResult = SpeakingSessionViewResult(
+            viewType = SpeakingSessionViewType.POST_ACTIVITY,
+            intro = null,
+            scene = null,
+        )
     }
 }

@@ -30,8 +30,22 @@ data class SpeakingSession(
     val lastResponseMode: ResponseMode? = null,
     val lastGuidanceTarget: ThinkingElement? = null,
 ) {
-    fun advanceToScene(sceneId: String, at: LocalDateTime): SpeakingSession =
-        copy(currentSceneId = sceneId, lastActivityAt = at)
+    fun transitionToScene(nextSceneId: String, at: LocalDateTime): SpeakingSession =
+        copy(
+            currentSceneId = nextSceneId,
+            accumulatedElements = emptyList(),
+            currentChildTurnCount = 0,
+            turnsWithoutNewElement = 0,
+            consecutiveLowInformationTurns = 0,
+            sceneGoalMet = false,
+            sceneEndReason = null,
+            lastResponseMode = null,
+            lastGuidanceTarget = null,
+            lastActivityAt = at,
+        )
+
+    fun enterPostActivity(at: LocalDateTime): SpeakingSession =
+        copy(status = SessionStatus.POST_ACTIVITY, lastActivityAt = at)
 
     fun accumulate(newTypes: List<ThinkingElement>, at: LocalDateTime): SpeakingSession =
         copy(accumulatedElements = (accumulatedElements + newTypes).distinct(), lastActivityAt = at)
