@@ -4,8 +4,11 @@ import com.krince.reminisce.application.port.`in`.message.command.SubmitUtteranc
 import com.krince.reminisce.application.port.`in`.message.result.UtteranceResult
 import com.krince.reminisce.application.port.`in`.message.usecase.SubmitUtteranceUseCase
 import com.krince.reminisce.application.port.`in`.postactivity.command.SubmitCardOrderCommand
+import com.krince.reminisce.application.port.`in`.postactivity.command.SubmitRetellingCommand
 import com.krince.reminisce.application.port.`in`.postactivity.result.CardOrderResult
+import com.krince.reminisce.application.port.`in`.postactivity.result.RetellingResult
 import com.krince.reminisce.application.port.`in`.postactivity.usecase.SubmitCardOrderUseCase
+import com.krince.reminisce.application.port.`in`.postactivity.usecase.SubmitRetellingUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.command.AdvanceSpeakingSceneCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.command.GetResumableSessionsCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.command.GetSpeakingSessionViewCommand
@@ -21,8 +24,11 @@ import com.krince.reminisce.infra.adapter.`in`.dto.message.request.SubmitUtteran
 import com.krince.reminisce.infra.adapter.`in`.dto.message.response.UtteranceResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.message.response.utteranceResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.request.SubmitCardOrderRequest
+import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.request.SubmitRetellingRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.CardOrderResultResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.RetellingResultResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.cardOrderResultResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.retellingResultResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.request.StartSpeakingSessionRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionSummaryResponse
@@ -58,6 +64,7 @@ class SpeakingSessionControllerImpl(
     private val submitUtteranceUseCase: SubmitUtteranceUseCase,
     private val getResumableSessionsUseCase: GetResumableSessionsUseCase,
     private val submitCardOrderUseCase: SubmitCardOrderUseCase,
+    private val submitRetellingUseCase: SubmitRetellingUseCase,
 ) : SpeakingSessionController {
 
     @PostMapping
@@ -148,6 +155,25 @@ class SpeakingSessionControllerImpl(
         val result: CardOrderResult = submitCardOrderUseCase.execute(command)
         val response: CardOrderResultResponse = cardOrderResultResponse(result)
         val responseBody: SuccessResponse<CardOrderResultResponse> =
+            successResponse(responseCode = OK, data = response)
+
+        return ResponseEntity.status(responseBody.code).body(responseBody)
+    }
+
+    @PostMapping("/{sessionId}/post-activity/retelling")
+    override fun submitRetelling(
+        @PathVariable sessionId: String,
+        @Valid @RequestBody request: SubmitRetellingRequest,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<SuccessResponse<RetellingResultResponse>> {
+        val command = SubmitRetellingCommand(
+            sessionId = sessionId,
+            guardianId = userDetails.getId(),
+            audio = request.audio,
+        )
+        val result: RetellingResult = submitRetellingUseCase.execute(command)
+        val response: RetellingResultResponse = retellingResultResponse(result)
+        val responseBody: SuccessResponse<RetellingResultResponse> =
             successResponse(responseCode = OK, data = response)
 
         return ResponseEntity.status(responseBody.code).body(responseBody)
