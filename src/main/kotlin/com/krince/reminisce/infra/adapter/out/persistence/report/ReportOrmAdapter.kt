@@ -25,4 +25,12 @@ class ReportOrmAdapter(
 
         return ReportMapper.toDomain(ormEntity)
     }
+
+    override fun deleteAllBySessionIds(sessionIds: List<String>) {
+        if (sessionIds.isEmpty()) {
+            return
+        }
+
+        repository.deleteAllBySessionIdIn(sessionIds)
+    }
 }

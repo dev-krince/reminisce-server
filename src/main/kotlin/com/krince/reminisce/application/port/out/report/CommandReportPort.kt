@@ -4,4 +4,6 @@ import com.krince.reminisce.domain.model.report.Report
 
 interface CommandReportPort {
     fun save(report: Report): Report
+
+    fun deleteAllBySessionIds(sessionIds: List<String>)
 }

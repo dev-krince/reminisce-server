@@ -4,4 +4,6 @@ import com.krince.reminisce.domain.model.message.Message
 
 interface CommandMessagePort {
     fun save(message: Message): Message
+
+    fun deleteAllBySessionIds(sessionIds: List<String>)
 }

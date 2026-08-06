@@ -5,4 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface PostActivityResultRepository : JpaRepository<PostActivityResultOrmEntity, String> {
     fun findBySessionId(sessionId: String): PostActivityResultOrmEntity?
+
+    fun deleteAllBySessionIdIn(sessionIds: List<String>)
 }

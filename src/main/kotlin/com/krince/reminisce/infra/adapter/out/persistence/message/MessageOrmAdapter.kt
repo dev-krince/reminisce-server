@@ -31,4 +31,20 @@ class MessageOrmAdapter(
 
         return entities.map { MessageId(it.id) }
     }
+
+    override fun findMessageIdsBySessionIds(sessionIds: List<String>): List<String> {
+        if (sessionIds.isEmpty()) {
+            return emptyList()
+        }
+
+        return repository.findMessageIdsBySessionIdIn(sessionIds)
+    }
+
+    override fun deleteAllBySessionIds(sessionIds: List<String>) {
+        if (sessionIds.isEmpty()) {
+            return
+        }
+
+        repository.deleteAllBySessionIdIn(sessionIds)
+    }
 }

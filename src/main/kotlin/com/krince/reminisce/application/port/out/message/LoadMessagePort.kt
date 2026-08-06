@@ -7,4 +7,6 @@ interface LoadMessagePort {
     fun countBySession(sessionId: SpeakingSessionId): Long
 
     fun findChildMessageIdsBySession(sessionId: SpeakingSessionId): List<MessageId>
+
+    fun findMessageIdsBySessionIds(sessionIds: List<String>): List<String>
 }

@@ -30,4 +30,12 @@ class UtteranceAnalysisOrmAdapter(
 
         return entities.map { UtteranceAnalysisMapper.toDomain(it) }
     }
+
+    override fun deleteAllByMessageIds(messageIds: List<String>) {
+        if (messageIds.isEmpty()) {
+            return
+        }
+
+        repository.deleteAllByMessageIdIn(messageIds)
+    }
 }

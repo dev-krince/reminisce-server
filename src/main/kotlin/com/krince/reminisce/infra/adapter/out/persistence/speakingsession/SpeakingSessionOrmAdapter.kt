@@ -47,4 +47,20 @@ class SpeakingSessionOrmAdapter(
 
     override fun findStartedStoryIdsByChild(childId: ChildId): List<String> =
         repository.findDistinctStoryIdsByChildId(childId.value)
+
+    override fun findSessionIdsByChildIds(childIds: List<ChildId>): List<String> {
+        if (childIds.isEmpty()) {
+            return emptyList()
+        }
+
+        return repository.findSessionIdsByChildIdIn(childIds.map { it.value })
+    }
+
+    override fun deleteAllByChildIds(childIds: List<ChildId>) {
+        if (childIds.isEmpty()) {
+            return
+        }
+
+        repository.deleteAllByChildIdIn(childIds.map { it.value })
+    }
 }

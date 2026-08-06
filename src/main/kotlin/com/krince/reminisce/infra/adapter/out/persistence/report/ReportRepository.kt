@@ -5,4 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface ReportRepository : JpaRepository<ReportOrmEntity, String> {
     fun findBySessionId(sessionId: String): ReportOrmEntity?
+
+    fun deleteAllBySessionIdIn(sessionIds: List<String>)
 }

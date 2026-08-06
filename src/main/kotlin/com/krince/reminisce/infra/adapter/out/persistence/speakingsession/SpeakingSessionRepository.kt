@@ -22,4 +22,9 @@ interface SpeakingSessionRepository : JpaRepository<SpeakingSessionOrmEntity, St
 
     @Query("SELECT DISTINCT s.storyId FROM SpeakingSessionOrmEntity s WHERE s.childId = :childId")
     fun findDistinctStoryIdsByChildId(childId: String): List<String>
+
+    @Query("SELECT s.sessionId FROM SpeakingSessionOrmEntity s WHERE s.childId IN :childIds")
+    fun findSessionIdsByChildIdIn(childIds: List<String>): List<String>
+
+    fun deleteAllByChildIdIn(childIds: List<String>)
 }
