@@ -55,7 +55,7 @@ file:
 
 child:
   policy:
-    max-per-guardian: ${CHILD_MAX_PER_GUARDIAN}
+    max-per-guardian: ${CHILD_MAX_PER_GUARDIAN:3}
 
 LOG_HOST: ${LOG_HOST}
 LOG_INDEX_ID: ${LOG_INDEX_ID}
