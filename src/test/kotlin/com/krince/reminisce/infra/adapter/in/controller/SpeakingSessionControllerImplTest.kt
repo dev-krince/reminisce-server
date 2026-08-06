@@ -734,6 +734,114 @@ class SpeakingSessionControllerImplTest(
         }
     }
 
+    context("getResumableSessions") {
+        fun sessionEntityWithLastActivity(
+            sessionId: String,
+            childId: String,
+            storyId: String,
+            status: SessionStatus = SessionStatus.IN_PROGRESS,
+            lastActivityAt: LocalDateTime,
+        ): SpeakingSessionOrmEntity = SpeakingSessionOrmEntity(
+            sessionId = sessionId,
+            childId = childId,
+            storyId = storyId,
+            currentSceneId = null,
+            status = status.name,
+            startedAt = LocalDateTime.now().minusMinutes(10),
+            lastActivityAt = lastActivityAt,
+            accumulatedElements = emptyList(),
+            currentChildTurnCount = 0,
+            turnsWithoutNewElement = 0,
+            sceneEndReason = null,
+        )
+
+        context("성공") {
+            test("in_progress 2건과 completed 1건이 있을 때 GET ?childId는 200과 in_progress 2건만 lastActivityAt 최근순으로 반환한다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                val recentAt = LocalDateTime.now().minusMinutes(1)
+                val olderAt = LocalDateTime.now().minusMinutes(3)
+                val sessionIdRecent = "session-a-${uniqueSuffix()}"
+                val sessionIdOlder = "session-b-${uniqueSuffix()}"
+                val sessionIdCompleted = "session-c-${uniqueSuffix()}"
+                testSpeakingSessionFixture.save(
+                    sessionEntityWithLastActivity(sessionIdRecent, childId, storyId, lastActivityAt = recentAt),
+                )
+                testSpeakingSessionFixture.save(
+                    sessionEntityWithLastActivity(sessionIdOlder, childId, storyId, lastActivityAt = olderAt),
+                )
+                testSpeakingSessionFixture.save(
+                    sessionEntityWithLastActivity(
+                        sessionIdCompleted,
+                        childId,
+                        storyId,
+                        status = SessionStatus.COMPLETED,
+                        lastActivityAt = LocalDateTime.now(),
+                    ),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .`when`()
+                    .get("/speaking-sessions?childId=$childId")
+                    .then()
+                    .statusCode(200)
+                    .body("success", equalTo(true))
+                    .body("code", equalTo(200))
+                    .body("data.size()", equalTo(2))
+                    .body("data[0].sessionId", equalTo(sessionIdRecent))
+                    .body("data[0].status", equalTo(SessionStatus.IN_PROGRESS.name))
+                    .body("data[1].sessionId", equalTo(sessionIdOlder))
+            }
+
+            test("in_progress 세션이 없으면 200과 빈 배열을 반환한다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .`when`()
+                    .get("/speaking-sessions?childId=$childId")
+                    .then()
+                    .statusCode(200)
+                    .body("success", equalTo(true))
+                    .body("data.size()", equalTo(0))
+            }
+        }
+
+        context("예외케이스") {
+            test("남의 아이 childId로 조회하면 404와 NOT_FOUND를 반환한다") {
+                val (_, token) = authorizedGuardian()
+                val otherGuardianId = "other-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(otherGuardianId))
+                val otherChildId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(otherChildId, otherGuardianId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .`when`()
+                    .get("/speaking-sessions?childId=$otherChildId")
+                    .then()
+                    .statusCode(404)
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+            }
+
+            test("토큰 없이 조회하면 401과 EMPTY_TOKEN을 반환한다") {
+                RestAssured.given()
+                    .`when`()
+                    .get("/speaking-sessions?childId=any-child")
+                    .then()
+                    .statusCode(401)
+                    .body("detailCode", equalTo(ExceptionResponseCode.EMPTY_TOKEN.detailCode))
+                    .body("message", equalTo("토큰이 없습니다."))
+            }
+        }
+    }
+
     context("submitUtterance") {
         context("성공") {
             test("대화 장면 진행 중 세션에 유효 발화를 제출하면 201과 child 메시지 1건을 저장한다") {
