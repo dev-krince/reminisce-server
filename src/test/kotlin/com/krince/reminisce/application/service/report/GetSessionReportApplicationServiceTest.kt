@@ -10,7 +10,10 @@ import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSes
 import com.krince.reminisce.application.port.out.utteranceanalysis.LoadUtteranceAnalysisPort
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.message.vo.MessageId
+import com.krince.reminisce.domain.model.report.CompetencyAnalysis
+import com.krince.reminisce.domain.model.report.HomeConversationGuide
 import com.krince.reminisce.domain.model.report.Report
+import com.krince.reminisce.domain.model.report.RepresentativeUtterance
 import com.krince.reminisce.domain.model.report.vo.ReportId
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
@@ -27,6 +30,7 @@ import com.krince.reminisce.shared.exception.BusinessRuleViolationException
 import com.krince.reminisce.shared.exception.NotFoundException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.BUSINESS_RULE_VIOLATION
 import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND
+import com.krince.reminisce.testutil.fixture.TestGuardianReportAreasFixture
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.annotation.DisplayName
 import io.kotest.core.annotation.Tags
@@ -98,6 +102,8 @@ class GetSessionReportApplicationServiceTest : FunSpec({
         validity = UtteranceValidity.VALID,
     )
 
+    fun competencyAnalysis(): CompetencyAnalysis = TestGuardianReportAreasFixture.competencyAnalysis()
+
     context("완료 세션 - 기존 리포트 없음") {
         test("세션 아이 메시지 분석을 집계해 strengths 합집합·nextFocus 상보·스텁 summary로 리포트를 저장하고 반환한다") {
             val messageIds = listOf(MessageId("msg-1"), MessageId("msg-2"))
@@ -154,6 +160,12 @@ class GetSessionReportApplicationServiceTest : FunSpec({
                 summary = "기존-요약",
                 strengths = listOf(ThinkingElement.EMOTION),
                 nextFocus = ThinkingElement.entries.filterNot { it == ThinkingElement.EMOTION },
+                competencyAnalysis = competencyAnalysis(),
+                representativeUtterance = RepresentativeUtterance(text = "기존-대표", reason = "기존-이유"),
+                homeConversationGuide = HomeConversationGuide(
+                    storyThemeQuestions = listOf("기존-주제-질문"),
+                    dailyLifeQuestions = listOf("기존-일상-질문"),
+                ),
                 createdAt = LocalDateTime.of(2026, 1, 1, 9, 0, 0),
             )
             every { loadSpeakingSessionPort.findById(sessionId) } returns session()
@@ -168,6 +180,70 @@ class GetSessionReportApplicationServiceTest : FunSpec({
             verify(exactly = 0) { loadMessagePort.findChildMessageIdsBySession(any()) }
             verify(exactly = 0) { loadUtteranceAnalysisPort.findByMessageIds(any()) }
             verify(exactly = 0) { commandReportPort.save(any()) }
+        }
+    }
+
+    context("3영역 파생") {
+        fun stubGenerateSession() {
+            every { loadSpeakingSessionPort.findById(sessionId) } returns session()
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { loadReportPort.findBySession(sessionId) } returns null
+            every { reportSummaryPort.generate(any(), any()) } returns stubSummary
+        }
+
+        test("PERSPECTIVE·EMPATHY 검출은 관점·공감을 잘한 점으로, REQUEST 미검출은 상호작용을 보완점으로 채운다") {
+            stubGenerateSession()
+            val messageIds = listOf(MessageId("msg-1"))
+            every { loadMessagePort.findChildMessageIdsBySession(sessionId) } returns messageIds
+            every { loadUtteranceAnalysisPort.findByMessageIds(messageIds) } returns listOf(
+                analysis("msg-1", ThinkingElement.PERSPECTIVE, ThinkingElement.EMPATHY),
+            )
+            val savedSlot = slot<Report>()
+            every { commandReportPort.save(capture(savedSlot)) } answers { savedSlot.captured }
+
+            val result = service.execute(command())
+
+            val perspectiveEmpathy = result.competencyAnalysis.perspectiveEmpathy
+            perspectiveEmpathy.label shouldBe "관점·공감"
+            perspectiveEmpathy.evidenceUtterance shouldBe "근거-PERSPECTIVE"
+            val interaction = result.competencyAnalysis.interaction
+            interaction.label shouldBe "상호작용"
+            interaction.evidenceUtterance shouldBe null
+            perspectiveEmpathy.strength shouldBe savedSlot.captured.competencyAnalysis.perspectiveEmpathy.strength
+        }
+
+        test("대표 발화는 detectedElements가 가장 많은 아이 발화 evidence로 선정되고 가정 연계 질문은 비어있지 않다") {
+            stubGenerateSession()
+            val messageIds = listOf(MessageId("msg-1"), MessageId("msg-2"))
+            every { loadMessagePort.findChildMessageIdsBySession(sessionId) } returns messageIds
+            every { loadUtteranceAnalysisPort.findByMessageIds(messageIds) } returns listOf(
+                analysis("msg-1", ThinkingElement.EMOTION),
+                analysis("msg-2", ThinkingElement.PERSPECTIVE, ThinkingElement.EMPATHY, ThinkingElement.DECISION),
+            )
+            val savedSlot = slot<Report>()
+            every { commandReportPort.save(capture(savedSlot)) } answers { savedSlot.captured }
+
+            val result = service.execute(command())
+
+            result.representativeUtterance.text shouldBe "근거-PERSPECTIVE"
+            result.representativeUtterance.reason.isNotBlank() shouldBe true
+            result.homeConversationGuide.storyThemeQuestions.isNotEmpty() shouldBe true
+            result.homeConversationGuide.dailyLifeQuestions.isNotEmpty() shouldBe true
+        }
+
+        test("발화·분석이 없어도 예외 없이 안전 기본값으로 3영역을 채운다") {
+            stubGenerateSession()
+            every { loadMessagePort.findChildMessageIdsBySession(sessionId) } returns emptyList()
+            every { loadUtteranceAnalysisPort.findByMessageIds(emptyList()) } returns emptyList()
+            val savedSlot = slot<Report>()
+            every { commandReportPort.save(capture(savedSlot)) } answers { savedSlot.captured }
+
+            val result = service.execute(command())
+
+            result.representativeUtterance.text shouldBe null
+            result.competencyAnalysis.perspectiveEmpathy.evidenceUtterance shouldBe null
+            result.homeConversationGuide.storyThemeQuestions.isNotEmpty() shouldBe true
+            result.homeConversationGuide.dailyLifeQuestions.isNotEmpty() shouldBe true
         }
     }
 

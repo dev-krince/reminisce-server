@@ -20,6 +20,7 @@ import com.krince.reminisce.testutil.TestConfig
 import com.krince.reminisce.testutil.fixture.TestAuthUserFixture
 import com.krince.reminisce.testutil.fixture.TestChildConsentFixture
 import com.krince.reminisce.testutil.fixture.TestChildFixture
+import com.krince.reminisce.testutil.fixture.TestGuardianReportAreasFixture
 import com.krince.reminisce.testutil.fixture.TestJwtTokenFixture
 import com.krince.reminisce.testutil.fixture.TestMessageFixture
 import com.krince.reminisce.testutil.fixture.TestPostActivityResultFixture
@@ -137,6 +138,9 @@ class UserControllerImplTest(
             summary = "요약",
             strengths = listOf(ThinkingElement.EMOTION),
             nextFocus = listOf(ThinkingElement.REASON),
+            competencyAnalysis = TestGuardianReportAreasFixture.competencyAnalysis(),
+            representativeUtterance = TestGuardianReportAreasFixture.representativeUtterance(),
+            homeConversationGuide = TestGuardianReportAreasFixture.homeConversationGuide(),
             createdAt = LocalDateTime.of(2026, 6, 1, 0, 40),
         )
 
