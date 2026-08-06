@@ -43,6 +43,7 @@ class SecurityConfig(
     private val permitAllPostUrls = listOf(
         "/api/auth/tokens",
         "/api/auth/tokens/kakao",
+        "/api/auth/tokens/google",
         "/api/auth/tokens/refresh",
         "/api/users",
         "/api/users/email-verifications",

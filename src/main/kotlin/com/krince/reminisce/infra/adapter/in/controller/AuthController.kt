@@ -1,5 +1,6 @@
 package com.krince.reminisce.infra.adapter.`in`.controller
 
+import com.krince.reminisce.infra.adapter.`in`.dto.auth.request.GoogleLoginRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.auth.request.KakaoLoginRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.auth.request.LoginRequest
 import com.krince.reminisce.infra.swagger.ExceptionExample
@@ -41,6 +42,19 @@ interface AuthController {
     )
     fun kakaoLogin(
         @Valid @RequestBody request: KakaoLoginRequest,
+    ): ResponseEntity<Void>
+
+    @Operation(summary = "구글 로그인", description = "구글 인가코드로 계정을 upsert하고 액세스·리프레시 토큰을 헤더로 발급합니다.")
+    @SwaggerSuccessResponse(responseCode = OK, description = "구글 로그인 성공")
+    @SwaggerExceptionResponse(
+        examples = [
+            ExceptionExample(code = INVALID_DTO_PARAMETER, name = "요청 값 오류", message = "요청 값이 올바르지 않습니다.(dto 검증 오류)", description = "요청 바디 검증에 실패한 경우"),
+            ExceptionExample(code = SOCIAL_AUTH_FAILED, name = "소셜 인증 실패", message = "소셜 인증에 실패했습니다.", description = "구글 코드 교환·사용자 조회에 실패한 경우"),
+            ExceptionExample(code = INTERNAL_SERVER_ERROR, name = "서버 오류", message = "서버 에러입니다. 개발자에게 문의해주세요.", description = "예상치 못한 서버 오류가 발생한 경우"),
+        ]
+    )
+    fun googleLogin(
+        @Valid @RequestBody request: GoogleLoginRequest,
     ): ResponseEntity<Void>
 
     @Operation(summary = "토큰 재발급", description = "리프레시 토큰으로 액세스·리프레시 토큰을 회전 발급합니다.")

@@ -1,14 +1,18 @@
 package com.krince.reminisce.application.service.auth
 
+import com.krince.reminisce.application.port.`in`.auth.command.GoogleLoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.KakaoLoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.LoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.LogoutCommand
 import com.krince.reminisce.application.port.`in`.auth.command.ReissueTokenCommand
 import com.krince.reminisce.application.port.`in`.auth.result.TokenResult
+import com.krince.reminisce.application.port.`in`.auth.usecase.GoogleLoginUseCase
 import com.krince.reminisce.application.port.`in`.auth.usecase.KakaoLoginUseCase
 import com.krince.reminisce.application.port.`in`.auth.usecase.LoginUseCase
 import com.krince.reminisce.application.port.`in`.auth.usecase.LogoutUseCase
 import com.krince.reminisce.application.port.`in`.auth.usecase.ReissueTokenUseCase
+import com.krince.reminisce.application.port.out.auth.GoogleOAuthPort
+import com.krince.reminisce.application.port.out.auth.GoogleUserInfo
 import com.krince.reminisce.application.port.out.auth.KakaoOAuthPort
 import com.krince.reminisce.application.port.out.auth.KakaoUserInfo
 import com.krince.reminisce.application.port.out.auth.PasswordEncoderPort
@@ -36,7 +40,8 @@ class AuthApplicationService(
     private val refreshTokenPort: RefreshTokenPort,
     private val accessTokenBlacklister: AccessTokenBlacklister,
     private val kakaoOAuthPort: KakaoOAuthPort,
-) : LoginUseCase, ReissueTokenUseCase, LogoutUseCase, KakaoLoginUseCase {
+    private val googleOAuthPort: GoogleOAuthPort,
+) : LoginUseCase, ReissueTokenUseCase, LogoutUseCase, KakaoLoginUseCase, GoogleLoginUseCase {
 
     override fun execute(command: LoginCommand): TokenResult {
         val user: User = loadUserPort.findByEmail(Email(command.email))
@@ -52,6 +57,14 @@ class AuthApplicationService(
         val kakaoUser: KakaoUserInfo = kakaoOAuthPort.exchangeCodeForUser(command.authorizationCode)
         val user: User = loadUserPort.findByProviderAndProviderId(AuthProvider.KAKAO, kakaoUser.id)
             ?: registerKakaoUser(kakaoUser)
+
+        return issueTokens(userId = user.userId.value, role = user.role.value)
+    }
+
+    override fun execute(command: GoogleLoginCommand): TokenResult {
+        val googleUser: GoogleUserInfo = googleOAuthPort.exchangeCodeForUser(command.authorizationCode)
+        val user: User = loadUserPort.findByProviderAndProviderId(AuthProvider.GOOGLE, googleUser.id)
+            ?: registerGoogleUser(googleUser)
 
         return issueTokens(userId = user.userId.value, role = user.role.value)
     }
@@ -84,6 +97,16 @@ class AuthApplicationService(
             providerId = kakaoUser.id,
             email = kakaoUser.email?.let { Email(it) },
             nickname = Nickname(kakaoUser.nickname),
+        )
+
+        return commandUserPort.save(user)
+    }
+
+    private fun registerGoogleUser(googleUser: GoogleUserInfo): User {
+        val user: User = User.google(
+            providerId = googleUser.id,
+            email = googleUser.email?.let { Email(it) },
+            nickname = Nickname(googleUser.nickname),
         )
 
         return commandUserPort.save(user)
