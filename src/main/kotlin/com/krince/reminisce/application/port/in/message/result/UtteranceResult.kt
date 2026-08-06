@@ -23,11 +23,28 @@ class UtteranceResult(
     val sceneEndReason: String?,
     val sceneGoalMet: Boolean,
     val guidanceTarget: String?,
+    val characterReply: CharacterReplyResult,
 ) {
     class DetectedElementResult(
         val type: String,
         val evidence: String,
     )
+
+    class CharacterReplyResult(
+        val messageId: String,
+        val speakerType: String,
+        val turnOrder: Long,
+        val text: String,
+    ) {
+        companion object {
+            fun from(message: Message): CharacterReplyResult = CharacterReplyResult(
+                messageId = message.messageId.value,
+                speakerType = message.speakerType.name,
+                turnOrder = message.turnOrder,
+                text = message.text,
+            )
+        }
+    }
 
     companion object {
         fun from(
@@ -35,6 +52,7 @@ class UtteranceResult(
             analysis: UtteranceAnalysis,
             session: SpeakingSession,
             missingElements: List<ThinkingElement>,
+            characterMessage: Message,
         ): UtteranceResult = UtteranceResult(
             messageId = message.messageId.value,
             sceneId = message.sceneId.value,
@@ -54,6 +72,7 @@ class UtteranceResult(
             sceneEndReason = session.sceneEndReason?.name,
             sceneGoalMet = session.sceneGoalMet,
             guidanceTarget = session.lastGuidanceTarget?.name,
+            characterReply = CharacterReplyResult.from(characterMessage),
         )
     }
 }

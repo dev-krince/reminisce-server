@@ -8,12 +8,15 @@ import com.krince.reminisce.application.port.`in`.message.usecase.SubmitUtteranc
 import com.krince.reminisce.application.port.out.analysis.SpeechAnalysisPort
 import com.krince.reminisce.application.port.out.message.CommandMessagePort
 import com.krince.reminisce.application.port.out.message.LoadMessagePort
+import com.krince.reminisce.application.port.out.reply.CharacterReplyContext
+import com.krince.reminisce.application.port.out.reply.CharacterReplyPort
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
 import com.krince.reminisce.application.port.out.stt.SttPort
 import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
 import com.krince.reminisce.domain.model.message.Message
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
+import com.krince.reminisce.domain.model.speakingsession.vo.ResponseMode
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
 import com.krince.reminisce.domain.model.story.Scene
 import com.krince.reminisce.domain.model.story.vo.SceneId
@@ -43,10 +46,12 @@ class SubmitUtteranceApplicationService(
     private val speechAnalysisPort: SpeechAnalysisPort,
     private val commandUtteranceAnalysisPort: CommandUtteranceAnalysisPort,
     private val commandSpeakingSessionPort: CommandSpeakingSessionPort,
+    private val characterReplyPort: CharacterReplyPort,
     private val clock: Clock,
 ) : SubmitUtteranceUseCase {
 
     private val firstTurnOffset: Long = 1L
+    private val nextTurnOffset: Long = 1L
 
     @Transactional
     override fun execute(command: SubmitUtteranceCommand): UtteranceResult {
@@ -57,8 +62,42 @@ class SubmitUtteranceApplicationService(
         val analysis: UtteranceAnalysis = analyzeAndSave(message)
         val progressedSession: SpeakingSession = progressAndSave(session, analysis, dialogueScene)
         val missingElements: List<ThinkingElement> = missingElements(dialogueScene, progressedSession)
+        val characterMessage: Message = saveCharacterReply(message, dialogueScene, progressedSession)
 
-        return UtteranceResult.from(message, analysis, progressedSession, missingElements)
+        return UtteranceResult.from(message, analysis, progressedSession, missingElements, characterMessage)
+    }
+
+    private fun saveCharacterReply(
+        childMessage: Message,
+        scene: Scene,
+        session: SpeakingSession,
+    ): Message {
+        val replyText: String = characterReplyText(childMessage, scene, session)
+        val characterMessage: Message = Message.characterReply(
+            sessionId = session.sessionId,
+            sceneId = SceneId(scene.sceneId.value),
+            turnOrder = childMessage.turnOrder + nextTurnOffset,
+            text = replyText,
+            at = LocalDateTime.now(clock),
+        )
+
+        return commandMessagePort.save(characterMessage)
+    }
+
+    private fun characterReplyText(childMessage: Message, scene: Scene, session: SpeakingSession): String {
+        val mode: ResponseMode = requireNotNull(session.lastResponseMode)
+        if (mode == ResponseMode.CLOSING) {
+            return checkNotNull(scene.characterClosing)
+        }
+
+        return characterReplyPort.generate(
+            CharacterReplyContext(
+                characterDisplayName = checkNotNull(scene.characterDisplayName),
+                mode = mode,
+                childUtterance = childMessage.text,
+                guidanceTarget = session.lastGuidanceTarget,
+            ),
+        )
     }
 
     private fun analyzeAndSave(message: Message): UtteranceAnalysis {
