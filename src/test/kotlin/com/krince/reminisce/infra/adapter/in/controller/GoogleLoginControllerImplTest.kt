@@ -88,7 +88,7 @@ class GoogleLoginControllerImplTest(
             savedUser.shouldNotBeNull()
             savedUser.provider shouldBe "GOOGLE"
             savedUser.providerId shouldBe googleSub
-            savedUser.password shouldBe null
+            savedUser.email shouldBe "g@example.com"
         }
         test("이미 존재하는 구글 계정이면 재생성 없이 토큰을 반환한다") {
             val googleSub = "google-sub-integration-existing"

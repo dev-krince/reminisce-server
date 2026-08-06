@@ -4,6 +4,7 @@ import com.krince.reminisce.infra.security.JwtProvider
 import com.krince.reminisce.shared.response.ExceptionResponseCode
 import com.krince.reminisce.testutil.TestConfig
 import com.krince.reminisce.testutil.fixture.TestAuthUserFixture
+import com.krince.reminisce.testutil.fixture.TestJwtTokenFixture
 import com.krince.reminisce.testutil.fixture.TestUserFixture
 import io.kotest.common.ExperimentalKotest
 import io.kotest.core.annotation.DisplayName
@@ -12,7 +13,6 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
 import io.restassured.RestAssured
-import io.restassured.http.ContentType
 import io.restassured.parsing.Parser
 import org.hamcrest.Matchers.equalTo
 import org.springframework.beans.factory.annotation.Value
@@ -22,29 +22,39 @@ import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.context.annotation.Import
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.test.context.ActiveProfiles
+import java.time.Duration
 
 @OptIn(ExperimentalKotest::class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @ActiveProfiles("localtest")
 @Import(TestConfig::class)
 @io.kotest.core.annotation.Tags("test", "integrationTest")
-@DisplayName("로그인·토큰 통합테스트")
+@DisplayName("토큰 재발급·로그아웃 통합테스트")
 class AuthTokenControllerImplTest(
     @param:LocalServerPort private val port: Int,
     @param:Value("\${jwt.access-token-expired}") private val accessTokenExpiredMillis: Long,
     private val testUserFixture: TestUserFixture,
     private val testAuthUserFixture: TestAuthUserFixture,
+    private val testJwtTokenFixture: TestJwtTokenFixture,
     private val redisTemplate: StringRedisTemplate,
     private val jwtProvider: JwtProvider,
 ) : FunSpec({
 
-    val rawPassword = "Password1!"
     val millisPerSecond = 1000L
     val accessTokenExpiredSeconds = accessTokenExpiredMillis / millisPerSecond
+    val refreshTtl = Duration.ofMinutes(30)
 
-    fun uniqueEmail(prefix: String): String = "$prefix${System.nanoTime()}@example.com"
+    fun uniqueSuffix(): String = "${System.currentTimeMillis()}-${System.nanoTime()}"
 
     fun storedRefresh(userId: String): String? = redisTemplate.opsForValue().get("auth:refresh:$userId")
+
+    fun issueSession(userId: String): Pair<String, String> {
+        val access = testJwtTokenFixture.generateAccessToken(userId)
+        val refresh = testJwtTokenFixture.generateRefreshToken(userId)
+        redisTemplate.opsForValue().set("auth:refresh:$userId", refresh, refreshTtl)
+
+        return access to refresh
+    }
 
     fun accessTokenId(bearerAccessToken: String): String =
         requireNotNull(jwtProvider.getTokenId(bearerAccessToken.removePrefix("Bearer ").trim()))
@@ -52,14 +62,6 @@ class AuthTokenControllerImplTest(
     fun blacklistExpire(tokenId: String): Long? = redisTemplate.getExpire("auth:blacklist:$tokenId")
 
     fun blacklisted(tokenId: String): Boolean = redisTemplate.hasKey("auth:blacklist:$tokenId")
-
-    fun login(email: String, password: String) =
-        RestAssured.given()
-            .contentType(ContentType.JSON)
-            .body(mapOf("email" to email, "password" to password))
-            .`when`()
-            .post("/auth/tokens")
-            .then()
 
     beforeSpec {
         RestAssured.port = port
@@ -72,45 +74,10 @@ class AuthTokenControllerImplTest(
         redisTemplate.connectionFactory?.connection?.serverCommands()?.flushAll()
     }
 
-    context("로그인") {
-        test("올바른 자격증명이면 200과 Authorization·refreshToken 헤더를 주고 Redis에 리프레시를 저장한다") {
-            val email = uniqueEmail("login")
-            val userId = testAuthUserFixture.saveLocalUser(email, rawPassword)
-
-            val response = login(email, rawPassword)
-                .statusCode(200)
-                .extract()
-
-            val accessHeader = response.header("Authorization")
-            val refreshHeader = response.header("refreshToken")
-            accessHeader.shouldNotBeNull()
-            accessHeader shouldStartWith "Bearer "
-            refreshHeader.shouldNotBeNull()
-            refreshHeader shouldStartWith "Bearer "
-            storedRefresh(userId) shouldBe refreshHeader
-        }
-        test("존재하지 않는 이메일이면 401과 INVALID_PASSWORD를 반환한다") {
-            login(uniqueEmail("nouser"), rawPassword)
-                .statusCode(401)
-                .body("detailCode", equalTo(ExceptionResponseCode.INVALID_PASSWORD.detailCode))
-        }
-        test("비밀번호가 틀리면 없는 이메일과 동일한 401·INVALID_PASSWORD를 반환한다(사용자 열거 불가)") {
-            val email = uniqueEmail("wrongpw")
-            testAuthUserFixture.saveLocalUser(email, rawPassword)
-
-            login(email, "Wrongpass9!")
-                .statusCode(401)
-                .body("detailCode", equalTo(ExceptionResponseCode.INVALID_PASSWORD.detailCode))
-        }
-    }
-
     context("토큰 재발급") {
         test("유효한 리프레시로 재발급하면 새 헤더를 주고 Redis 저장분을 교체하며 기존 리프레시는 거부한다") {
-            val email = uniqueEmail("reissue")
-            val userId = testAuthUserFixture.saveLocalUser(email, rawPassword)
-
-            val oldRefresh = login(email, rawPassword).statusCode(200).extract().header("refreshToken")
-            oldRefresh.shouldNotBeNull()
+            val userId = testAuthUserFixture.saveKakaoUser("kakao-${uniqueSuffix()}")
+            val (_, oldRefresh) = issueSession(userId)
 
             val reissued = RestAssured.given()
                 .header("refreshToken", oldRefresh)
@@ -145,11 +112,8 @@ class AuthTokenControllerImplTest(
                 .body("detailCode", equalTo(ExceptionResponseCode.EMPTY_REFRESH_TOKEN.detailCode))
         }
         test("Redis에 없는 리프레시로 재발급하면 402를 반환한다") {
-            val email = uniqueEmail("stale")
-            testAuthUserFixture.saveLocalUser(email, rawPassword)
-
-            val refresh = login(email, rawPassword).statusCode(200).extract().header("refreshToken")
-            refresh.shouldNotBeNull()
+            val userId = testAuthUserFixture.saveKakaoUser("kakao-${uniqueSuffix()}")
+            val (_, refresh) = issueSession(userId)
             redisTemplate.connectionFactory?.connection?.serverCommands()?.flushAll()
 
             RestAssured.given()
@@ -164,11 +128,8 @@ class AuthTokenControllerImplTest(
 
     context("로그아웃") {
         test("로그아웃하면 Redis 저장분을 삭제하고 그 리프레시로 재발급하면 거부한다") {
-            val email = uniqueEmail("logout")
-            val userId = testAuthUserFixture.saveLocalUser(email, rawPassword)
-
-            val refresh = login(email, rawPassword).statusCode(200).extract().header("refreshToken")
-            refresh.shouldNotBeNull()
+            val userId = testAuthUserFixture.saveKakaoUser("kakao-${uniqueSuffix()}")
+            val (_, refresh) = issueSession(userId)
             storedRefresh(userId).shouldNotBeNull()
 
             RestAssured.given()
@@ -189,14 +150,8 @@ class AuthTokenControllerImplTest(
                 .body("detailCode", equalTo(ExceptionResponseCode.INVALID_REFRESH_TOKEN.detailCode))
         }
         test("액세스+리프레시로 로그아웃하면 같은 액세스로 인증 API 재요청이 401 LOGGED_OUT_TOKEN이고 블랙리스트 TTL이 액세스 만료 이하이다") {
-            val email = uniqueEmail("blacklist")
-            val userId = testAuthUserFixture.saveLocalUser(email, rawPassword)
-
-            val loggedIn = login(email, rawPassword).statusCode(200).extract()
-            val access = loggedIn.header("Authorization")
-            val refresh = loggedIn.header("refreshToken")
-            access.shouldNotBeNull()
-            refresh.shouldNotBeNull()
+            val userId = testAuthUserFixture.saveKakaoUser("kakao-${uniqueSuffix()}")
+            val (access, refresh) = issueSession(userId)
 
             RestAssured.given()
                 .header("Authorization", access)
@@ -229,14 +184,8 @@ class AuthTokenControllerImplTest(
                 .body("detailCode", equalTo(ExceptionResponseCode.LOGGED_OUT_TOKEN.detailCode))
         }
         test("액세스 헤더 없이 로그아웃하면 리프레시만 삭제하고 블랙리스트에는 아무것도 등록하지 않는다") {
-            val email = uniqueEmail("norefresh")
-            val userId = testAuthUserFixture.saveLocalUser(email, rawPassword)
-
-            val loggedIn = login(email, rawPassword).statusCode(200).extract()
-            val access = loggedIn.header("Authorization")
-            val refresh = loggedIn.header("refreshToken")
-            access.shouldNotBeNull()
-            refresh.shouldNotBeNull()
+            val userId = testAuthUserFixture.saveKakaoUser("kakao-${uniqueSuffix()}")
+            val (access, refresh) = issueSession(userId)
 
             RestAssured.given()
                 .header("refreshToken", refresh)

@@ -9,4 +9,7 @@ class TestJwtTokenFixture(
 ) {
     fun generateAccessToken(userId: String, role: String = "ROLE_USER"): String =
         jwtProvider.createAccessToken(userId, role)
+
+    fun generateRefreshToken(userId: String, role: String = "ROLE_USER"): String =
+        jwtProvider.createRefreshToken(userId, role)
 }

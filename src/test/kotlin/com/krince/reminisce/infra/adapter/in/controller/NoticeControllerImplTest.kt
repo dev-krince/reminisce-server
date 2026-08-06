@@ -41,11 +41,11 @@ class NoticeControllerImplTest(
     fun userEntity(userId: String): UserOrmEntity =
         UserOrmEntity(
             userId = userId,
-            email = "$userId@example.com",
-            password = "\$2a\$10\$hashedvaluehashedvaluehashedvalue",
+            email = null,
             nickname = "홍길동",
-            provider = "LOCAL",
+            provider = "KAKAO",
             role = "ROLE_USER",
+            providerId = "kakao-$userId",
         )
 
     fun authorizedToken(): String {

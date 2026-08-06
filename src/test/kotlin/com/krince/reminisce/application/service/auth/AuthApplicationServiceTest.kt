@@ -2,28 +2,21 @@ package com.krince.reminisce.application.service.auth
 
 import com.krince.reminisce.application.port.`in`.auth.command.GoogleLoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.KakaoLoginCommand
-import com.krince.reminisce.application.port.`in`.auth.command.LoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.LogoutCommand
 import com.krince.reminisce.application.port.`in`.auth.command.ReissueTokenCommand
 import com.krince.reminisce.application.port.out.auth.GoogleOAuthPort
 import com.krince.reminisce.application.port.out.auth.GoogleUserInfo
 import com.krince.reminisce.application.port.out.auth.KakaoOAuthPort
 import com.krince.reminisce.application.port.out.auth.KakaoUserInfo
-import com.krince.reminisce.application.port.out.auth.PasswordEncoderPort
 import com.krince.reminisce.application.port.out.auth.RefreshTokenPort
 import com.krince.reminisce.application.port.out.auth.TokenProviderPort
 import com.krince.reminisce.application.port.out.user.CommandUserPort
 import com.krince.reminisce.application.port.out.user.LoadUserPort
 import com.krince.reminisce.domain.model.user.User
 import com.krince.reminisce.domain.model.user.vo.AuthProvider
-import com.krince.reminisce.domain.model.user.vo.Email
 import com.krince.reminisce.domain.model.user.vo.Nickname
-import com.krince.reminisce.domain.model.user.vo.Password
-import com.krince.reminisce.domain.model.user.vo.Role
-import com.krince.reminisce.domain.model.user.vo.UserId
 import com.krince.reminisce.shared.exception.UnauthorizedRefreshTokenException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.EXPIRED_REFRESH_TOKEN
-import com.krince.reminisce.shared.response.ExceptionResponseCode.INVALID_PASSWORD
 import com.krince.reminisce.shared.response.ExceptionResponseCode.INVALID_REFRESH_TOKEN
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.annotation.DisplayName
@@ -36,7 +29,6 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import io.mockk.verifyOrder
-import org.springframework.security.authentication.BadCredentialsException
 import java.time.Duration
 
 @Tags("test", "unitTest")
@@ -45,7 +37,6 @@ class AuthApplicationServiceTest : FunSpec({
 
     val loadUserPort = mockk<LoadUserPort>()
     val commandUserPort = mockk<CommandUserPort>()
-    val passwordEncoderPort = mockk<PasswordEncoderPort>()
     val tokenProviderPort = mockk<TokenProviderPort>()
     val refreshTokenPort = mockk<RefreshTokenPort>()
     val accessTokenBlacklister = mockk<AccessTokenBlacklister>()
@@ -54,7 +45,6 @@ class AuthApplicationServiceTest : FunSpec({
     val service = AuthApplicationService(
         loadUserPort = loadUserPort,
         commandUserPort = commandUserPort,
-        passwordEncoderPort = passwordEncoderPort,
         tokenProviderPort = tokenProviderPort,
         refreshTokenPort = refreshTokenPort,
         accessTokenBlacklister = accessTokenBlacklister,
@@ -64,83 +54,9 @@ class AuthApplicationServiceTest : FunSpec({
 
     beforeEach { clearAllMocks() }
 
-    val email = "user@example.com"
-    val rawPassword = "Password1!"
-    val encodedPassword = "\$2a\$10\$hashedvalue"
     val userIdStr = "user-uuid-1"
     val roleValue = "ROLE_USER"
     val refreshTtl = Duration.ofMillis(1_209_600_000)
-    val user = User(
-        userId = UserId(userIdStr),
-        email = Email(email),
-        password = Password(encodedPassword),
-        nickname = Nickname("홍길동"),
-        provider = AuthProvider.LOCAL,
-        role = Role.user(),
-    )
-
-    context("LoginUseCase") {
-        context("성공") {
-            test("이메일 조회·비밀번호 검증 후 토큰을 발급하고 리프레시를 저장한다") {
-                every { loadUserPort.findByEmail(Email(email)) } returns user
-                every { passwordEncoderPort.matchPassword(rawPassword, encodedPassword) } returns Unit
-                every { tokenProviderPort.generateAccessToken(userIdStr, roleValue) } returns "Bearer access"
-                every { tokenProviderPort.generateRefreshToken(userIdStr, roleValue) } returns "Bearer refresh"
-                every { tokenProviderPort.getRefreshTokenExpiration() } returns refreshTtl
-                every { refreshTokenPort.save(userIdStr, "Bearer refresh", refreshTtl) } returns Unit
-
-                val result = service.execute(LoginCommand(email, rawPassword))
-
-                result.accessToken shouldBe "Bearer access"
-                result.refreshToken shouldBe "Bearer refresh"
-                verifyOrder {
-                    loadUserPort.findByEmail(Email(email))
-                    passwordEncoderPort.matchPassword(rawPassword, encodedPassword)
-                    refreshTokenPort.save(userIdStr, "Bearer refresh", refreshTtl)
-                }
-            }
-        }
-        context("실패 - 사용자 열거 방지") {
-            test("존재하지 않는 이메일이면 더미 비교로 타이밍을 맞추고 INVALID_PASSWORD와 같은 BadCredentialsException을 던지며 토큰을 발급하지 않는다") {
-                every { loadUserPort.findByEmail(Email(email)) } returns null
-                every { passwordEncoderPort.matchDummyPassword(rawPassword) } returns Unit
-
-                val exception = shouldThrow<BadCredentialsException> {
-                    service.execute(LoginCommand(email, rawPassword))
-                }
-
-                exception.message shouldBe INVALID_PASSWORD.message
-                verify(exactly = 1) { passwordEncoderPort.matchDummyPassword(rawPassword) }
-                verify(exactly = 0) { passwordEncoderPort.matchPassword(any(), any()) }
-                verify(exactly = 0) { refreshTokenPort.save(any(), any(), any()) }
-            }
-            test("비밀번호가 일치하지 않으면 같은 BadCredentialsException을 던지고 토큰을 발급하지 않는다") {
-                every { loadUserPort.findByEmail(Email(email)) } returns user
-                every { passwordEncoderPort.matchPassword(rawPassword, encodedPassword) } throws
-                    BadCredentialsException(INVALID_PASSWORD.message)
-
-                val exception = shouldThrow<BadCredentialsException> {
-                    service.execute(LoginCommand(email, rawPassword))
-                }
-
-                exception.message shouldBe INVALID_PASSWORD.message
-                verify(exactly = 0) { refreshTokenPort.save(any(), any(), any()) }
-            }
-            test("소셜 계정(provider=KAKAO, password null)에 이메일 로그인 시도하면 더미 비교 후 같은 예외를 던진다") {
-                val kakaoUser = User.kakao(providerId = "k-1", email = Email(email), nickname = Nickname("카카오회원"))
-                every { loadUserPort.findByEmail(Email(email)) } returns kakaoUser
-                every { passwordEncoderPort.matchDummyPassword(rawPassword) } returns Unit
-
-                val exception = shouldThrow<BadCredentialsException> {
-                    service.execute(LoginCommand(email, rawPassword))
-                }
-
-                exception.message shouldBe INVALID_PASSWORD.message
-                verify(exactly = 1) { passwordEncoderPort.matchDummyPassword(rawPassword) }
-                verify(exactly = 0) { passwordEncoderPort.matchPassword(any(), any()) }
-            }
-        }
-    }
 
     context("KakaoLoginUseCase") {
         val authCode = "kakao-auth-code"
@@ -164,7 +80,7 @@ class AuthApplicationServiceTest : FunSpec({
                 result.refreshToken shouldBe "Bearer refresh"
                 savedSlot.captured.provider shouldBe AuthProvider.KAKAO
                 savedSlot.captured.providerId shouldBe kakaoId
-                savedSlot.captured.password shouldBe null
+                savedSlot.captured.email?.value shouldBe "kakao@example.com"
                 verify(exactly = 1) { commandUserPort.save(any()) }
             }
         }
@@ -209,7 +125,7 @@ class AuthApplicationServiceTest : FunSpec({
                 result.refreshToken shouldBe "Bearer refresh"
                 savedSlot.captured.provider shouldBe AuthProvider.GOOGLE
                 savedSlot.captured.providerId shouldBe googleId
-                savedSlot.captured.password shouldBe null
+                savedSlot.captured.email?.value shouldBe "google@example.com"
                 verify(exactly = 1) { commandUserPort.save(any()) }
             }
         }

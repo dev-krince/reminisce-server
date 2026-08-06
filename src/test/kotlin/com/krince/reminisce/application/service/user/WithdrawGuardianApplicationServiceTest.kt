@@ -5,7 +5,6 @@ import com.krince.reminisce.application.port.out.auth.RefreshTokenPort
 import com.krince.reminisce.application.port.out.child.CommandChildPort
 import com.krince.reminisce.application.port.out.child.LoadChildPort
 import com.krince.reminisce.application.port.out.childconsent.CommandChildConsentPort
-import com.krince.reminisce.application.port.out.email.EmailVerificationPort
 import com.krince.reminisce.application.port.out.user.CommandUserPort
 import com.krince.reminisce.application.port.out.user.LoadUserPort
 import com.krince.reminisce.application.service.auth.AccessTokenBlacklister
@@ -15,9 +14,7 @@ import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.child.vo.ChildNickname
 import com.krince.reminisce.domain.model.user.User
 import com.krince.reminisce.domain.model.user.vo.AuthProvider
-import com.krince.reminisce.domain.model.user.vo.Email
 import com.krince.reminisce.domain.model.user.vo.Nickname
-import com.krince.reminisce.domain.model.user.vo.Password
 import com.krince.reminisce.domain.model.user.vo.Role
 import com.krince.reminisce.domain.model.user.vo.UserId
 import com.krince.reminisce.shared.exception.NotFoundException
@@ -43,7 +40,6 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
     val commandChildPort = mockk<CommandChildPort>()
     val commandUserPort = mockk<CommandUserPort>()
     val refreshTokenPort = mockk<RefreshTokenPort>()
-    val emailVerificationPort = mockk<EmailVerificationPort>()
     val accessTokenBlacklister = mockk<AccessTokenBlacklister>()
     val service = WithdrawGuardianApplicationService(
         loadUserPort = loadUserPort,
@@ -52,29 +48,21 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
         commandChildPort = commandChildPort,
         commandUserPort = commandUserPort,
         refreshTokenPort = refreshTokenPort,
-        emailVerificationPort = emailVerificationPort,
         accessTokenBlacklister = accessTokenBlacklister,
     )
 
     beforeEach { clearAllMocks() }
 
     val guardianIdStr = "guardian-uuid-1"
-    val emailValue = "guardian@example.com"
     val providedAccess = "Bearer access-token"
 
-    fun providerOf(email: Email?): AuthProvider {
-        email ?: return AuthProvider.KAKAO
-
-        return AuthProvider.LOCAL
-    }
-
-    fun localGuardian(email: Email? = Email(emailValue)): User = User(
+    fun kakaoGuardian(): User = User(
         userId = UserId(guardianIdStr),
-        email = email,
-        password = email?.let { Password("\$2a\$10\$hashedvalue") },
+        email = null,
         nickname = Nickname("보호자"),
-        provider = providerOf(email),
+        provider = AuthProvider.KAKAO,
         role = Role.user(),
+        providerId = "kakao-1",
     )
 
     fun child(childIdStr: String): Child = Child(
@@ -85,15 +73,14 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
     )
 
     context("하드 삭제 순서·조건") {
-        test("동의→아이→유저 순으로 각 1회 삭제하고 유저 조회로 이메일을 확보한다") {
+        test("동의→아이→유저 순으로 각 1회 삭제하고 유저를 조회한다") {
             val children = listOf(child("child-1"), child("child-2"))
-            every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns localGuardian()
+            every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns kakaoGuardian()
             every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns children
             every { commandChildConsentPort.deleteAllByChildIds(any()) } returns Unit
             every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
             every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
-            every { emailVerificationPort.deleteCode(emailValue) } returns Unit
             every { accessTokenBlacklister.blacklist(null) } returns Unit
 
             service.execute(WithdrawGuardianCommand(userId = guardianIdStr, accessToken = null))
@@ -109,12 +96,11 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
         }
 
         test("아이가 없으면 동의 삭제를 호출하지 않고 아이·유저만 삭제한다") {
-            every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns localGuardian()
+            every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns kakaoGuardian()
             every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns emptyList()
             every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
             every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
-            every { emailVerificationPort.deleteCode(emailValue) } returns Unit
             every { accessTokenBlacklister.blacklist(null) } returns Unit
 
             service.execute(WithdrawGuardianCommand(userId = guardianIdStr, accessToken = null))
@@ -141,39 +127,23 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
     context("커밋 이후 Redis 정리") {
         val userId = UserId(guardianIdStr)
 
-        test("refresh 삭제·이메일코드 삭제 후 accessTokenBlacklister.blacklist에 위임한다") {
-            val email = Email(emailValue)
+        test("refresh 삭제 후 accessTokenBlacklister.blacklist에 위임한다") {
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
-            every { emailVerificationPort.deleteCode(emailValue) } returns Unit
             every { accessTokenBlacklister.blacklist(providedAccess) } returns Unit
 
-            service.cleanupSessionState(userId, email, providedAccess)
+            service.cleanupSessionState(userId, providedAccess)
 
             verifyOrder {
                 refreshTokenPort.delete(guardianIdStr)
-                emailVerificationPort.deleteCode(emailValue)
                 accessTokenBlacklister.blacklist(providedAccess)
             }
         }
 
-        test("email이 null이면 이메일코드 삭제를 호출하지 않는다") {
-            every { refreshTokenPort.delete(guardianIdStr) } returns Unit
-            every { accessTokenBlacklister.blacklist(providedAccess) } returns Unit
-
-            service.cleanupSessionState(userId, null, providedAccess)
-
-            verify(exactly = 1) { refreshTokenPort.delete(guardianIdStr) }
-            verify(exactly = 0) { emailVerificationPort.deleteCode(any()) }
-            verify(exactly = 1) { accessTokenBlacklister.blacklist(providedAccess) }
-        }
-
         test("accessToken이 null이면 blacklist(null)에 위임한다") {
-            val email = Email(emailValue)
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
-            every { emailVerificationPort.deleteCode(emailValue) } returns Unit
             every { accessTokenBlacklister.blacklist(null) } returns Unit
 
-            service.cleanupSessionState(userId, email, null)
+            service.cleanupSessionState(userId, null)
 
             verify(exactly = 1) { refreshTokenPort.delete(guardianIdStr) }
             verify(exactly = 1) { accessTokenBlacklister.blacklist(null) }

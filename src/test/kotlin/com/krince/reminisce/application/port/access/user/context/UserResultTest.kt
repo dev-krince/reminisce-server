@@ -26,7 +26,6 @@ class UserResultTest : FunSpec({
                 val user = User(
                     userId = UserId("kakao-1"),
                     email = null,
-                    password = null,
                     nickname = nickname,
                     provider = AuthProvider.KAKAO,
                     role = role,
@@ -43,21 +42,21 @@ class UserResultTest : FunSpec({
                 result.role shouldBe role.value
             }
 
-            test("email이 있는 로컬 회원을 매핑하면 email 값이 그대로 보존된다") {
+            test("email이 있는 소셜 회원을 매핑하면 email 값이 그대로 보존된다") {
                 val user = User(
-                    userId = UserId("local-1"),
+                    userId = UserId("google-1"),
                     email = Email("user@example.com"),
-                    password = null,
                     nickname = nickname,
-                    provider = AuthProvider.LOCAL,
+                    provider = AuthProvider.GOOGLE,
                     role = role,
+                    providerId = "google-sub-1",
                     createdDate = now,
                     modifiedDate = now,
                 )
 
                 val result = UserResult.from(user)
 
-                result.userId shouldBe "local-1"
+                result.userId shouldBe "google-1"
                 result.email shouldBe "user@example.com"
                 result.nickname shouldBe "홍길동"
             }

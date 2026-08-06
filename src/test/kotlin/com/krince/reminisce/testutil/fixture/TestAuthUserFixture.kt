@@ -1,23 +1,21 @@
 package com.krince.reminisce.testutil.fixture
 
-import com.krince.reminisce.application.port.out.auth.PasswordEncoderPort
 import com.krince.reminisce.infra.adapter.out.persistence.user.UserRepository
 import com.krince.reminisce.infra.adapter.out.persistence.user.entity.UserOrmEntity
 import com.krince.reminisce.shared.util.UuidGenerator
 
 class TestAuthUserFixture(
     private val userRepository: UserRepository,
-    private val passwordEncoderPort: PasswordEncoderPort,
 ) {
-    fun saveLocalUser(email: String, rawPassword: String, nickname: String = "홍길동"): String {
+    fun saveKakaoUser(providerId: String, nickname: String = "카카오"): String {
         val userId: String = UuidGenerator.generate()
         val entity = UserOrmEntity(
             userId = userId,
-            email = email,
-            password = passwordEncoderPort.encode(rawPassword),
+            email = null,
             nickname = nickname,
-            provider = LOCAL_PROVIDER,
+            provider = KAKAO_PROVIDER,
             role = USER_ROLE,
+            providerId = providerId,
         )
         userRepository.save(entity)
 
@@ -25,7 +23,7 @@ class TestAuthUserFixture(
     }
 
     companion object {
-        private const val LOCAL_PROVIDER = "LOCAL"
+        private const val KAKAO_PROVIDER = "KAKAO"
         private const val USER_ROLE = "ROLE_USER"
     }
 }

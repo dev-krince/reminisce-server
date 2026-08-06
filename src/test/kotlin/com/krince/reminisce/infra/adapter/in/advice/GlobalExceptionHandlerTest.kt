@@ -11,7 +11,6 @@ import com.krince.reminisce.shared.response.ExceptionResponseCode.BUSINESS_RULE_
 import com.krince.reminisce.shared.response.ExceptionResponseCode.CONFLICT
 import com.krince.reminisce.shared.response.ExceptionResponseCode.FORBIDDEN
 import com.krince.reminisce.shared.response.ExceptionResponseCode.INTERNAL_SERVER_ERROR
-import com.krince.reminisce.shared.response.ExceptionResponseCode.INVALID_PASSWORD
 import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND_USER
 import com.krince.reminisce.shared.response.ExceptionResponseCode.INVALID_DTO_PARAMETER
 import com.krince.reminisce.shared.response.ExceptionResponseCode.UNAUTHORIZED_REFRESH_TOKEN
@@ -27,7 +26,6 @@ import jakarta.validation.ConstraintViolationException
 import jakarta.validation.Path
 import org.slf4j.MDC
 import org.springframework.http.converter.HttpMessageNotReadableException
-import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authorization.AuthorizationDeniedException
 import org.springframework.validation.BindingResult
 import org.springframework.validation.FieldError
@@ -71,20 +69,6 @@ class GlobalExceptionHandlerTest : FunSpec({
                 result.statusCode.value() shouldBe BAD_REQUEST.code
                 result.body!!.code shouldBe BAD_REQUEST.code
                 result.body!!.message shouldBe "invalid argument"
-            }
-        }
-    }
-
-    context("handleBadCredentialsException") {
-        context("성공") {
-            test("401과 INVALID_PASSWORD 메시지로 ResponseEntity를 반환한다") {
-                val ex = BadCredentialsException("Bad credentials")
-
-                val result = handler.handleBadCredentialsException(ex)
-
-                result.statusCode.value() shouldBe INVALID_PASSWORD.code
-                result.body!!.detailCode shouldBe INVALID_PASSWORD.detailCode
-                result.body!!.message shouldBe INVALID_PASSWORD.message
             }
         }
     }

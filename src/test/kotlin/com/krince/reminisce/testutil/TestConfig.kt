@@ -1,6 +1,5 @@
 package com.krince.reminisce.testutil
 
-import com.krince.reminisce.application.port.out.auth.PasswordEncoderPort
 import com.krince.reminisce.infra.adapter.out.persistence.child.ChildRepository
 import com.krince.reminisce.infra.adapter.out.persistence.childconsent.ChildConsentRepository
 import com.krince.reminisce.infra.adapter.out.persistence.message.MessageRepository
@@ -39,11 +38,8 @@ class TestConfig {
         TestChildConsentFixture(childConsentRepository = childConsentRepository)
 
     @Bean
-    fun testAuthUserFixture(
-        userRepository: UserRepository,
-        passwordEncoderPort: PasswordEncoderPort,
-    ): TestAuthUserFixture =
-        TestAuthUserFixture(userRepository = userRepository, passwordEncoderPort = passwordEncoderPort)
+    fun testAuthUserFixture(userRepository: UserRepository): TestAuthUserFixture =
+        TestAuthUserFixture(userRepository = userRepository)
 
     @Bean
     fun testJwtTokenFixture(jwtProvider: JwtProvider): TestJwtTokenFixture =
