@@ -35,5 +35,22 @@ class Message(
             sttRawText = sttRawText,
             createdAt = at,
         )
+
+        fun characterReply(
+            sessionId: SpeakingSessionId,
+            sceneId: SceneId,
+            turnOrder: Long,
+            text: String,
+            at: LocalDateTime,
+        ): Message = Message(
+            messageId = MessageId(UuidGenerator.generate()),
+            sessionId = sessionId,
+            sceneId = sceneId,
+            speakerType = SpeakerType.CHARACTER,
+            turnOrder = turnOrder,
+            text = text,
+            sttRawText = null,
+            createdAt = at,
+        )
     }
 }
