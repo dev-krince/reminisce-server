@@ -11,4 +11,6 @@ interface SpeakingSessionRepository : JpaRepository<SpeakingSessionOrmEntity, St
     ): SpeakingSessionOrmEntity?
 
     fun findAllByChildIdAndStoryId(childId: String, storyId: String): List<SpeakingSessionOrmEntity>
+
+    fun findBySessionId(sessionId: String): SpeakingSessionOrmEntity?
 }
