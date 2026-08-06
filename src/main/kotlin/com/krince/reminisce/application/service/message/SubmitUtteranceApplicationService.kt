@@ -17,6 +17,7 @@ import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUttera
 import com.krince.reminisce.domain.model.message.Message
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.ResponseMode
+import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
 import com.krince.reminisce.domain.model.story.Scene
 import com.krince.reminisce.domain.model.story.vo.SceneId
@@ -56,6 +57,12 @@ class SubmitUtteranceApplicationService(
     @Transactional
     override fun execute(command: SubmitUtteranceCommand): UtteranceResult {
         val session: SpeakingSession = loadOwnedSession(command.sessionId, command.guardianId)
+        if (session.status != SessionStatus.IN_PROGRESS) {
+            throw BusinessRuleViolationException(BUSINESS_RULE_VIOLATION, BUSINESS_RULE_VIOLATION.message)
+        }
+        if (session.sceneEndReason != null) {
+            throw BusinessRuleViolationException(BUSINESS_RULE_VIOLATION, BUSINESS_RULE_VIOLATION.message)
+        }
         val dialogueScene: Scene = requireDialogueScene(session)
         val transcript: String = transcribe(command.audio)
         val message: Message = saveChildUtterance(session, dialogueScene, transcript)

@@ -8,6 +8,7 @@ import com.krince.reminisce.application.port.`in`.speakingsession.usecase.Advanc
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
+import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
 import com.krince.reminisce.domain.model.story.Scene
 import com.krince.reminisce.domain.model.story.vo.SceneType
@@ -34,6 +35,9 @@ class AdvanceSpeakingSceneApplicationService(
     @Transactional
     override fun execute(command: AdvanceSpeakingSceneCommand): SpeakingSessionViewResult {
         val session: SpeakingSession = loadOwnedSession(command.sessionId, command.guardianId)
+        if (session.status != SessionStatus.IN_PROGRESS) {
+            throw BusinessRuleViolationException(BUSINESS_RULE_VIOLATION, BUSINESS_RULE_VIOLATION.message)
+        }
         val currentSceneId: String = session.currentSceneId
             ?: return advanceToFirstScene(session)
 
