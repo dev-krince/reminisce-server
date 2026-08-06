@@ -1,8 +1,13 @@
 package com.krince.reminisce.infra.adapter.`in`.controller
 
+import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
+import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
+import com.krince.reminisce.domain.model.story.vo.ThinkingElement
 import com.krince.reminisce.infra.adapter.out.persistence.child.entity.ChildOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.childconsent.entity.ChildConsentOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.speakingsession.entity.SpeakingSessionOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.story.entity.SceneOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.entity.StoryOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.user.entity.UserOrmEntity
 import com.krince.reminisce.shared.response.ExceptionResponseCode
@@ -94,6 +99,55 @@ class SpeakingSessionControllerImplTest(
 
         return guardianId to testJwtTokenFixture.generateAccessToken(guardianId)
     }
+
+    fun narrationEntity(storyId: String, sceneOrder: Short): SceneOrmEntity = SceneOrmEntity(
+        sceneId = "sc-$sceneOrder-$storyId",
+        storyId = storyId,
+        sceneOrder = sceneOrder,
+        sceneType = SceneType.NARRATION.name,
+        sceneDescription = "전개 설명 $sceneOrder",
+        characterName = null,
+        characterDisplayName = null,
+        characterOpening = null,
+        characterClosing = null,
+        conflict = null,
+        sceneGoal = null,
+        requiredElements = null,
+        preferredTurns = null,
+        maxTurns = null,
+    )
+
+    fun dialogueEntity(storyId: String, sceneOrder: Short): SceneOrmEntity = SceneOrmEntity(
+        sceneId = "sc-$sceneOrder-$storyId",
+        storyId = storyId,
+        sceneOrder = sceneOrder,
+        sceneType = SceneType.DIALOGUE.name,
+        sceneDescription = "대화 설명 $sceneOrder",
+        characterName = "ch_banggui_daughter_in_law",
+        characterDisplayName = "방귀쟁이 며느리",
+        characterOpening = "ㅇㅇ아, 내 방귀가 너무 크다는 걸 알면 가족들이 나를 이상하게 생각하지 않을까?",
+        characterClosing = "그래도 아직은 못 말하겠어. 조금만 더 참아 볼게.",
+        conflict = null,
+        sceneGoal = "며느리의 입장을 이해하고 공감해준다",
+        requiredElements = listOf(ThinkingElement.PERSPECTIVE, ThinkingElement.EMOTION),
+        preferredTurns = null,
+        maxTurns = 4,
+    )
+
+    fun sessionEntity(
+        sessionId: String,
+        childId: String,
+        storyId: String,
+        currentSceneId: String? = null,
+    ): SpeakingSessionOrmEntity = SpeakingSessionOrmEntity(
+        sessionId = sessionId,
+        childId = childId,
+        storyId = storyId,
+        currentSceneId = currentSceneId,
+        status = SessionStatus.IN_PROGRESS.name,
+        startedAt = LocalDateTime.now().minusMinutes(5),
+        lastActivityAt = LocalDateTime.now().minusMinutes(1),
+    )
 
     beforeSpec {
         RestAssured.port = port
@@ -313,6 +367,207 @@ class SpeakingSessionControllerImplTest(
                     .statusCode(401)
                     .body("success", equalTo(false))
                     .body("code", equalTo(401))
+                    .body("detailCode", equalTo(ExceptionResponseCode.EMPTY_TOKEN.detailCode))
+                    .body("message", equalTo("토큰이 없습니다."))
+            }
+        }
+    }
+
+    context("getSpeakingSessionView 와 advanceSpeakingScene") {
+        context("성공") {
+            test("도입 상태 세션 GET은 200과 viewType=INTRO, intro 존재, scene null을 반환한다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                testSpeakingSessionFixture.save(sessionEntity(sessionId, childId, storyId, currentSceneId = null))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/speaking-sessions/$sessionId")
+                    .then()
+                    .statusCode(200)
+                    .body("success", equalTo(true))
+                    .body("code", equalTo(200))
+                    .body("message", equalTo(SuccessResponseCode.OK.message))
+                    .body("data.viewType", equalTo("INTRO"))
+                    .body("data.intro", equalTo("도입-$storyId"))
+                    .body("data.scene", nullValue())
+            }
+
+            test("도입 상태 세션 advance는 200과 viewType=SCENE, sceneOrder 최소 장면을 반환하고 이후 GET에서 current_scene_id가 세팅된다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                testSpeakingSessionFixture.save(sessionEntity(sessionId, childId, storyId, currentSceneId = null))
+                val firstSceneId = "sc-1-$storyId"
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/advance")
+                    .then()
+                    .statusCode(200)
+                    .body("success", equalTo(true))
+                    .body("code", equalTo(200))
+                    .body("data.viewType", equalTo("SCENE"))
+                    .body("data.intro", nullValue())
+                    .body("data.scene.sceneId", equalTo(firstSceneId))
+                    .body("data.scene.sceneOrder", equalTo(1))
+                    .body("data.scene.sceneType", equalTo(SceneType.NARRATION.name))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/speaking-sessions/$sessionId")
+                    .then()
+                    .statusCode(200)
+                    .body("data.viewType", equalTo("SCENE"))
+                    .body("data.scene.sceneId", equalTo(firstSceneId))
+            }
+
+            test("장면 상태 세션 GET은 200과 viewType=SCENE, 그 장면을 반환한다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                val dialogueSceneId = "sc-3-$storyId"
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, currentSceneId = dialogueSceneId),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/speaking-sessions/$sessionId")
+                    .then()
+                    .statusCode(200)
+                    .body("data.viewType", equalTo("SCENE"))
+                    .body("data.intro", nullValue())
+                    .body("data.scene.sceneId", equalTo(dialogueSceneId))
+                    .body("data.scene.sceneType", equalTo(SceneType.DIALOGUE.name))
+                    .body("data.scene.characterDisplayName", equalTo("방귀쟁이 며느리"))
+                    .body("data.scene.maxTurns", equalTo(4))
+            }
+        }
+
+        context("예외케이스") {
+            test("이미 장면 위 세션 advance는 422와 BUSINESS_RULE_VIOLATION을 반환한다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, currentSceneId = "sc-1-$storyId"),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/advance")
+                    .then()
+                    .statusCode(422)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(422))
+                    .body("detailCode", equalTo(ExceptionResponseCode.BUSINESS_RULE_VIOLATION.detailCode))
+            }
+
+            test("남의 아이 세션 GET은 404와 NOT_FOUND로 은닉한다") {
+                val (_, token) = authorizedGuardian()
+                val otherGuardianId = "other-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(otherGuardianId))
+                val otherChildId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(otherChildId, otherGuardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testSpeakingSessionFixture.save(sessionEntity(sessionId, otherChildId, storyId, currentSceneId = null))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/speaking-sessions/$sessionId")
+                    .then()
+                    .statusCode(404)
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+            }
+
+            test("남의 아이 세션 advance는 404와 NOT_FOUND로 은닉한다") {
+                val (_, token) = authorizedGuardian()
+                val otherGuardianId = "other-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(otherGuardianId))
+                val otherChildId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(otherChildId, otherGuardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testSpeakingSessionFixture.save(sessionEntity(sessionId, otherChildId, storyId, currentSceneId = null))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/advance")
+                    .then()
+                    .statusCode(404)
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+            }
+
+            test("존재하지 않는 세션 GET은 404와 NOT_FOUND를 반환한다") {
+                val (_, token) = authorizedGuardian()
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/speaking-sessions/missing-${uniqueSuffix()}")
+                    .then()
+                    .statusCode(404)
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+            }
+
+            test("토큰이 없으면 GET은 401과 EMPTY_TOKEN을 반환한다") {
+                RestAssured.given()
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/speaking-sessions/any-session")
+                    .then()
+                    .statusCode(401)
+                    .body("detailCode", equalTo(ExceptionResponseCode.EMPTY_TOKEN.detailCode))
+                    .body("message", equalTo("토큰이 없습니다."))
+            }
+
+            test("토큰이 없으면 advance는 401과 EMPTY_TOKEN을 반환한다") {
+                RestAssured.given()
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .post("/speaking-sessions/any-session/advance")
+                    .then()
+                    .statusCode(401)
                     .body("detailCode", equalTo(ExceptionResponseCode.EMPTY_TOKEN.detailCode))
                     .body("message", equalTo("토큰이 없습니다."))
             }
