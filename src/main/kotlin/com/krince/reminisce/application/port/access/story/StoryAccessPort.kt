@@ -1,6 +1,7 @@
 package com.krince.reminisce.application.port.access.story
 
 import com.krince.reminisce.domain.model.story.Scene
+import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.StoryId
 
 interface StoryAccessPort {
@@ -13,4 +14,6 @@ interface StoryAccessPort {
     fun findScene(storyId: StoryId, sceneId: String): Scene?
 
     fun findNextScene(storyId: StoryId, currentSceneId: String): Scene?
+
+    fun findPostActivityConfig(storyId: StoryId): PostActivityConfig?
 }

@@ -4,6 +4,7 @@ import com.krince.reminisce.application.port.access.story.StoryAccessPort
 import com.krince.reminisce.application.port.out.story.LoadStoryPort
 import com.krince.reminisce.domain.model.story.Scene
 import com.krince.reminisce.domain.model.story.Story
+import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.StoryId
 import org.springframework.stereotype.Service
 
@@ -39,5 +40,11 @@ class StoryAccessFacade(
         val currentScene: Scene = orderedScenes.firstOrNull { it.sceneId.value == currentSceneId } ?: return null
 
         return orderedScenes.firstOrNull { it.sceneOrder > currentScene.sceneOrder }
+    }
+
+    override fun findPostActivityConfig(storyId: StoryId): PostActivityConfig? {
+        val story: Story = loadStoryPort.findByIdWithScenesPublished(storyId) ?: return null
+
+        return story.postActivityConfig
     }
 }
