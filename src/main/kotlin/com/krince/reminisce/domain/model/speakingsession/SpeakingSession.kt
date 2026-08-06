@@ -18,6 +18,18 @@ class SpeakingSession(
     val createdDate: LocalDateTime? = null,
     val modifiedDate: LocalDateTime? = null,
 ) {
+    fun advanceToScene(sceneId: String, at: LocalDateTime): SpeakingSession = SpeakingSession(
+        sessionId = sessionId,
+        childId = childId,
+        storyId = storyId,
+        status = status,
+        currentSceneId = sceneId,
+        startedAt = startedAt,
+        lastActivityAt = at,
+        createdDate = createdDate,
+        modifiedDate = modifiedDate,
+    )
+
     companion object {
         fun start(childId: ChildId, storyId: StoryId, at: LocalDateTime): SpeakingSession = SpeakingSession(
             sessionId = SpeakingSessionId(UuidGenerator.generate()),
