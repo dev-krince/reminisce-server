@@ -616,6 +616,10 @@ class SpeakingSessionControllerImplTest(
                     .body("data.detectedElements[0].evidence", equalTo("힘들"))
                     .body("data.accumulatedElements", equalTo(listOf("EMOTION")))
                     .body("data.missingElements", equalTo(listOf("PERSPECTIVE")))
+                    .body("data.mode", equalTo("NORMAL"))
+                    .body("data.sceneEndReason", nullValue())
+                    .body("data.sceneGoalMet", equalTo(false))
+                    .body("data.guidanceTarget", nullValue())
 
                 testMessageFixture.countBySessionId(sessionId) shouldBe 1L
                 val stored = testMessageFixture.findAllBySessionId(sessionId).first()
@@ -630,6 +634,10 @@ class SpeakingSessionControllerImplTest(
 
                 val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
                 storedSession?.accumulatedElements shouldBe listOf(ThinkingElement.EMOTION)
+                storedSession?.currentChildTurnCount shouldBe 1
+                storedSession?.turnsWithoutNewElement shouldBe 0
+                storedSession?.lastResponseMode shouldBe "NORMAL"
+                storedSession?.sceneEndReason shouldBe null
             }
 
             test("같은 세션에 두 번째 발화를 제출하면 201과 turnOrder=2가 되고 누적 요소가 중복 없이 늘어난다") {
@@ -674,6 +682,52 @@ class SpeakingSessionControllerImplTest(
                     ThinkingElement.EMOTION,
                     ThinkingElement.PERSPECTIVE,
                 )
+            }
+
+            test("최대턴(maxTurns=4)까지 필수 요소가 남은 채 발화하면 마지막 응답은 mode=CLOSING·sceneEndReason=MAX_TURNS다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                val dialogueSceneId = "sc-3-$storyId"
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, currentSceneId = dialogueSceneId),
+                )
+                val emotionOnlyAudio = "며느리가 참 힘들었겠어요"
+
+                repeat(3) {
+                    RestAssured.given()
+                        .header("Authorization", token)
+                        .contentType(ContentType.JSON)
+                        .body(mapOf("audio" to emotionOnlyAudio))
+                        .`when`()
+                        .post("/speaking-sessions/$sessionId/utterances")
+                        .then()
+                        .statusCode(201)
+                        .body("data.sceneEndReason", nullValue())
+                }
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("audio" to emotionOnlyAudio))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/utterances")
+                    .then()
+                    .statusCode(201)
+                    .body("data.turnOrder", equalTo(4))
+                    .body("data.mode", equalTo("CLOSING"))
+                    .body("data.sceneEndReason", equalTo("MAX_TURNS"))
+                    .body("data.sceneGoalMet", equalTo(false))
+
+                val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
+                storedSession?.currentChildTurnCount shouldBe 4
+                storedSession?.sceneEndReason shouldBe "MAX_TURNS"
+                storedSession?.lastResponseMode shouldBe "CLOSING"
+                storedSession?.status shouldBe SessionStatus.IN_PROGRESS.name
             }
         }
 

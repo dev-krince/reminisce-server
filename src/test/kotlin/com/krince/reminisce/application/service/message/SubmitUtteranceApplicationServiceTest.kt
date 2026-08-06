@@ -14,6 +14,7 @@ import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.message.Message
 import com.krince.reminisce.domain.model.message.vo.SpeakerType
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
+import com.krince.reminisce.domain.model.speakingsession.vo.ResponseMode
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
 import com.krince.reminisce.domain.model.story.Scene
@@ -235,6 +236,13 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             result.detectedElements.map { it.type } shouldBe listOf(ThinkingElement.EMOTION.name)
             result.accumulatedElements shouldBe listOf(ThinkingElement.EMOTION.name)
             result.missingElements shouldBe listOf(ThinkingElement.PERSPECTIVE.name)
+            result.mode shouldBe ResponseMode.NORMAL.name
+            result.sceneEndReason shouldBe null
+            result.sceneGoalMet shouldBe false
+            result.guidanceTarget shouldBe null
+            savedSessionSlot.captured.currentChildTurnCount shouldBe 1
+            savedSessionSlot.captured.turnsWithoutNewElement shouldBe 0
+            savedSessionSlot.captured.lastResponseMode shouldBe ResponseMode.NORMAL
             verify(exactly = 1) { commandMessagePort.save(any()) }
             verify(exactly = 1) { commandUtteranceAnalysisPort.save(any()) }
             verify(exactly = 1) { commandSpeakingSessionPort.save(any()) }
