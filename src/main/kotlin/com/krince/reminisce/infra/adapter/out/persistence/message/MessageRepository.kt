@@ -7,4 +7,6 @@ interface MessageRepository : JpaRepository<MessageOrmEntity, String> {
     fun countBySessionId(sessionId: String): Long
 
     fun findAllBySessionId(sessionId: String): List<MessageOrmEntity>
+
+    fun findAllBySessionIdAndSpeakerType(sessionId: String, speakerType: String): List<MessageOrmEntity>
 }
