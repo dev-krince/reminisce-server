@@ -5,17 +5,23 @@ import com.krince.reminisce.application.port.access.story.StoryAccessPort
 import com.krince.reminisce.application.port.`in`.message.command.SubmitUtteranceCommand
 import com.krince.reminisce.application.port.`in`.message.result.UtteranceResult
 import com.krince.reminisce.application.port.`in`.message.usecase.SubmitUtteranceUseCase
+import com.krince.reminisce.application.port.out.analysis.SpeechAnalysisPort
 import com.krince.reminisce.application.port.out.message.CommandMessagePort
 import com.krince.reminisce.application.port.out.message.LoadMessagePort
+import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
 import com.krince.reminisce.application.port.out.stt.SttPort
+import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
 import com.krince.reminisce.domain.model.message.Message
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
 import com.krince.reminisce.domain.model.story.Scene
 import com.krince.reminisce.domain.model.story.vo.SceneId
 import com.krince.reminisce.domain.model.story.vo.SceneType
+import com.krince.reminisce.domain.model.story.vo.ThinkingElement
 import com.krince.reminisce.domain.model.user.vo.UserId
+import com.krince.reminisce.domain.model.utteranceanalysis.RawUtteranceAnalysis
+import com.krince.reminisce.domain.model.utteranceanalysis.UtteranceAnalysis
 import com.krince.reminisce.shared.exception.BusinessRuleViolationException
 import com.krince.reminisce.shared.exception.NotFoundException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.BUSINESS_RULE_VIOLATION
@@ -34,6 +40,9 @@ class SubmitUtteranceApplicationService(
     private val sttPort: SttPort,
     private val commandMessagePort: CommandMessagePort,
     private val loadMessagePort: LoadMessagePort,
+    private val speechAnalysisPort: SpeechAnalysisPort,
+    private val commandUtteranceAnalysisPort: CommandUtteranceAnalysisPort,
+    private val commandSpeakingSessionPort: CommandSpeakingSessionPort,
     private val clock: Clock,
 ) : SubmitUtteranceUseCase {
 
@@ -45,9 +54,29 @@ class SubmitUtteranceApplicationService(
         val dialogueScene: Scene = requireDialogueScene(session)
         val transcript: String = transcribe(command.audio)
         val message: Message = saveChildUtterance(session, dialogueScene, transcript)
+        val analysis: UtteranceAnalysis = analyzeAndSave(message)
+        val updatedSession: SpeakingSession = accumulateAndSave(session, analysis)
+        val missingElements: List<ThinkingElement> = missingElements(dialogueScene, updatedSession)
 
-        return UtteranceResult.from(message)
+        return UtteranceResult.from(message, analysis, updatedSession.accumulatedElements, missingElements)
     }
+
+    private fun analyzeAndSave(message: Message): UtteranceAnalysis {
+        val raw: RawUtteranceAnalysis = speechAnalysisPort.analyze(message.text)
+        val analysis: UtteranceAnalysis = raw.verifyAgainst(message.text, message.messageId)
+
+        return commandUtteranceAnalysisPort.save(analysis)
+    }
+
+    private fun accumulateAndSave(session: SpeakingSession, analysis: UtteranceAnalysis): SpeakingSession {
+        val newTypes: List<ThinkingElement> = analysis.detectedElements.map { it.type }
+        val updatedSession: SpeakingSession = session.accumulate(newTypes, LocalDateTime.now(clock))
+
+        return commandSpeakingSessionPort.save(updatedSession)
+    }
+
+    private fun missingElements(scene: Scene, session: SpeakingSession): List<ThinkingElement> =
+        (scene.requiredElements ?: emptyList()) - session.accumulatedElements.toSet()
 
     private fun loadOwnedSession(sessionId: String, guardianId: String): SpeakingSession {
         val session: SpeakingSession = loadSpeakingSessionPort.findById(SpeakingSessionId(sessionId))

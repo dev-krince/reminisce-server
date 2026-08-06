@@ -25,6 +25,33 @@ class UtteranceResponse(
     @field:JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     @field:Schema(description = "생성 시각", example = "2026-01-09 14:30:25", required = true)
     val createdAt: LocalDateTime,
+
+    @field:Schema(description = "이번 발화의 중심 의도", example = "PERSPECTIVE", required = true)
+    val childIntent: String,
+
+    @field:Schema(description = "아이 말의 핵심 뜻", example = "며느리가 힘들었을 것이다")
+    val mainPoint: String?,
+
+    @field:Schema(description = "이번 발화의 유효성", example = "VALID", required = true)
+    val validity: String,
+
+    @field:Schema(description = "이번 발화에서 확인된 사고 요소와 근거", required = true)
+    val detectedElements: List<DetectedElementResponse>,
+
+    @field:Schema(description = "현재 장면에서 확인된 사고 요소 누적", example = "[\"EMOTION\"]", required = true)
+    val accumulatedElements: List<String>,
+
+    @field:Schema(description = "아직 확인되지 않은 필수 사고 요소", example = "[\"PERSPECTIVE\"]", required = true)
+    val missingElements: List<String>,
+)
+
+@Schema(title = "DetectedElementResponse", description = "확인된 사고 요소와 근거")
+class DetectedElementResponse(
+    @field:Schema(description = "사고 요소 유형", example = "EMOTION", required = true)
+    val type: String,
+
+    @field:Schema(description = "발화 원문에서 확인된 근거", example = "힘들", required = true)
+    val evidence: String,
 )
 
 fun utteranceResponse(result: UtteranceResult): UtteranceResponse = UtteranceResponse(
@@ -34,4 +61,10 @@ fun utteranceResponse(result: UtteranceResult): UtteranceResponse = UtteranceRes
     turnOrder = result.turnOrder,
     text = result.text,
     createdAt = result.createdAt,
+    childIntent = result.childIntent,
+    mainPoint = result.mainPoint,
+    validity = result.validity,
+    detectedElements = result.detectedElements.map { DetectedElementResponse(type = it.type, evidence = it.evidence) },
+    accumulatedElements = result.accumulatedElements,
+    missingElements = result.missingElements,
 )
