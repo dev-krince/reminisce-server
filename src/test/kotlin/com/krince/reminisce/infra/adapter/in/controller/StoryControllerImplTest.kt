@@ -4,6 +4,8 @@ import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
 import com.krince.reminisce.domain.model.story.vo.ThinkingElement
+import com.krince.reminisce.infra.adapter.out.persistence.child.entity.ChildOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.speakingsession.entity.SpeakingSessionOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.entity.SceneOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.entity.StoryOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.entity.StoryTopicOrmEntity
@@ -11,9 +13,12 @@ import com.krince.reminisce.infra.adapter.out.persistence.user.entity.UserOrmEnt
 import com.krince.reminisce.shared.response.ExceptionResponseCode
 import com.krince.reminisce.shared.response.SuccessResponseCode
 import com.krince.reminisce.testutil.TestConfig
+import com.krince.reminisce.testutil.fixture.TestChildFixture
 import com.krince.reminisce.testutil.fixture.TestJwtTokenFixture
+import com.krince.reminisce.testutil.fixture.TestSpeakingSessionFixture
 import com.krince.reminisce.testutil.fixture.TestStoryFixture
 import com.krince.reminisce.testutil.fixture.TestUserFixture
+import java.time.LocalDateTime
 import io.kotest.core.annotation.DisplayName
 import io.kotest.core.spec.style.FunSpec
 import io.restassured.RestAssured
@@ -40,6 +45,8 @@ class StoryControllerImplTest(
     private val testUserFixture: TestUserFixture,
     private val testStoryFixture: TestStoryFixture,
     private val testJwtTokenFixture: TestJwtTokenFixture,
+    private val testChildFixture: TestChildFixture,
+    private val testSpeakingSessionFixture: TestSpeakingSessionFixture,
 ) : FunSpec({
 
     fun uniqueSuffix(): String = "${System.currentTimeMillis()}-${System.nanoTime()}"
@@ -67,6 +74,7 @@ class StoryControllerImplTest(
         situation: String? = null,
         childRole: String? = null,
         postActivityConfig: PostActivityConfig? = null,
+        difficulty: String = "보통",
     ): StoryOrmEntity = StoryOrmEntity(
         storyId = storyId,
         title = "제목-$storyId",
@@ -74,12 +82,29 @@ class StoryControllerImplTest(
         intro = "도입-$storyId",
         situation = situation,
         childRole = childRole,
-        difficulty = "보통",
+        difficulty = difficulty,
         estimatedMinutes = 20,
         representativeImageUrl = "/files/$storyId.png",
         status = status,
         postActivityConfig = postActivityConfig,
     )
+
+    fun childEntity(childId: String, guardianId: String): ChildOrmEntity = ChildOrmEntity(
+        childId = childId,
+        guardianId = guardianId,
+        nickname = "테스트아이",
+        birthYear = 2018,
+    )
+
+    fun sessionEntity(sessionId: String, childId: String, storyId: String): SpeakingSessionOrmEntity =
+        SpeakingSessionOrmEntity(
+            sessionId = sessionId,
+            childId = childId,
+            storyId = storyId,
+            status = "IN_PROGRESS",
+            startedAt = LocalDateTime.now().minusMinutes(10),
+            lastActivityAt = LocalDateTime.now().minusMinutes(1),
+        )
 
     fun narrationEntity(storyId: String, sceneOrder: Short): SceneOrmEntity = SceneOrmEntity(
         sceneId = "sc-$sceneOrder-$storyId",
@@ -133,7 +158,9 @@ class StoryControllerImplTest(
     }
 
     beforeTest {
+        testSpeakingSessionFixture.deleteAllBatch()
         testStoryFixture.deleteAllBatch()
+        testChildFixture.deleteAllBatch()
         testUserFixture.deleteAllBatch()
     }
 
@@ -311,6 +338,137 @@ class StoryControllerImplTest(
                     .contentType(ContentType.JSON)
                     .`when`()
                     .get("/stories/any-story-id")
+                    .then()
+                    .statusCode(401)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(401))
+                    .body("detailCode", equalTo(ExceptionResponseCode.EMPTY_TOKEN.detailCode))
+                    .body("message", equalTo("토큰이 없습니다."))
+            }
+        }
+    }
+
+    context("getRecommendedStories") {
+        fun authorizedTokenWithGuardian(): Pair<String, String> {
+            val guardianId = "guardian-${uniqueSuffix()}"
+            testUserFixture.saveUser(userEntity(guardianId))
+
+            return Pair(testJwtTokenFixture.generateAccessToken(guardianId), guardianId)
+        }
+
+        context("성공") {
+            test("게시 이야기 3건 중 아이가 시작한 1건을 제외한 2건을 난이도 오름차순으로 반환한다") {
+                val (token, guardianId) = authorizedTokenWithGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+
+                val storyIdA = "story-a-${uniqueSuffix()}"
+                val storyIdB = "story-b-${uniqueSuffix()}"
+                val storyIdStarted = "story-started-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(storyIdA, difficulty = "나"))
+                testStoryFixture.saveStory(storyEntity(storyIdB, difficulty = "가"))
+                testStoryFixture.saveStory(storyEntity(storyIdStarted, difficulty = "다"))
+                testSpeakingSessionFixture.save(sessionEntity("session-${uniqueSuffix()}", childId, storyIdStarted))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("childId", childId)
+                    .`when`()
+                    .get("/stories/recommendations")
+                    .then()
+                    .statusCode(200)
+                    .body("success", equalTo(true))
+                    .body("code", equalTo(200))
+                    .body("message", equalTo(SuccessResponseCode.OK.message))
+                    .body("data", hasSize<Any>(2))
+                    .body("data[0].storyId", equalTo(storyIdB))
+                    .body("data[1].storyId", equalTo(storyIdA))
+            }
+
+            test("미게시(DRAFT) 이야기는 추천에서 제외된다") {
+                val (token, guardianId) = authorizedTokenWithGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+
+                val publishedId = "published-${uniqueSuffix()}"
+                val draftId = "draft-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(publishedId))
+                testStoryFixture.saveStory(storyEntity(draftId, status = StoryStatus.DRAFT.name))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("childId", childId)
+                    .`when`()
+                    .get("/stories/recommendations")
+                    .then()
+                    .statusCode(200)
+                    .body("data", hasSize<Any>(1))
+                    .body("data[0].storyId", equalTo(publishedId))
+            }
+
+            test("빈 추천 목록도 200 OK로 응답한다") {
+                val (token, guardianId) = authorizedTokenWithGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("childId", childId)
+                    .`when`()
+                    .get("/stories/recommendations")
+                    .then()
+                    .statusCode(200)
+                    .body("success", equalTo(true))
+                    .body("data", hasSize<Any>(0))
+            }
+        }
+
+        context("예외케이스") {
+            test("남의 아이 childId로 요청하면 404와 NOT_FOUND를 반환한다") {
+                val (token, guardianId) = authorizedTokenWithGuardian()
+                val otherGuardianId = "other-guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(otherGuardianId))
+                val otherChildId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(otherChildId, otherGuardianId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("childId", otherChildId)
+                    .`when`()
+                    .get("/stories/recommendations")
+                    .then()
+                    .statusCode(404)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(404))
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+            }
+
+            test("존재하지 않는 childId로 요청하면 404와 NOT_FOUND를 반환한다") {
+                val (token, guardianId) = authorizedTokenWithGuardian()
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("childId", "nonexistent-child-${uniqueSuffix()}")
+                    .`when`()
+                    .get("/stories/recommendations")
+                    .then()
+                    .statusCode(404)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(404))
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+            }
+
+            test("토큰이 없으면 401과 EMPTY_TOKEN을 반환한다") {
+                RestAssured.given()
+                    .contentType(ContentType.JSON)
+                    .queryParam("childId", "any-child-id")
+                    .`when`()
+                    .get("/stories/recommendations")
                     .then()
                     .statusCode(401)
                     .body("success", equalTo(false))
