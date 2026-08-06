@@ -463,6 +463,8 @@ class SpeakingSessionControllerImplTest(
                     .body("data.scene.sceneId", equalTo(firstSceneId))
                     .body("data.scene.sceneOrder", equalTo(1))
                     .body("data.scene.sceneType", equalTo(SceneType.NARRATION.name))
+                    .body("data.scene.characterOpeningAudio", nullValue())
+                    .body("data.scene.characterClosingAudio", nullValue())
 
                 RestAssured.given()
                     .header("Authorization", token)
@@ -502,6 +504,8 @@ class SpeakingSessionControllerImplTest(
                     .body("data.scene.sceneType", equalTo(SceneType.DIALOGUE.name))
                     .body("data.scene.characterDisplayName", equalTo("방귀쟁이 며느리"))
                     .body("data.scene.maxTurns", equalTo(4))
+                    .body("data.scene.characterOpeningAudio", not(nullValue()))
+                    .body("data.scene.characterClosingAudio", not(nullValue()))
             }
 
             test("전개(NARRATION) 장면 세션 advance는 200과 다음 장면 SCENE 뷰를 반환한다") {
@@ -531,6 +535,8 @@ class SpeakingSessionControllerImplTest(
                     .body("data.scene.sceneId", equalTo(nextSceneId))
                     .body("data.scene.sceneOrder", equalTo(3))
                     .body("data.scene.sceneType", equalTo(SceneType.DIALOGUE.name))
+                    .body("data.scene.characterOpeningAudio", not(nullValue()))
+                    .body("data.scene.characterClosingAudio", not(nullValue()))
 
                 val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
                 storedSession?.currentSceneId shouldBe nextSceneId
@@ -571,6 +577,8 @@ class SpeakingSessionControllerImplTest(
                     .body("data.viewType", equalTo("SCENE"))
                     .body("data.scene.sceneId", equalTo(nextSceneId))
                     .body("data.scene.sceneType", equalTo(SceneType.NARRATION.name))
+                    .body("data.scene.characterOpeningAudio", nullValue())
+                    .body("data.scene.characterClosingAudio", nullValue())
 
                 val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
                 storedSession?.currentSceneId shouldBe nextSceneId
@@ -901,6 +909,7 @@ class SpeakingSessionControllerImplTest(
                     .body("data.characterReply.speakerType", equalTo("CHARACTER"))
                     .body("data.characterReply.turnOrder", equalTo(2))
                     .body("data.characterReply.text", not(emptyOrNullString()))
+                    .body("data.characterReply.characterReplyAudio", not(nullValue()))
 
                 testMessageFixture.countBySessionId(sessionId) shouldBe 2L
                 val stored = testMessageFixture.findAllBySessionId(sessionId).first()

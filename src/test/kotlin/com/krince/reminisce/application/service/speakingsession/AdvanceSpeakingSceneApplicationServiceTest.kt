@@ -6,6 +6,7 @@ import com.krince.reminisce.application.port.`in`.speakingsession.command.Advanc
 import com.krince.reminisce.application.port.`in`.speakingsession.result.SpeakingSessionViewType
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
+import com.krince.reminisce.application.port.out.tts.TtsPort
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.SceneEndReason
@@ -44,6 +45,7 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
     val commandSpeakingSessionPort = mockk<CommandSpeakingSessionPort>()
     val childAccessPort = mockk<ChildAccessPort>()
     val storyAccessPort = mockk<StoryAccessPort>()
+    val ttsPort = mockk<TtsPort>()
     val fixedInstant = Instant.parse("2026-06-01T00:00:00Z")
     val fixedClock = Clock.fixed(fixedInstant, ZoneOffset.UTC)
     val service = AdvanceSpeakingSceneApplicationService(
@@ -51,10 +53,14 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
         commandSpeakingSessionPort = commandSpeakingSessionPort,
         childAccessPort = childAccessPort,
         storyAccessPort = storyAccessPort,
+        ttsPort = ttsPort,
         clock = fixedClock,
     )
 
-    beforeEach { clearAllMocks() }
+    beforeEach {
+        clearAllMocks()
+        every { ttsPort.synthesize(any()) } returns "stub://tts/0"
+    }
 
     val sessionIdStr = "session-uuid-1"
     val guardianIdStr = "guardian-uuid-1"

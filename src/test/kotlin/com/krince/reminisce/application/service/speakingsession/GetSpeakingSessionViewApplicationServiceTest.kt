@@ -5,6 +5,7 @@ import com.krince.reminisce.application.port.access.story.StoryAccessPort
 import com.krince.reminisce.application.port.`in`.speakingsession.command.GetSpeakingSessionViewCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.result.SpeakingSessionViewType
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
+import com.krince.reminisce.application.port.out.tts.TtsPort
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
@@ -14,6 +15,7 @@ import com.krince.reminisce.domain.model.story.vo.SceneId
 import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryId
 import com.krince.reminisce.domain.model.story.vo.ThinkingElement
+import io.kotest.matchers.shouldNotBe
 import com.krince.reminisce.domain.model.user.vo.UserId
 import com.krince.reminisce.shared.exception.NotFoundException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND
@@ -34,13 +36,18 @@ class GetSpeakingSessionViewApplicationServiceTest : FunSpec({
     val loadSpeakingSessionPort = mockk<LoadSpeakingSessionPort>()
     val childAccessPort = mockk<ChildAccessPort>()
     val storyAccessPort = mockk<StoryAccessPort>()
+    val ttsPort = mockk<TtsPort>()
     val service = GetSpeakingSessionViewApplicationService(
         loadSpeakingSessionPort = loadSpeakingSessionPort,
         childAccessPort = childAccessPort,
         storyAccessPort = storyAccessPort,
+        ttsPort = ttsPort,
     )
 
-    beforeEach { clearAllMocks() }
+    beforeEach {
+        clearAllMocks()
+        every { ttsPort.synthesize(any()) } returns "stub://tts/0"
+    }
 
     val sessionIdStr = "session-uuid-1"
     val guardianIdStr = "guardian-uuid-1"
@@ -77,6 +84,14 @@ class GetSpeakingSessionViewApplicationServiceTest : FunSpec({
         sceneGoal = "목표",
         requiredElements = listOf(ThinkingElement.PERSPECTIVE),
         maxTurns = 4,
+    )
+
+    fun narrationScene(): Scene = Scene(
+        sceneId = SceneId(firstSceneIdStr),
+        storyId = storyId,
+        sceneOrder = 1,
+        sceneType = SceneType.NARRATION,
+        sceneDescription = "전개 설명",
     )
 
     context("게이트 실패") {
@@ -122,6 +137,30 @@ class GetSpeakingSessionViewApplicationServiceTest : FunSpec({
             result.intro shouldBe null
             result.scene?.sceneId shouldBe firstSceneIdStr
             result.scene?.sceneType shouldBe SceneType.DIALOGUE
+        }
+
+        test("DIALOGUE 장면이면 characterOpeningAudio·characterClosingAudio가 non-null이다") {
+            every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(firstSceneIdStr)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.findScene(storyId, firstSceneIdStr) } returns dialogueScene()
+            every { ttsPort.synthesize("여는 대사") } returns "stub://tts/opening"
+            every { ttsPort.synthesize("닫는 대사") } returns "stub://tts/closing"
+
+            val result = service.execute(command())
+
+            result.scene?.characterOpeningAudio shouldNotBe null
+            result.scene?.characterClosingAudio shouldNotBe null
+        }
+
+        test("NARRATION 장면이면 characterOpeningAudio·characterClosingAudio가 null이다") {
+            every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(firstSceneIdStr)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.findScene(storyId, firstSceneIdStr) } returns narrationScene()
+
+            val result = service.execute(command())
+
+            result.scene?.characterOpeningAudio shouldBe null
+            result.scene?.characterClosingAudio shouldBe null
         }
     }
 })

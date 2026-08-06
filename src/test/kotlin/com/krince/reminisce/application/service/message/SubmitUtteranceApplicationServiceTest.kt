@@ -11,6 +11,7 @@ import com.krince.reminisce.application.port.out.reply.CharacterReplyPort
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
 import com.krince.reminisce.application.port.out.stt.SttPort
+import com.krince.reminisce.application.port.out.tts.TtsPort
 import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.message.Message
@@ -59,6 +60,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
     val childAccessPort = mockk<ChildAccessPort>()
     val storyAccessPort = mockk<StoryAccessPort>()
     val sttPort = mockk<SttPort>()
+    val ttsPort = mockk<TtsPort>()
     val commandMessagePort = mockk<CommandMessagePort>()
     val loadMessagePort = mockk<LoadMessagePort>()
     val speechAnalysisPort = mockk<SpeechAnalysisPort>()
@@ -72,6 +74,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
         childAccessPort = childAccessPort,
         storyAccessPort = storyAccessPort,
         sttPort = sttPort,
+        ttsPort = ttsPort,
         commandMessagePort = commandMessagePort,
         loadMessagePort = loadMessagePort,
         speechAnalysisPort = speechAnalysisPort,
@@ -81,7 +84,10 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
         clock = fixedClock,
     )
 
-    beforeEach { clearAllMocks() }
+    beforeEach {
+        clearAllMocks()
+        every { ttsPort.synthesize(any()) } returns "stub://tts/0"
+    }
 
     val sessionIdStr = "session-uuid-1"
     val guardianIdStr = "guardian-uuid-1"
@@ -326,6 +332,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             result.characterReply.speakerType shouldBe SpeakerType.CHARACTER.name
             result.characterReply.turnOrder shouldBe childMessage.turnOrder + 1
             result.characterReply.text shouldBe stubReply
+            result.characterReply.audio shouldBe "stub://tts/0"
             verify(exactly = 2) { commandMessagePort.save(any()) }
             verify(exactly = 1) { characterReplyPort.generate(any()) }
             verify(exactly = 1) { commandUtteranceAnalysisPort.save(any()) }
