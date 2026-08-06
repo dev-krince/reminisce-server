@@ -3,6 +3,15 @@ package com.krince.reminisce.infra.adapter.`in`.dto.story.response
 import com.krince.reminisce.application.port.`in`.story.result.SceneResult
 import io.swagger.v3.oas.annotations.media.Schema
 
+@Schema(title = "MissionResponse", description = "장면 미션 응답")
+class MissionResponse(
+    @field:Schema(description = "미션 목표", required = true)
+    val goal: String,
+
+    @field:Schema(description = "미션 예시 힌트 목록", required = true)
+    val examples: List<String>,
+)
+
 @Schema(title = "SceneResponse", description = "이야기 장면 응답")
 class SceneResponse(
     @field:Schema(description = "장면 고유 식별자", example = "sc_banggui_01", required = true)
@@ -49,6 +58,9 @@ class SceneResponse(
 
     @field:Schema(description = "장면에서 허용하는 최대 아이 발화 횟수", example = "4", required = false)
     val maxTurns: Int?,
+
+    @field:Schema(description = "장면 미션 (DIALOGUE 전용 선택)", required = false)
+    val mission: MissionResponse?,
 )
 
 fun sceneResponse(result: SceneResult): SceneResponse = SceneResponse(
@@ -67,4 +79,5 @@ fun sceneResponse(result: SceneResult): SceneResponse = SceneResponse(
     requiredElements = result.requiredElements?.map { it.name },
     preferredTurns = result.preferredTurns,
     maxTurns = result.maxTurns,
+    mission = result.mission?.let { MissionResponse(goal = it.goal, examples = it.examples) },
 )

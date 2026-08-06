@@ -1,6 +1,8 @@
 package com.krince.reminisce.infra.adapter.out.persistence.story.entity
 
+import com.krince.reminisce.domain.model.story.Mission
 import com.krince.reminisce.domain.model.story.vo.ThinkingElement
+import com.krince.reminisce.infra.adapter.out.persistence.story.converter.MissionConverter
 import com.krince.reminisce.infra.adapter.out.persistence.story.converter.RequiredElementsConverter
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
@@ -81,6 +83,11 @@ class SceneOrmEntity(
     @Column(name = "max_turns")
     @Comment("장면에서 허용하는 최대 아이 발화 횟수")
     val maxTurns: Short?,
+
+    @Column(name = "mission", columnDefinition = "text")
+    @Convert(converter = MissionConverter::class)
+    @Comment("장면 미션 메타 (목표·예시 힌트, JSON, DIALOGUE 전용 선택)")
+    val mission: Mission? = null,
 ) {
     @Column(name = "created_date", nullable = false, updatable = false)
     @CreatedDate

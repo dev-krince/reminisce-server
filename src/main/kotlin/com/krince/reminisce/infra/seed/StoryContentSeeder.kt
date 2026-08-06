@@ -1,5 +1,6 @@
 package com.krince.reminisce.infra.seed
 
+import com.krince.reminisce.domain.model.story.Mission
 import com.krince.reminisce.domain.model.story.Scene
 import com.krince.reminisce.domain.model.story.Story
 import com.krince.reminisce.domain.model.story.vo.Difficulty
@@ -133,6 +134,10 @@ class StoryContentSeeder(
                 ThinkingElement.RESULT,
             ),
             maxTurns = 5,
+            mission = Mission(
+                goal = BANGGUI_07_MISSION_GOAL,
+                examples = BANGGUI_07_MISSION_EXAMPLES,
+            ),
         ),
         narrationScene(
             sceneId = "sc_banggui_08",
@@ -158,6 +163,10 @@ class StoryContentSeeder(
                 ThinkingElement.SOLUTION,
             ),
             maxTurns = 4,
+            mission = Mission(
+                goal = BANGGUI_09_MISSION_GOAL,
+                examples = BANGGUI_09_MISSION_EXAMPLES,
+            ),
         ),
     )
 
@@ -180,6 +189,7 @@ class StoryContentSeeder(
         sceneGoal: String,
         requiredElements: List<ThinkingElement>,
         maxTurns: Int,
+        mission: Mission? = null,
     ): Scene = Scene(
         sceneId = SceneId(sceneId),
         storyId = StoryId(BANGGUI_STORY_ID),
@@ -195,6 +205,7 @@ class StoryContentSeeder(
         requiredElements = requiredElements,
         preferredTurns = null,
         maxTurns = maxTurns,
+        mission = mission,
     )
 
     private companion object {
@@ -202,5 +213,21 @@ class StoryContentSeeder(
         const val BANGGUI_INTRO = "옛날 어느 마을에 방귀를 아주 크게 뀌는 며느리가 살았습니다. " +
             "며느리는 시집에 온 뒤로 늘 얌전하고 예의 바르게 보이고 싶었습니다. " +
             "시댁 식구들이 자신을 이상하게 볼까 봐 걱정했기 때문입니다."
+
+        const val BANGGUI_07_MISSION_GOAL = "높은 배나무의 배를 떨어뜨리기 위해 며느리의 방귀를 안전하게 사용할 수 있는 방법 찾기"
+        val BANGGUI_07_MISSION_EXAMPLES = listOf(
+            "무엇을 사용할 것인지",
+            "주변 사람들과 시아버지는 어디로 피해야 할지",
+            "며느리에게 어떻게 부탁할 것인지",
+            "그 결과 어떤 일이 생길지",
+        )
+
+        const val BANGGUI_09_MISSION_GOAL = "처음에는 단점처럼 보였지만 좋은 일에 쓸 수 있는 특징 찾기"
+        val BANGGUI_09_MISSION_EXAMPLES = listOf(
+            "목소리가 큰 친구는 멀리 있는 사람을 부를 수 있어요",
+            "질문이 많은 친구는 새로운 생각을 찾을 수 있어요",
+            "힘이 센 친구는 무거운 물건을 옮길 때 도울 수 있어요",
+            "조용한 친구는 다른 사람의 말을 잘 들어 줄 수 있어요",
+        )
     }
 }

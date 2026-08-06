@@ -57,6 +57,7 @@ object StoryMapper {
         requiredElements = ormEntity.requiredElements,
         preferredTurns = ormEntity.preferredTurns?.toInt(),
         maxTurns = ormEntity.maxTurns?.toInt(),
+        mission = ormEntity.mission,
     )
 
     private fun toStoryOrmEntity(story: Story): StoryOrmEntity = StoryOrmEntity(
@@ -91,6 +92,7 @@ object StoryMapper {
         requiredElements = scene.requiredElements,
         preferredTurns = scene.preferredTurns?.toShort(),
         maxTurns = scene.maxTurns?.toShort(),
+        mission = scene.mission,
     )
 
     private fun toStoryTopicOrmEntity(storyId: StoryId, topic: String): StoryTopicOrmEntity = StoryTopicOrmEntity(
