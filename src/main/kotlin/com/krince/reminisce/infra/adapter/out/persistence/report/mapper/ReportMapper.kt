@@ -12,6 +12,9 @@ object ReportMapper {
         summary = ormEntity.summary,
         strengths = ormEntity.strengths,
         nextFocus = ormEntity.nextFocus,
+        competencyAnalysis = ormEntity.competencyAnalysis,
+        representativeUtterance = ormEntity.representativeUtterance,
+        homeConversationGuide = ormEntity.homeConversationGuide,
         createdAt = ormEntity.createdAt,
     )
 
@@ -21,6 +24,9 @@ object ReportMapper {
         summary = domain.summary,
         strengths = domain.strengths,
         nextFocus = domain.nextFocus,
+        competencyAnalysis = domain.competencyAnalysis,
+        representativeUtterance = domain.representativeUtterance,
+        homeConversationGuide = domain.homeConversationGuide,
         createdAt = domain.createdAt,
     )
 }

@@ -11,6 +11,8 @@ import com.krince.reminisce.application.port.out.report.ReportSummaryPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
 import com.krince.reminisce.application.port.out.utteranceanalysis.LoadUtteranceAnalysisPort
 import com.krince.reminisce.domain.model.message.vo.MessageId
+import com.krince.reminisce.domain.model.report.GuardianReportAreas
+import com.krince.reminisce.domain.model.report.GuardianReportComposer
 import com.krince.reminisce.domain.model.report.Report
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
@@ -55,25 +57,29 @@ class GetSessionReportApplicationService(
     }
 
     private fun generateReport(sessionId: SpeakingSessionId): Report {
-        val strengths: List<ThinkingElement> = aggregateStrengths(sessionId)
+        val analyses: List<UtteranceAnalysis> = loadChildAnalyses(sessionId)
+        val strengths: List<ThinkingElement> = analyses.flatMap { it.detectedElements }.map { it.type }.distinct()
         val nextFocus: List<ThinkingElement> = ThinkingElement.entries.filterNot { it in strengths }
         val summary: String = reportSummaryPort.generate(strengths, nextFocus)
+        val areas: GuardianReportAreas = GuardianReportComposer.compose(analyses)
         val report: Report = Report.generate(
             sessionId = sessionId,
             strengths = strengths,
             nextFocus = nextFocus,
             summary = summary,
+            competencyAnalysis = areas.competencyAnalysis,
+            representativeUtterance = areas.representativeUtterance,
+            homeConversationGuide = areas.homeConversationGuide,
             at = LocalDateTime.now(clock),
         )
 
         return commandReportPort.save(report)
     }
 
-    private fun aggregateStrengths(sessionId: SpeakingSessionId): List<ThinkingElement> {
+    private fun loadChildAnalyses(sessionId: SpeakingSessionId): List<UtteranceAnalysis> {
         val childMessageIds: List<MessageId> = loadMessagePort.findChildMessageIdsBySession(sessionId)
-        val analyses: List<UtteranceAnalysis> = loadUtteranceAnalysisPort.findByMessageIds(childMessageIds)
 
-        return analyses.flatMap { it.detectedElements }.map { it.type }.distinct()
+        return loadUtteranceAnalysisPort.findByMessageIds(childMessageIds)
     }
 
     private fun loadOwnedSession(sessionId: String, guardianId: String): SpeakingSession {
@@ -95,6 +101,9 @@ class GetSessionReportApplicationService(
         summary = report.summary,
         strengths = report.strengths,
         nextFocus = report.nextFocus,
+        competencyAnalysis = report.competencyAnalysis,
+        representativeUtterance = report.representativeUtterance,
+        homeConversationGuide = report.homeConversationGuide,
         createdAt = report.createdAt,
     )
 }

@@ -12,6 +12,9 @@ data class Report(
     val summary: String,
     val strengths: List<ThinkingElement>,
     val nextFocus: List<ThinkingElement>,
+    val competencyAnalysis: CompetencyAnalysis,
+    val representativeUtterance: RepresentativeUtterance,
+    val homeConversationGuide: HomeConversationGuide,
     val createdAt: LocalDateTime,
 ) {
     companion object {
@@ -20,6 +23,9 @@ data class Report(
             strengths: List<ThinkingElement>,
             nextFocus: List<ThinkingElement>,
             summary: String,
+            competencyAnalysis: CompetencyAnalysis,
+            representativeUtterance: RepresentativeUtterance,
+            homeConversationGuide: HomeConversationGuide,
             at: LocalDateTime,
         ): Report = Report(
             reportId = ReportId(UuidGenerator.generate()),
@@ -27,6 +33,9 @@ data class Report(
             summary = summary,
             strengths = strengths,
             nextFocus = nextFocus,
+            competencyAnalysis = competencyAnalysis,
+            representativeUtterance = representativeUtterance,
+            homeConversationGuide = homeConversationGuide,
             createdAt = at,
         )
     }
