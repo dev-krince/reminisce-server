@@ -57,6 +57,34 @@ class SpeakingSessionOrmEntity(
     @Convert(converter = AccumulatedElementsConverter::class)
     @Comment("현재 장면에서 확인된 사고 요소 누적 (type 합집합)")
     val accumulatedElements: List<ThinkingElement>? = emptyList(),
+
+    @Column(name = "current_child_turn_count", nullable = false)
+    @Comment("현재 장면에서 아이가 말한 횟수")
+    val currentChildTurnCount: Int = 0,
+
+    @Column(name = "turns_without_new_element", nullable = false)
+    @Comment("신규 요소 없이 이어진 아이 발화 횟수")
+    val turnsWithoutNewElement: Int = 0,
+
+    @Column(name = "consecutive_low_information_turns", nullable = false)
+    @Comment("저정보 발화 연속 횟수")
+    val consecutiveLowInformationTurns: Int = 0,
+
+    @Column(name = "scene_goal_met", nullable = false)
+    @Comment("현재 장면 목표 충족 여부")
+    val sceneGoalMet: Boolean = false,
+
+    @Column(name = "scene_end_reason", nullable = true)
+    @Comment("현재 장면 종료 이유")
+    val sceneEndReason: String? = null,
+
+    @Column(name = "last_response_mode", nullable = true)
+    @Comment("직전 확정 응답 모드")
+    val lastResponseMode: String? = null,
+
+    @Column(name = "last_guidance_target", nullable = true)
+    @Comment("유도 대상 사고 요소")
+    val lastGuidanceTarget: String? = null,
 ) {
     @Column(name = "created_date", nullable = false, updatable = false)
     @CreatedDate
