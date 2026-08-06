@@ -1,5 +1,6 @@
 package com.krince.reminisce.infra.adapter.`in`.controller
 
+import com.krince.reminisce.domain.model.story.Mission
 import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
@@ -143,6 +144,24 @@ class StoryControllerImplTest(
         ),
         preferredTurns = null,
         maxTurns = 4,
+    )
+
+    fun dialogueEntityWithMission(storyId: String, sceneOrder: Short, mission: Mission): SceneOrmEntity = SceneOrmEntity(
+        sceneId = "sc-$sceneOrder-$storyId",
+        storyId = storyId,
+        sceneOrder = sceneOrder,
+        sceneType = SceneType.DIALOGUE.name,
+        sceneDescription = "대화 설명 $sceneOrder",
+        characterName = "ch_banggui_village_chief",
+        characterDisplayName = "마을 이장",
+        characterOpening = "뾰족한 방법이 없겠는가?",
+        characterClosing = "고맙소!",
+        conflict = null,
+        sceneGoal = "해결책을 제안한다",
+        requiredElements = listOf(ThinkingElement.SOLUTION),
+        preferredTurns = null,
+        maxTurns = 5,
+        mission = mission,
     )
 
     fun topicEntity(storyId: String, topic: String): StoryTopicOrmEntity = StoryTopicOrmEntity(
@@ -296,6 +315,33 @@ class StoryControllerImplTest(
                     )
                     .body("data.scenes[2].preferredTurns", nullValue())
                     .body("data.scenes[2].maxTurns", equalTo(4))
+                    .body("data.scenes[0].mission", nullValue())
+                    .body("data.scenes[1].mission", nullValue())
+                    .body("data.scenes[2].mission", nullValue())
+            }
+
+            test("미션이 있는 대화 장면은 mission.goal·examples를 담아 반환하고 미션 없는 장면은 mission이 null이다") {
+                val token = authorizedToken()
+                val storyId = "mission-${uniqueSuffix()}"
+                val mission = Mission(
+                    goal = "높은 배나무의 배를 떨어뜨리기 위해 며느리의 방귀를 안전하게 사용할 수 있는 방법 찾기",
+                    examples = listOf("무엇을 사용할 것인지", "주변 사람들과 시아버지는 어디로 피해야 할지"),
+                )
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testStoryFixture.saveScene(dialogueEntityWithMission(storyId, 2, mission))
+                testStoryFixture.saveTopic(topicEntity(storyId, "다름"))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/stories/$storyId")
+                    .then()
+                    .statusCode(200)
+                    .body("data.scenes[0].mission", nullValue())
+                    .body("data.scenes[1].mission.goal", equalTo("높은 배나무의 배를 떨어뜨리기 위해 며느리의 방귀를 안전하게 사용할 수 있는 방법 찾기"))
+                    .body("data.scenes[1].mission.examples", contains("무엇을 사용할 것인지", "주변 사람들과 시아버지는 어디로 피해야 할지"))
             }
         }
         context("예외케이스") {

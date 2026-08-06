@@ -1,5 +1,6 @@
 package com.krince.reminisce.infra.adapter.out.persistence.story.mapper
 
+import com.krince.reminisce.domain.model.story.Mission
 import com.krince.reminisce.domain.model.story.Scene
 import com.krince.reminisce.domain.model.story.Story
 import com.krince.reminisce.domain.model.story.vo.Difficulty
@@ -143,6 +144,37 @@ class StoryMapperTest : FunSpec({
                 )
                 dialogue.preferredTurns shouldBe null
                 dialogue.maxTurns shouldBe 4
+                dialogue.mission shouldBe null
+            }
+
+            test("미션이 있는 대화 장면 엔티티의 mission을 도메인으로 옮긴다") {
+                val mission = Mission(goal = "배 따기 방법 찾기", examples = listOf("무엇을 사용할 것인지"))
+                val entityWithMission = SceneOrmEntity(
+                    sceneId = "sc-7",
+                    storyId = storyIdStr,
+                    sceneOrder = 7,
+                    sceneType = "DIALOGUE",
+                    sceneDescription = "대화 설명 7",
+                    characterName = "ch_banggui_village_chief",
+                    characterDisplayName = "마을 이장",
+                    characterOpening = "고정 첫 대사",
+                    characterClosing = "고정 마지막 대사",
+                    conflict = null,
+                    sceneGoal = "장면 발화 목표",
+                    requiredElements = listOf(ThinkingElement.SOLUTION),
+                    preferredTurns = null,
+                    maxTurns = 5,
+                    mission = mission,
+                )
+                val aggregateEntity = StoryAggregateEntity(
+                    storyOrmEntity = storyOrmEntity(),
+                    sceneOrmEntities = listOf(entityWithMission),
+                    storyTopicOrmEntities = emptyList(),
+                )
+
+                val dialogue = StoryMapper.toDomain(aggregateEntity).scenes.first()
+
+                dialogue.mission shouldBe mission
             }
         }
     }
@@ -218,6 +250,7 @@ class StoryMapperTest : FunSpec({
                 )
                 savedScenes[1].preferredTurns shouldBe null
                 savedScenes[1].maxTurns shouldBe 5.toShort()
+                savedScenes[1].mission shouldBe null
 
                 val savedTopics = aggregateEntity.storyTopicOrmEntities
                 savedTopics.map { it.topic } shouldContainExactly listOf("다름", "자기이해")
@@ -252,7 +285,38 @@ class StoryMapperTest : FunSpec({
                     ThinkingElement.PERSPECTIVE,
                     ThinkingElement.EMOTION,
                 )
+                restored.sceneOrmEntities[1].mission shouldBe null
                 restored.storyTopicOrmEntities.map { it.topic } shouldContainExactly listOf("다름")
+            }
+
+            test("미션이 있는 대화 장면도 toDomain 후 toEntity 하면 mission이 보존된다") {
+                val mission = Mission(goal = "배 따기 방법 찾기", examples = listOf("무엇을 사용할 것인지"))
+                val entityWithMission = SceneOrmEntity(
+                    sceneId = "sc-7",
+                    storyId = storyIdStr,
+                    sceneOrder = 7,
+                    sceneType = "DIALOGUE",
+                    sceneDescription = "대화 설명 7",
+                    characterName = "ch_banggui_village_chief",
+                    characterDisplayName = "마을 이장",
+                    characterOpening = "고정 첫 대사",
+                    characterClosing = "고정 마지막 대사",
+                    conflict = null,
+                    sceneGoal = "장면 발화 목표",
+                    requiredElements = listOf(ThinkingElement.SOLUTION),
+                    preferredTurns = null,
+                    maxTurns = 5,
+                    mission = mission,
+                )
+                val aggregateEntity = StoryAggregateEntity(
+                    storyOrmEntity = storyOrmEntity(),
+                    sceneOrmEntities = listOf(entityWithMission),
+                    storyTopicOrmEntities = emptyList(),
+                )
+
+                val restored = StoryMapper.toEntity(StoryMapper.toDomain(aggregateEntity))
+
+                restored.sceneOrmEntities.first().mission shouldBe mission
             }
         }
     }
