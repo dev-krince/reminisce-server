@@ -39,5 +39,15 @@ class User(
             role = Role.user(),
             providerId = providerId,
         )
+
+        fun google(providerId: String, email: Email?, nickname: Nickname): User = User(
+            userId = UserId(UuidGenerator.generate()),
+            email = email,
+            password = null,
+            nickname = nickname,
+            provider = AuthProvider.GOOGLE,
+            role = Role.user(),
+            providerId = providerId,
+        )
     }
 }
