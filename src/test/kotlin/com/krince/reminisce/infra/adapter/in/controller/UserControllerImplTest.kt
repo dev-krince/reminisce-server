@@ -1,8 +1,18 @@
 package com.krince.reminisce.infra.adapter.`in`.controller
 
+import com.krince.reminisce.domain.model.message.vo.SpeakerType
+import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
+import com.krince.reminisce.domain.model.story.vo.ThinkingElement
+import com.krince.reminisce.domain.model.utteranceanalysis.vo.ChildIntent
+import com.krince.reminisce.domain.model.utteranceanalysis.vo.UtteranceValidity
 import com.krince.reminisce.infra.adapter.out.persistence.child.entity.ChildOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.childconsent.entity.ChildConsentOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.message.entity.MessageOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.postactivityresult.entity.PostActivityResultOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.report.entity.ReportOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.speakingsession.entity.SpeakingSessionOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.user.entity.UserOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.utteranceanalysis.entity.UtteranceAnalysisOrmEntity
 import com.krince.reminisce.shared.response.ExceptionResponseCode
 import com.krince.reminisce.shared.response.SuccessResponseCode
 import com.krince.reminisce.shared.util.UuidGenerator
@@ -11,7 +21,12 @@ import com.krince.reminisce.testutil.fixture.TestAuthUserFixture
 import com.krince.reminisce.testutil.fixture.TestChildConsentFixture
 import com.krince.reminisce.testutil.fixture.TestChildFixture
 import com.krince.reminisce.testutil.fixture.TestJwtTokenFixture
+import com.krince.reminisce.testutil.fixture.TestMessageFixture
+import com.krince.reminisce.testutil.fixture.TestPostActivityResultFixture
+import com.krince.reminisce.testutil.fixture.TestReportFixture
+import com.krince.reminisce.testutil.fixture.TestSpeakingSessionFixture
 import com.krince.reminisce.testutil.fixture.TestUserFixture
+import com.krince.reminisce.testutil.fixture.TestUtteranceAnalysisFixture
 import io.kotest.common.ExperimentalKotest
 import io.kotest.core.annotation.DisplayName
 import io.kotest.core.spec.style.FunSpec
@@ -46,6 +61,11 @@ class UserControllerImplTest(
     private val testChildFixture: TestChildFixture,
     private val testChildConsentFixture: TestChildConsentFixture,
     private val testJwtTokenFixture: TestJwtTokenFixture,
+    private val testSpeakingSessionFixture: TestSpeakingSessionFixture,
+    private val testMessageFixture: TestMessageFixture,
+    private val testUtteranceAnalysisFixture: TestUtteranceAnalysisFixture,
+    private val testReportFixture: TestReportFixture,
+    private val testPostActivityResultFixture: TestPostActivityResultFixture,
     private val redisTemplate: StringRedisTemplate,
 ) : FunSpec({
 
@@ -78,6 +98,57 @@ class UserControllerImplTest(
             consentedAt = LocalDateTime.of(2026, 6, 1, 0, 0),
         )
 
+    fun sessionEntity(childId: String): SpeakingSessionOrmEntity =
+        SpeakingSessionOrmEntity(
+            sessionId = UuidGenerator.generate(),
+            childId = childId,
+            storyId = "story-${UuidGenerator.generate()}",
+            status = SessionStatus.COMPLETED.name,
+            startedAt = LocalDateTime.of(2026, 6, 1, 0, 0),
+            lastActivityAt = LocalDateTime.of(2026, 6, 1, 0, 30),
+        )
+
+    fun messageEntity(sessionId: String): MessageOrmEntity =
+        MessageOrmEntity(
+            id = UuidGenerator.generate(),
+            sessionId = sessionId,
+            sceneId = "scene-${UuidGenerator.generate()}",
+            speakerType = SpeakerType.CHILD.name,
+            turnOrder = 1L,
+            text = "안녕",
+            sttRawText = "안녕",
+            createdAt = LocalDateTime.of(2026, 6, 1, 0, 10),
+        )
+
+    fun utteranceAnalysisEntity(messageId: String): UtteranceAnalysisOrmEntity =
+        UtteranceAnalysisOrmEntity(
+            id = UuidGenerator.generate(),
+            messageId = messageId,
+            childIntent = ChildIntent.OPINION.name,
+            mainPoint = "인사",
+            detectedElements = emptyList(),
+            utteranceValidity = UtteranceValidity.VALID.name,
+        )
+
+    fun reportEntity(sessionId: String): ReportOrmEntity =
+        ReportOrmEntity(
+            id = UuidGenerator.generate(),
+            sessionId = sessionId,
+            summary = "요약",
+            strengths = listOf(ThinkingElement.EMOTION),
+            nextFocus = listOf(ThinkingElement.REASON),
+            createdAt = LocalDateTime.of(2026, 6, 1, 0, 40),
+        )
+
+    fun postActivityResultEntity(sessionId: String): PostActivityResultOrmEntity =
+        PostActivityResultOrmEntity(
+            id = UuidGenerator.generate(),
+            sessionId = sessionId,
+            submittedOrder = listOf("card-1", "card-2"),
+            isOrderCorrect = true,
+            attemptCount = 1,
+        )
+
     fun storedRefresh(userId: String): String? = redisTemplate.opsForValue().get("auth:refresh:$userId")
 
     fun issueTokens(userId: String): Pair<String, String> {
@@ -97,6 +168,11 @@ class UserControllerImplTest(
     }
 
     beforeTest {
+        testUtteranceAnalysisFixture.deleteAllBatch()
+        testMessageFixture.deleteAllBatch()
+        testReportFixture.deleteAllBatch()
+        testPostActivityResultFixture.deleteAllBatch()
+        testSpeakingSessionFixture.deleteAllBatch()
         testChildConsentFixture.deleteAllBatch()
         testChildFixture.deleteAllBatch()
         testUserFixture.deleteAllBatch()
@@ -241,6 +317,48 @@ class UserControllerImplTest(
                 testUserFixture.findById(otherGuardianId).shouldNotBeNull()
                 testChildFixture.countByGuardianId(otherGuardianId) shouldBe 1L
                 testChildConsentFixture.findAllByChildId(otherChild.childId).size shouldBe 1
+            }
+
+            test("아이의 세션·메시지·발화분석·리포트·후속활동이 있는 보호자가 탈퇴하면 전 계열이 0이고 타 보호자 세션 계열은 남는다") {
+                val guardianId = testAuthUserFixture.saveKakaoUser("kakao-${uniqueSuffix()}")
+                val child = testChildFixture.saveChild(childEntity(guardianId))
+                val session = testSpeakingSessionFixture.save(sessionEntity(child.childId))
+                val message = testMessageFixture.save(messageEntity(session.sessionId))
+                testUtteranceAnalysisFixture.save(utteranceAnalysisEntity(message.id))
+                testReportFixture.save(reportEntity(session.sessionId))
+                testPostActivityResultFixture.save(postActivityResultEntity(session.sessionId))
+
+                val otherGuardianId = testAuthUserFixture.saveKakaoUser("kakao-${uniqueSuffix()}")
+                val otherChild = testChildFixture.saveChild(childEntity(otherGuardianId))
+                val otherSession = testSpeakingSessionFixture.save(sessionEntity(otherChild.childId))
+                val otherMessage = testMessageFixture.save(messageEntity(otherSession.sessionId))
+                testUtteranceAnalysisFixture.save(utteranceAnalysisEntity(otherMessage.id))
+                testReportFixture.save(reportEntity(otherSession.sessionId))
+                testPostActivityResultFixture.save(postActivityResultEntity(otherSession.sessionId))
+
+                val (access, _) = issueTokens(guardianId)
+
+                RestAssured.given()
+                    .header("Authorization", access)
+                    .`when`()
+                    .delete("/users/me")
+                    .then()
+                    .statusCode(204)
+
+                testUserFixture.existsById(guardianId) shouldBe false
+                testChildFixture.countByGuardianId(guardianId) shouldBe 0L
+                testSpeakingSessionFixture.findBySessionId(session.sessionId) shouldBe null
+                testMessageFixture.countBySessionId(session.sessionId) shouldBe 0L
+                testUtteranceAnalysisFixture.findAll().none { it.messageId == message.id } shouldBe true
+                testReportFixture.findBySessionId(session.sessionId) shouldBe null
+                testPostActivityResultFixture.findBySessionId(session.sessionId) shouldBe null
+
+                testUserFixture.findById(otherGuardianId).shouldNotBeNull()
+                testSpeakingSessionFixture.findBySessionId(otherSession.sessionId).shouldNotBeNull()
+                testMessageFixture.countBySessionId(otherSession.sessionId) shouldBe 1L
+                testUtteranceAnalysisFixture.findAll().any { it.messageId == otherMessage.id } shouldBe true
+                testReportFixture.findBySessionId(otherSession.sessionId).shouldNotBeNull()
+                testPostActivityResultFixture.findBySessionId(otherSession.sessionId).shouldNotBeNull()
             }
 
             test("탈퇴에 쓴 액세스 토큰으로 인증 API 재요청하면 401 LOGGED_OUT_TOKEN이다") {
