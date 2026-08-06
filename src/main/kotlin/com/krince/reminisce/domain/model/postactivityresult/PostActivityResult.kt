@@ -23,6 +23,9 @@ data class PostActivityResult(
             attemptCount = attemptCount + 1,
         )
 
+    fun completeWith(retellingText: String, at: LocalDateTime): PostActivityResult =
+        copy(retellingText = retellingText, completedAt = at)
+
     companion object {
         fun firstSubmission(
             sessionId: SpeakingSessionId,

@@ -47,6 +47,9 @@ data class SpeakingSession(
     fun enterPostActivity(at: LocalDateTime): SpeakingSession =
         copy(status = SessionStatus.POST_ACTIVITY, lastActivityAt = at)
 
+    fun complete(at: LocalDateTime): SpeakingSession =
+        copy(status = SessionStatus.COMPLETED, lastActivityAt = at)
+
     fun accumulate(newTypes: List<ThinkingElement>, at: LocalDateTime): SpeakingSession =
         copy(accumulatedElements = (accumulatedElements + newTypes).distinct(), lastActivityAt = at)
 
