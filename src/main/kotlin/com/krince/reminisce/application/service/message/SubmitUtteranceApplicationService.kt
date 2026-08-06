@@ -55,10 +55,10 @@ class SubmitUtteranceApplicationService(
         val transcript: String = transcribe(command.audio)
         val message: Message = saveChildUtterance(session, dialogueScene, transcript)
         val analysis: UtteranceAnalysis = analyzeAndSave(message)
-        val updatedSession: SpeakingSession = accumulateAndSave(session, analysis)
-        val missingElements: List<ThinkingElement> = missingElements(dialogueScene, updatedSession)
+        val progressedSession: SpeakingSession = progressAndSave(session, analysis, dialogueScene)
+        val missingElements: List<ThinkingElement> = missingElements(dialogueScene, progressedSession)
 
-        return UtteranceResult.from(message, analysis, updatedSession.accumulatedElements, missingElements)
+        return UtteranceResult.from(message, analysis, progressedSession, missingElements)
     }
 
     private fun analyzeAndSave(message: Message): UtteranceAnalysis {
@@ -68,12 +68,31 @@ class SubmitUtteranceApplicationService(
         return commandUtteranceAnalysisPort.save(analysis)
     }
 
-    private fun accumulateAndSave(session: SpeakingSession, analysis: UtteranceAnalysis): SpeakingSession {
+    private fun progressAndSave(
+        session: SpeakingSession,
+        analysis: UtteranceAnalysis,
+        scene: Scene,
+    ): SpeakingSession {
         val newTypes: List<ThinkingElement> = analysis.detectedElements.map { it.type }
-        val updatedSession: SpeakingSession = session.accumulate(newTypes, LocalDateTime.now(clock))
+        val at: LocalDateTime = LocalDateTime.now(clock)
+        val accumulatedSession: SpeakingSession = session.accumulate(newTypes, at)
+        val hasNewElement: Boolean =
+            accumulatedSession.accumulatedElements.size > session.accumulatedElements.size
+        val missingElements: List<ThinkingElement> = missingElements(scene, accumulatedSession)
+        val progressedSession: SpeakingSession = accumulatedSession.advanceTurn(
+            hasNewElement = hasNewElement,
+            validity = analysis.validity,
+            missingElements = missingElements,
+            preferredTurns = scene.preferredTurns,
+            maxTurns = requiredMaxTurns(scene),
+            at = at,
+        )
 
-        return commandSpeakingSessionPort.save(updatedSession)
+        return commandSpeakingSessionPort.save(progressedSession)
     }
+
+    private fun requiredMaxTurns(scene: Scene): Int =
+        scene.maxTurns ?: throw BusinessRuleViolationException(BUSINESS_RULE_VIOLATION, BUSINESS_RULE_VIOLATION.message)
 
     private fun missingElements(scene: Scene, session: SpeakingSession): List<ThinkingElement> =
         (scene.requiredElements ?: emptyList()) - session.accumulatedElements.toSet()

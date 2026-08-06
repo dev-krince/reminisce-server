@@ -1,6 +1,7 @@
 package com.krince.reminisce.application.port.`in`.message.result
 
 import com.krince.reminisce.domain.model.message.Message
+import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.story.vo.ThinkingElement
 import com.krince.reminisce.domain.model.utteranceanalysis.UtteranceAnalysis
 import java.time.LocalDateTime
@@ -18,6 +19,10 @@ class UtteranceResult(
     val detectedElements: List<DetectedElementResult>,
     val accumulatedElements: List<String>,
     val missingElements: List<String>,
+    val mode: String,
+    val sceneEndReason: String?,
+    val sceneGoalMet: Boolean,
+    val guidanceTarget: String?,
 ) {
     class DetectedElementResult(
         val type: String,
@@ -28,7 +33,7 @@ class UtteranceResult(
         fun from(
             message: Message,
             analysis: UtteranceAnalysis,
-            accumulatedElements: List<ThinkingElement>,
+            session: SpeakingSession,
             missingElements: List<ThinkingElement>,
         ): UtteranceResult = UtteranceResult(
             messageId = message.messageId.value,
@@ -43,8 +48,12 @@ class UtteranceResult(
             detectedElements = analysis.detectedElements.map {
                 DetectedElementResult(type = it.type.name, evidence = it.evidence)
             },
-            accumulatedElements = accumulatedElements.map { it.name },
+            accumulatedElements = session.accumulatedElements.map { it.name },
             missingElements = missingElements.map { it.name },
+            mode = requireNotNull(session.lastResponseMode).name,
+            sceneEndReason = session.sceneEndReason?.name,
+            sceneGoalMet = session.sceneGoalMet,
+            guidanceTarget = session.lastGuidanceTarget?.name,
         )
     }
 }

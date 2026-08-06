@@ -43,6 +43,18 @@ class UtteranceResponse(
 
     @field:Schema(description = "아직 확인되지 않은 필수 사고 요소", example = "[\"PERSPECTIVE\"]", required = true)
     val missingElements: List<String>,
+
+    @field:Schema(description = "이번 발화에 대한 확정 응답 모드", example = "NORMAL", required = true)
+    val mode: String,
+
+    @field:Schema(description = "장면 종료 이유", example = "GOAL_MET")
+    val sceneEndReason: String?,
+
+    @field:Schema(description = "현재 장면 목표 충족 여부", example = "false", required = true)
+    val sceneGoalMet: Boolean,
+
+    @field:Schema(description = "GUIDED 모드에서 유도할 사고 요소", example = "PERSPECTIVE")
+    val guidanceTarget: String?,
 )
 
 @Schema(title = "DetectedElementResponse", description = "확인된 사고 요소와 근거")
@@ -67,4 +79,8 @@ fun utteranceResponse(result: UtteranceResult): UtteranceResponse = UtteranceRes
     detectedElements = result.detectedElements.map { DetectedElementResponse(type = it.type, evidence = it.evidence) },
     accumulatedElements = result.accumulatedElements,
     missingElements = result.missingElements,
+    mode = result.mode,
+    sceneEndReason = result.sceneEndReason,
+    sceneGoalMet = result.sceneGoalMet,
+    guidanceTarget = result.guidanceTarget,
 )
