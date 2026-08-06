@@ -17,6 +17,7 @@ import com.krince.reminisce.domain.model.message.Message
 import com.krince.reminisce.domain.model.message.vo.SpeakerType
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.ResponseMode
+import com.krince.reminisce.domain.model.speakingsession.vo.SceneEndReason
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
 import com.krince.reminisce.domain.model.story.Scene
@@ -95,14 +96,19 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
     fun command(audio: String = validAudio): SubmitUtteranceCommand =
         SubmitUtteranceCommand(sessionId = sessionIdStr, guardianId = guardianIdStr, audio = audio)
 
-    fun session(currentSceneId: String?): SpeakingSession = SpeakingSession(
+    fun session(
+        currentSceneId: String?,
+        status: SessionStatus = SessionStatus.IN_PROGRESS,
+        sceneEndReason: SceneEndReason? = null,
+    ): SpeakingSession = SpeakingSession(
         sessionId = SpeakingSessionId(sessionIdStr),
         childId = childId,
         storyId = storyId,
-        status = SessionStatus.IN_PROGRESS,
+        status = status,
         currentSceneId = currentSceneId,
         startedAt = LocalDateTime.now(fixedClock).minusMinutes(5),
         lastActivityAt = LocalDateTime.now(fixedClock).minusMinutes(1),
+        sceneEndReason = sceneEndReason,
     )
 
     fun dialogueScene(): Scene = Scene(
@@ -190,6 +196,63 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             verify(exactly = 0) { commandUtteranceAnalysisPort.save(any()) }
             verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
             verify(exactly = 0) { characterReplyPort.generate(any()) }
+        }
+
+        test("status가 POST_ACTIVITY인 세션이면 BUSINESS_RULE_VIOLATION을 던지고 부작용이 없다") {
+            every {
+                loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr))
+            } returns session(dialogueSceneIdStr, status = SessionStatus.POST_ACTIVITY)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+
+            val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command()) }
+
+            exception.exceptionResponseCode shouldBe BUSINESS_RULE_VIOLATION
+            verify(exactly = 0) { sttPort.transcribe(any()) }
+            verify(exactly = 0) { speechAnalysisPort.analyze(any()) }
+            verify(exactly = 0) { commandMessagePort.save(any()) }
+            verify(exactly = 0) { commandUtteranceAnalysisPort.save(any()) }
+            verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
+        }
+
+        test("status가 COMPLETED인 세션이면 BUSINESS_RULE_VIOLATION을 던지고 부작용이 없다") {
+            every {
+                loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr))
+            } returns session(dialogueSceneIdStr, status = SessionStatus.COMPLETED)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+
+            val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command()) }
+
+            exception.exceptionResponseCode shouldBe BUSINESS_RULE_VIOLATION
+            verify(exactly = 0) { sttPort.transcribe(any()) }
+            verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
+        }
+
+        test("status가 STOPPED인 세션이면 BUSINESS_RULE_VIOLATION을 던지고 부작용이 없다") {
+            every {
+                loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr))
+            } returns session(dialogueSceneIdStr, status = SessionStatus.STOPPED)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+
+            val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command()) }
+
+            exception.exceptionResponseCode shouldBe BUSINESS_RULE_VIOLATION
+            verify(exactly = 0) { sttPort.transcribe(any()) }
+            verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
+        }
+
+        test("sceneEndReason이 세팅된 IN_PROGRESS 세션이면 BUSINESS_RULE_VIOLATION을 던지고 storyAccessPort를 호출하지 않는다") {
+            every {
+                loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr))
+            } returns session(dialogueSceneIdStr, sceneEndReason = SceneEndReason.MAX_TURNS)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+
+            val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command()) }
+
+            exception.exceptionResponseCode shouldBe BUSINESS_RULE_VIOLATION
+            verify(exactly = 0) { storyAccessPort.findScene(any(), any()) }
+            verify(exactly = 0) { sttPort.transcribe(any()) }
+            verify(exactly = 0) { commandMessagePort.save(any()) }
+            verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
         }
 
         test("STT가 실패(null)하면 STT_TRANSCRIPTION_FAILED를 던지고 저장하지 않는다") {

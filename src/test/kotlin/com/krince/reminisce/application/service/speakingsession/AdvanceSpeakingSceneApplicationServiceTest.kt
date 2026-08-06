@@ -73,11 +73,12 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
     fun session(
         currentSceneId: String?,
         sceneEndReason: SceneEndReason? = null,
+        status: SessionStatus = SessionStatus.IN_PROGRESS,
     ): SpeakingSession = SpeakingSession(
         sessionId = SpeakingSessionId(sessionIdStr),
         childId = childId,
         storyId = storyId,
-        status = SessionStatus.IN_PROGRESS,
+        status = status,
         currentSceneId = currentSceneId,
         startedAt = LocalDateTime.now(fixedClock).minusMinutes(5),
         lastActivityAt = LocalDateTime.now(fixedClock).minusMinutes(1),
@@ -148,6 +149,33 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
 
             exception.exceptionResponseCode shouldBe NOT_FOUND
             verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
+        }
+
+        test("status가 POST_ACTIVITY인 세션이면 BUSINESS_RULE_VIOLATION을 던지고 저장하지 않는다") {
+            every {
+                loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr))
+            } returns session(narrationSceneIdStr, status = SessionStatus.POST_ACTIVITY)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+
+            val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command()) }
+
+            exception.exceptionResponseCode shouldBe BUSINESS_RULE_VIOLATION
+            verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
+            verify(exactly = 0) { storyAccessPort.findScene(any(), any()) }
+            verify(exactly = 0) { storyAccessPort.findNextScene(any(), any()) }
+        }
+
+        test("status가 COMPLETED인 세션이면 BUSINESS_RULE_VIOLATION을 던지고 저장하지 않는다") {
+            every {
+                loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr))
+            } returns session(narrationSceneIdStr, status = SessionStatus.COMPLETED)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+
+            val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command()) }
+
+            exception.exceptionResponseCode shouldBe BUSINESS_RULE_VIOLATION
+            verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
+            verify(exactly = 0) { storyAccessPort.findScene(any(), any()) }
         }
 
         test("종료되지 않은 DIALOGUE 장면 세션이면 BUSINESS_RULE_VIOLATION을 던지고 저장하지 않는다") {

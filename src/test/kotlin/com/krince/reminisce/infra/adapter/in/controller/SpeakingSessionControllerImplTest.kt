@@ -151,12 +151,13 @@ class SpeakingSessionControllerImplTest(
         currentChildTurnCount: Int = 0,
         turnsWithoutNewElement: Int = 0,
         sceneEndReason: String? = null,
+        status: SessionStatus = SessionStatus.IN_PROGRESS,
     ): SpeakingSessionOrmEntity = SpeakingSessionOrmEntity(
         sessionId = sessionId,
         childId = childId,
         storyId = storyId,
         currentSceneId = currentSceneId,
-        status = SessionStatus.IN_PROGRESS.name,
+        status = status.name,
         startedAt = LocalDateTime.now().minusMinutes(5),
         lastActivityAt = LocalDateTime.now().minusMinutes(1),
         accumulatedElements = accumulatedElements,
@@ -593,6 +594,41 @@ class SpeakingSessionControllerImplTest(
         }
 
         context("예외케이스") {
+            test("POST_ACTIVITY status 세션 advance는 422와 BUSINESS_RULE_VIOLATION을 반환하고 lastActivityAt이 불변이다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                val lastSceneId = "sc-1-$storyId"
+                val savedEntity = testSpeakingSessionFixture.save(
+                    sessionEntity(
+                        sessionId,
+                        childId,
+                        storyId,
+                        currentSceneId = lastSceneId,
+                        status = SessionStatus.POST_ACTIVITY,
+                    ),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/advance")
+                    .then()
+                    .statusCode(422)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(422))
+                    .body("detailCode", equalTo(ExceptionResponseCode.BUSINESS_RULE_VIOLATION.detailCode))
+
+                val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
+                storedSession?.lastActivityAt shouldBe savedEntity.lastActivityAt
+                storedSession?.status shouldBe SessionStatus.POST_ACTIVITY.name
+            }
+
             test("종료되지 않은 대화 장면 세션 advance는 422와 BUSINESS_RULE_VIOLATION을 반환한다") {
                 val (guardianId, token) = authorizedGuardian()
                 val childId = "child-${uniqueSuffix()}"
@@ -858,6 +894,74 @@ class SpeakingSessionControllerImplTest(
         }
 
         context("예외케이스") {
+            test("sceneEndReason이 세팅된 대화 장면 세션에 발화 제출하면 422와 BUSINESS_RULE_VIOLATION을 반환하고 메시지가 증가하지 않는다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                val dialogueSceneId = "sc-3-$storyId"
+                testSpeakingSessionFixture.save(
+                    sessionEntity(
+                        sessionId,
+                        childId,
+                        storyId,
+                        currentSceneId = dialogueSceneId,
+                        sceneEndReason = SceneEndReason.MAX_TURNS.name,
+                    ),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("audio" to "며느리가 참 힘들었겠어요"))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/utterances")
+                    .then()
+                    .statusCode(422)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(422))
+                    .body("detailCode", equalTo(ExceptionResponseCode.BUSINESS_RULE_VIOLATION.detailCode))
+
+                testMessageFixture.countBySessionId(sessionId) shouldBe 0L
+            }
+
+            test("POST_ACTIVITY status 세션에 발화 제출하면 422와 BUSINESS_RULE_VIOLATION을 반환하고 메시지가 증가하지 않는다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                val dialogueSceneId = "sc-3-$storyId"
+                testSpeakingSessionFixture.save(
+                    sessionEntity(
+                        sessionId,
+                        childId,
+                        storyId,
+                        currentSceneId = dialogueSceneId,
+                        status = SessionStatus.POST_ACTIVITY,
+                    ),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("audio" to "며느리가 참 힘들었겠어요"))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/utterances")
+                    .then()
+                    .statusCode(422)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(422))
+                    .body("detailCode", equalTo(ExceptionResponseCode.BUSINESS_RULE_VIOLATION.detailCode))
+
+                testMessageFixture.countBySessionId(sessionId) shouldBe 0L
+            }
+
             test("blank 발화(STT 실패)는 422와 STT_TRANSCRIPTION_FAILED를 반환하고 메시지가 생성되지 않는다") {
                 val (guardianId, token) = authorizedGuardian()
                 val childId = "child-${uniqueSuffix()}"
