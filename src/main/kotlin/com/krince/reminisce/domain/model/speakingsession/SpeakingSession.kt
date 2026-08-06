@@ -4,6 +4,7 @@ import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
 import com.krince.reminisce.domain.model.story.vo.StoryId
+import com.krince.reminisce.domain.model.story.vo.ThinkingElement
 import com.krince.reminisce.shared.util.UuidGenerator
 import java.time.LocalDateTime
 
@@ -17,6 +18,7 @@ class SpeakingSession(
     val lastActivityAt: LocalDateTime,
     val createdDate: LocalDateTime? = null,
     val modifiedDate: LocalDateTime? = null,
+    val accumulatedElements: List<ThinkingElement> = emptyList(),
 ) {
     fun advanceToScene(sceneId: String, at: LocalDateTime): SpeakingSession = SpeakingSession(
         sessionId = sessionId,
@@ -28,6 +30,20 @@ class SpeakingSession(
         lastActivityAt = at,
         createdDate = createdDate,
         modifiedDate = modifiedDate,
+        accumulatedElements = accumulatedElements,
+    )
+
+    fun accumulate(newTypes: List<ThinkingElement>, at: LocalDateTime): SpeakingSession = SpeakingSession(
+        sessionId = sessionId,
+        childId = childId,
+        storyId = storyId,
+        status = status,
+        currentSceneId = currentSceneId,
+        startedAt = startedAt,
+        lastActivityAt = at,
+        createdDate = createdDate,
+        modifiedDate = modifiedDate,
+        accumulatedElements = (accumulatedElements + newTypes).distinct(),
     )
 
     companion object {

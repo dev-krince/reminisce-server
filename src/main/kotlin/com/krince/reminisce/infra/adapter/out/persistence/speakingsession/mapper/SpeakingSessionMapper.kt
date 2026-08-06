@@ -18,6 +18,7 @@ object SpeakingSessionMapper {
         lastActivityAt = ormEntity.lastActivityAt,
         createdDate = ormEntity.createdDate,
         modifiedDate = ormEntity.modifiedDate,
+        accumulatedElements = ormEntity.accumulatedElements ?: emptyList(),
     )
 
     fun toEntity(domain: SpeakingSession): SpeakingSessionOrmEntity = SpeakingSessionOrmEntity(
@@ -28,6 +29,7 @@ object SpeakingSessionMapper {
         status = domain.status.name,
         startedAt = domain.startedAt,
         lastActivityAt = domain.lastActivityAt,
+        accumulatedElements = domain.accumulatedElements,
     ).apply {
         createdDate = domain.createdDate
         modifiedDate = domain.modifiedDate

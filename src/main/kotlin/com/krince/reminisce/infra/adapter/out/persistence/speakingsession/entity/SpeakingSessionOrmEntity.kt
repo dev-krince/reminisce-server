@@ -1,6 +1,9 @@
 package com.krince.reminisce.infra.adapter.out.persistence.speakingsession.entity
 
+import com.krince.reminisce.domain.model.story.vo.ThinkingElement
+import com.krince.reminisce.infra.adapter.out.persistence.speakingsession.converter.AccumulatedElementsConverter
 import jakarta.persistence.Column
+import jakarta.persistence.Convert
 import jakarta.persistence.Entity
 import jakarta.persistence.EntityListeners
 import jakarta.persistence.Id
@@ -49,6 +52,11 @@ class SpeakingSessionOrmEntity(
     @Column(name = "last_activity_at", nullable = false)
     @Comment("마지막 활동 시각")
     val lastActivityAt: LocalDateTime,
+
+    @Column(name = "accumulated_elements", columnDefinition = "text")
+    @Convert(converter = AccumulatedElementsConverter::class)
+    @Comment("현재 장면에서 확인된 사고 요소 누적 (type 합집합)")
+    val accumulatedElements: List<ThinkingElement>? = emptyList(),
 ) {
     @Column(name = "created_date", nullable = false, updatable = false)
     @CreatedDate
