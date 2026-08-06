@@ -6,12 +6,17 @@ import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
 import com.krince.reminisce.domain.model.story.vo.ThinkingElement
+import com.krince.reminisce.domain.model.utteranceanalysis.DetectedElement
+import com.krince.reminisce.domain.model.utteranceanalysis.vo.ChildIntent
+import com.krince.reminisce.domain.model.utteranceanalysis.vo.UtteranceValidity
 import com.krince.reminisce.infra.adapter.out.persistence.child.entity.ChildOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.childconsent.entity.ChildConsentOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.message.entity.MessageOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.speakingsession.entity.SpeakingSessionOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.entity.SceneOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.entity.StoryOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.user.entity.UserOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.utteranceanalysis.entity.UtteranceAnalysisOrmEntity
 import com.krince.reminisce.shared.response.ExceptionResponseCode
 import com.krince.reminisce.shared.response.SuccessResponseCode
 import com.krince.reminisce.testutil.TestConfig
@@ -20,6 +25,7 @@ import com.krince.reminisce.testutil.fixture.TestChildFixture
 import com.krince.reminisce.testutil.fixture.TestJwtTokenFixture
 import com.krince.reminisce.testutil.fixture.TestMessageFixture
 import com.krince.reminisce.testutil.fixture.TestPostActivityResultFixture
+import com.krince.reminisce.testutil.fixture.TestReportFixture
 import com.krince.reminisce.testutil.fixture.TestSpeakingSessionFixture
 import com.krince.reminisce.testutil.fixture.TestStoryFixture
 import com.krince.reminisce.testutil.fixture.TestUserFixture
@@ -58,6 +64,7 @@ class SpeakingSessionControllerImplTest(
     private val testMessageFixture: TestMessageFixture,
     private val testUtteranceAnalysisFixture: TestUtteranceAnalysisFixture,
     private val testPostActivityResultFixture: TestPostActivityResultFixture,
+    private val testReportFixture: TestReportFixture,
     private val testJwtTokenFixture: TestJwtTokenFixture,
 ) : FunSpec({
 
@@ -180,6 +187,7 @@ class SpeakingSessionControllerImplTest(
     }
 
     beforeTest {
+        testReportFixture.deleteAllBatch()
         testUtteranceAnalysisFixture.deleteAllBatch()
         testMessageFixture.deleteAllBatch()
         testPostActivityResultFixture.deleteAllBatch()
@@ -1582,6 +1590,209 @@ class SpeakingSessionControllerImplTest(
                     .body(mapOf("audio" to validAudio))
                     .`when`()
                     .post("/speaking-sessions/any-session/post-activity/retelling")
+                    .then()
+                    .statusCode(401)
+                    .body("detailCode", equalTo(ExceptionResponseCode.EMPTY_TOKEN.detailCode))
+                    .body("message", equalTo("토큰이 없습니다."))
+            }
+        }
+    }
+
+    context("getSessionReport") {
+        fun childMessage(sessionId: String, sceneId: String, messageId: String, turnOrder: Long): MessageOrmEntity =
+            MessageOrmEntity(
+                id = messageId,
+                sessionId = sessionId,
+                sceneId = sceneId,
+                speakerType = "CHILD",
+                turnOrder = turnOrder,
+                text = "아이 발화 $turnOrder",
+                sttRawText = "아이 발화 $turnOrder",
+                createdAt = LocalDateTime.now().minusMinutes(10 - turnOrder),
+            )
+
+        fun characterMessage(sessionId: String, sceneId: String, messageId: String, turnOrder: Long): MessageOrmEntity =
+            MessageOrmEntity(
+                id = messageId,
+                sessionId = sessionId,
+                sceneId = sceneId,
+                speakerType = "CHARACTER",
+                turnOrder = turnOrder,
+                text = "캐릭터 응답 $turnOrder",
+                sttRawText = null,
+                createdAt = LocalDateTime.now().minusMinutes(10 - turnOrder),
+            )
+
+        fun analysisEntity(messageId: String, vararg types: ThinkingElement): UtteranceAnalysisOrmEntity =
+            UtteranceAnalysisOrmEntity(
+                id = "analysis-$messageId",
+                messageId = messageId,
+                childIntent = ChildIntent.OPINION.name,
+                mainPoint = "핵심 $messageId",
+                detectedElements = types.map { DetectedElement(type = it, evidence = "근거-${it.name}") },
+                utteranceValidity = UtteranceValidity.VALID.name,
+            )
+
+        context("성공") {
+            test("완료 세션 GET report는 200과 확인된 요소 strengths·상보 nextFocus를 반환하고 reports 1건을 저장한다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, status = SessionStatus.COMPLETED),
+                )
+                val firstSceneId = "sc-1-$storyId"
+                val secondSceneId = "sc-3-$storyId"
+                testMessageFixture.save(childMessage(sessionId, firstSceneId, "msg-child-1", 1))
+                testMessageFixture.save(characterMessage(sessionId, firstSceneId, "msg-char-1", 2))
+                testMessageFixture.save(childMessage(sessionId, secondSceneId, "msg-child-2", 3))
+                testUtteranceAnalysisFixture.save(
+                    analysisEntity("msg-child-1", ThinkingElement.EMOTION, ThinkingElement.PERSPECTIVE),
+                )
+                testUtteranceAnalysisFixture.save(
+                    analysisEntity("msg-child-2", ThinkingElement.EMOTION, ThinkingElement.DECISION),
+                )
+                val expectedStrengths = listOf(
+                    ThinkingElement.EMOTION,
+                    ThinkingElement.PERSPECTIVE,
+                    ThinkingElement.DECISION,
+                ).map { it.name }
+                val expectedNextFocus = ThinkingElement.entries
+                    .filterNot { it.name in expectedStrengths }
+                    .map { it.name }
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/speaking-sessions/$sessionId/report")
+                    .then()
+                    .statusCode(200)
+                    .body("success", equalTo(true))
+                    .body("code", equalTo(200))
+                    .body("message", equalTo(SuccessResponseCode.OK.message))
+                    .body("data.summary", not(emptyOrNullString()))
+                    .body("data.strengths", equalTo(expectedStrengths))
+                    .body("data.nextFocus", equalTo(expectedNextFocus))
+                    .body("data.createdAt", not(emptyOrNullString()))
+
+                testReportFixture.count() shouldBe 1L
+                val stored = testReportFixture.findBySessionId(sessionId)
+                stored?.strengths?.map { it.name } shouldBe expectedStrengths
+                stored?.nextFocus?.map { it.name } shouldBe expectedNextFocus
+            }
+
+            test("같은 완료 세션에 재요청하면 200과 동일 리포트를 반환하고 reports는 여전히 1건이다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, status = SessionStatus.COMPLETED),
+                )
+                val sceneId = "sc-1-$storyId"
+                testMessageFixture.save(childMessage(sessionId, sceneId, "msg-child-1", 1))
+                testUtteranceAnalysisFixture.save(analysisEntity("msg-child-1", ThinkingElement.EMOTION))
+
+                val firstCreatedAt = RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/speaking-sessions/$sessionId/report")
+                    .then()
+                    .statusCode(200)
+                    .body("data.strengths", equalTo(listOf(ThinkingElement.EMOTION.name)))
+                    .extract()
+                    .path<String>("data.createdAt")
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/speaking-sessions/$sessionId/report")
+                    .then()
+                    .statusCode(200)
+                    .body("data.strengths", equalTo(listOf(ThinkingElement.EMOTION.name)))
+                    .body("data.createdAt", equalTo(firstCreatedAt))
+
+                testReportFixture.count() shouldBe 1L
+            }
+        }
+
+        context("예외케이스") {
+            test("IN_PROGRESS 세션 report는 422와 BUSINESS_RULE_VIOLATION을 반환하고 저장되지 않는다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, status = SessionStatus.IN_PROGRESS),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/speaking-sessions/$sessionId/report")
+                    .then()
+                    .statusCode(422)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(422))
+                    .body("detailCode", equalTo(ExceptionResponseCode.BUSINESS_RULE_VIOLATION.detailCode))
+
+                testReportFixture.count() shouldBe 0L
+            }
+
+            test("남의 아이 완료 세션 report는 404와 NOT_FOUND로 은닉한다") {
+                val (_, token) = authorizedGuardian()
+                val otherGuardianId = "other-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(otherGuardianId))
+                val otherChildId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(otherChildId, otherGuardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, otherChildId, storyId, status = SessionStatus.COMPLETED),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/speaking-sessions/$sessionId/report")
+                    .then()
+                    .statusCode(404)
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+
+                testReportFixture.count() shouldBe 0L
+            }
+
+            test("존재하지 않는 세션 report는 404와 NOT_FOUND를 반환한다") {
+                val (_, token) = authorizedGuardian()
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/speaking-sessions/missing-${uniqueSuffix()}/report")
+                    .then()
+                    .statusCode(404)
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+            }
+
+            test("토큰이 없으면 401과 EMPTY_TOKEN을 반환한다") {
+                RestAssured.given()
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/speaking-sessions/any-session/report")
                     .then()
                     .statusCode(401)
                     .body("detailCode", equalTo(ExceptionResponseCode.EMPTY_TOKEN.detailCode))

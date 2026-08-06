@@ -8,6 +8,9 @@ import org.springframework.stereotype.Component
 class TestUtteranceAnalysisFixture(
     private val utteranceAnalysisRepository: UtteranceAnalysisRepository,
 ) {
+    fun save(entity: UtteranceAnalysisOrmEntity): UtteranceAnalysisOrmEntity =
+        utteranceAnalysisRepository.save(entity)
+
     fun count(): Long = utteranceAnalysisRepository.count()
 
     fun findAll(): List<UtteranceAnalysisOrmEntity> = utteranceAnalysisRepository.findAll()
