@@ -4,6 +4,7 @@ import com.krince.reminisce.application.port.out.auth.PasswordEncoderPort
 import com.krince.reminisce.infra.adapter.out.persistence.child.ChildRepository
 import com.krince.reminisce.infra.adapter.out.persistence.childconsent.ChildConsentRepository
 import com.krince.reminisce.infra.adapter.out.persistence.message.MessageRepository
+import com.krince.reminisce.infra.adapter.out.persistence.notice.NoticeRepository
 import com.krince.reminisce.infra.adapter.out.persistence.speakingsession.SpeakingSessionRepository
 import com.krince.reminisce.infra.adapter.out.persistence.story.SceneRepository
 import com.krince.reminisce.infra.adapter.out.persistence.story.StoryRepository
@@ -15,6 +16,7 @@ import com.krince.reminisce.testutil.fixture.TestChildConsentFixture
 import com.krince.reminisce.testutil.fixture.TestChildFixture
 import com.krince.reminisce.testutil.fixture.TestJwtTokenFixture
 import com.krince.reminisce.testutil.fixture.TestMessageFixture
+import com.krince.reminisce.testutil.fixture.TestNoticeFixture
 import com.krince.reminisce.testutil.fixture.TestSpeakingSessionFixture
 import com.krince.reminisce.testutil.fixture.TestStoryFixture
 import com.krince.reminisce.testutil.fixture.TestUserFixture
@@ -71,4 +73,8 @@ class TestConfig {
     ): TestMessageFixture = TestMessageFixture(
         messageRepository = messageRepository,
     )
+
+    @Bean
+    fun testNoticeFixture(noticeRepository: NoticeRepository): TestNoticeFixture =
+        TestNoticeFixture(noticeRepository = noticeRepository)
 }
