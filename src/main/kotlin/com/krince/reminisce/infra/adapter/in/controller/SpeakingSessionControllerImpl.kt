@@ -9,6 +9,9 @@ import com.krince.reminisce.application.port.`in`.postactivity.result.CardOrderR
 import com.krince.reminisce.application.port.`in`.postactivity.result.RetellingResult
 import com.krince.reminisce.application.port.`in`.postactivity.usecase.SubmitCardOrderUseCase
 import com.krince.reminisce.application.port.`in`.postactivity.usecase.SubmitRetellingUseCase
+import com.krince.reminisce.application.port.`in`.report.command.GetSessionReportCommand
+import com.krince.reminisce.application.port.`in`.report.result.SessionReportResult
+import com.krince.reminisce.application.port.`in`.report.usecase.GetSessionReportUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.command.AdvanceSpeakingSceneCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.command.GetResumableSessionsCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.command.GetSpeakingSessionViewCommand
@@ -29,6 +32,8 @@ import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.CardOrd
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.RetellingResultResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.cardOrderResultResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.retellingResultResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.report.response.SessionReportResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.report.response.sessionReportResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.request.StartSpeakingSessionRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionSummaryResponse
@@ -65,6 +70,7 @@ class SpeakingSessionControllerImpl(
     private val getResumableSessionsUseCase: GetResumableSessionsUseCase,
     private val submitCardOrderUseCase: SubmitCardOrderUseCase,
     private val submitRetellingUseCase: SubmitRetellingUseCase,
+    private val getSessionReportUseCase: GetSessionReportUseCase,
 ) : SpeakingSessionController {
 
     @PostMapping
@@ -174,6 +180,20 @@ class SpeakingSessionControllerImpl(
         val result: RetellingResult = submitRetellingUseCase.execute(command)
         val response: RetellingResultResponse = retellingResultResponse(result)
         val responseBody: SuccessResponse<RetellingResultResponse> =
+            successResponse(responseCode = OK, data = response)
+
+        return ResponseEntity.status(responseBody.code).body(responseBody)
+    }
+
+    @GetMapping("/{sessionId}/report")
+    override fun getSessionReport(
+        @PathVariable sessionId: String,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<SuccessResponse<SessionReportResponse>> {
+        val command = GetSessionReportCommand(sessionId = sessionId, guardianId = userDetails.getId())
+        val result: SessionReportResult = getSessionReportUseCase.execute(command)
+        val response: SessionReportResponse = sessionReportResponse(result)
+        val responseBody: SuccessResponse<SessionReportResponse> =
             successResponse(responseCode = OK, data = response)
 
         return ResponseEntity.status(responseBody.code).body(responseBody)

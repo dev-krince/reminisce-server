@@ -6,6 +6,7 @@ import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.request.SubmitCa
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.request.SubmitRetellingRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.CardOrderResultResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.RetellingResultResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.report.response.SessionReportResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.request.StartSpeakingSessionRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionSummaryResponse
@@ -187,4 +188,24 @@ interface SpeakingSessionController {
         @Valid @RequestBody request: SubmitRetellingRequest,
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<RetellingResultResponse>>
+
+    @Operation(
+        summary = "말하기 세션 보호자 리포트 조회",
+        description = "로그인한 보호자가 본인 아이의 완료(COMPLETED) 세션 리포트를 조회합니다. 리포트가 없으면 세션 전체 발화 분석을 집계해 강점·다음 초점·요약을 생성·저장한 뒤 반환합니다.",
+    )
+    @SwaggerSuccessResponse(responseCode = OK, description = "말하기 세션 보호자 리포트 조회 성공")
+    @SwaggerExceptionResponse(
+        examples = [
+            ExceptionExample(code = EMPTY_TOKEN, name = "토큰 없음", message = "토큰이 없습니다.", description = "인증 토큰이 제공되지 않은 경우"),
+            ExceptionExample(code = INVALID_TOKEN, name = "유효하지 않은 토큰", message = "유효하지 않은 토큰입니다.", description = "토큰이 유효하지 않거나 서명이 잘못된 경우"),
+            ExceptionExample(code = EXPIRED_TOKEN, name = "만료된 토큰", message = "만료된 토큰입니다.", description = "토큰의 유효기간이 만료된 경우"),
+            ExceptionExample(code = NOT_FOUND, name = "세션 없음", message = "리소스가 존재하지 않습니다.", description = "세션이 없거나 다른 보호자의 아이 세션인 경우"),
+            ExceptionExample(code = BUSINESS_RULE_VIOLATION, name = "리포트 불가", message = "도메인 정책에 의해 실행할 수 없습니다.", description = "완료(COMPLETED) 상태가 아닌 세션인 경우"),
+            ExceptionExample(code = INTERNAL_SERVER_ERROR, name = "서버 오류", message = "서버 에러입니다. 개발자에게 문의해주세요.", description = "예상치 못한 서버 오류가 발생한 경우"),
+        ]
+    )
+    fun getSessionReport(
+        @Parameter(description = "말하기 세션 고유 식별자", required = true) @PathVariable sessionId: String,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<SuccessResponse<SessionReportResponse>>
 }
