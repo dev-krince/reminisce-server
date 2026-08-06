@@ -1,9 +1,12 @@
 package com.krince.reminisce.application.service.auth
 
+import com.krince.reminisce.application.port.`in`.auth.command.GoogleLoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.KakaoLoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.LoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.LogoutCommand
 import com.krince.reminisce.application.port.`in`.auth.command.ReissueTokenCommand
+import com.krince.reminisce.application.port.out.auth.GoogleOAuthPort
+import com.krince.reminisce.application.port.out.auth.GoogleUserInfo
 import com.krince.reminisce.application.port.out.auth.KakaoOAuthPort
 import com.krince.reminisce.application.port.out.auth.KakaoUserInfo
 import com.krince.reminisce.application.port.out.auth.PasswordEncoderPort
@@ -47,6 +50,7 @@ class AuthApplicationServiceTest : FunSpec({
     val refreshTokenPort = mockk<RefreshTokenPort>()
     val accessTokenBlacklister = mockk<AccessTokenBlacklister>()
     val kakaoOAuthPort = mockk<KakaoOAuthPort>()
+    val googleOAuthPort = mockk<GoogleOAuthPort>()
     val service = AuthApplicationService(
         loadUserPort = loadUserPort,
         commandUserPort = commandUserPort,
@@ -55,6 +59,7 @@ class AuthApplicationServiceTest : FunSpec({
         refreshTokenPort = refreshTokenPort,
         accessTokenBlacklister = accessTokenBlacklister,
         kakaoOAuthPort = kakaoOAuthPort,
+        googleOAuthPort = googleOAuthPort,
     )
 
     beforeEach { clearAllMocks() }
@@ -175,6 +180,51 @@ class AuthApplicationServiceTest : FunSpec({
                 every { refreshTokenPort.save(any(), any(), any()) } returns Unit
 
                 val result = service.execute(KakaoLoginCommand(authCode))
+
+                result.accessToken shouldBe "Bearer access"
+                verify(exactly = 0) { commandUserPort.save(any()) }
+            }
+        }
+    }
+
+    context("GoogleLoginUseCase") {
+        val authCode = "google-auth-code"
+        val googleId = "google-sub-9999"
+
+        context("첫 로그인 - 신규 가입") {
+            test("구글 사용자 조회 후 계정이 없으면 생성하고 우리 토큰을 발급한다") {
+                every { googleOAuthPort.exchangeCodeForUser(authCode) } returns
+                    GoogleUserInfo(id = googleId, email = "google@example.com", nickname = "구글회원")
+                every { loadUserPort.findByProviderAndProviderId(AuthProvider.GOOGLE, googleId) } returns null
+                val savedSlot = slot<User>()
+                every { commandUserPort.save(capture(savedSlot)) } answers { savedSlot.captured }
+                every { tokenProviderPort.generateAccessToken(any(), any()) } returns "Bearer access"
+                every { tokenProviderPort.generateRefreshToken(any(), any()) } returns "Bearer refresh"
+                every { tokenProviderPort.getRefreshTokenExpiration() } returns refreshTtl
+                every { refreshTokenPort.save(any(), any(), any()) } returns Unit
+
+                val result = service.execute(GoogleLoginCommand(authCode))
+
+                result.accessToken shouldBe "Bearer access"
+                result.refreshToken shouldBe "Bearer refresh"
+                savedSlot.captured.provider shouldBe AuthProvider.GOOGLE
+                savedSlot.captured.providerId shouldBe googleId
+                savedSlot.captured.password shouldBe null
+                verify(exactly = 1) { commandUserPort.save(any()) }
+            }
+        }
+        context("재방문 - 로그인") {
+            test("이미 있는 구글 계정이면 새로 만들지 않고 토큰만 발급한다") {
+                every { googleOAuthPort.exchangeCodeForUser(authCode) } returns
+                    GoogleUserInfo(id = googleId, email = null, nickname = "구글회원")
+                every { loadUserPort.findByProviderAndProviderId(AuthProvider.GOOGLE, googleId) } returns
+                    User.google(providerId = googleId, email = null, nickname = Nickname("구글회원"))
+                every { tokenProviderPort.generateAccessToken(any(), any()) } returns "Bearer access"
+                every { tokenProviderPort.generateRefreshToken(any(), any()) } returns "Bearer refresh"
+                every { tokenProviderPort.getRefreshTokenExpiration() } returns refreshTtl
+                every { refreshTokenPort.save(any(), any(), any()) } returns Unit
+
+                val result = service.execute(GoogleLoginCommand(authCode))
 
                 result.accessToken shouldBe "Bearer access"
                 verify(exactly = 0) { commandUserPort.save(any()) }
