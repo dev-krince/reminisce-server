@@ -44,4 +44,7 @@ class SpeakingSessionOrmAdapter(
             childId.value,
             SessionStatus.IN_PROGRESS.name,
         ).map { SpeakingSessionMapper.toDomain(it) }
+
+    override fun findStartedStoryIdsByChild(childId: ChildId): List<String> =
+        repository.findDistinctStoryIdsByChildId(childId.value)
 }

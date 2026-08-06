@@ -11,4 +11,6 @@ interface LoadSpeakingSessionPort {
     fun findById(sessionId: SpeakingSessionId): SpeakingSession?
 
     fun findInProgressByChild(childId: ChildId): List<SpeakingSession>
+
+    fun findStartedStoryIdsByChild(childId: ChildId): List<String>
 }
