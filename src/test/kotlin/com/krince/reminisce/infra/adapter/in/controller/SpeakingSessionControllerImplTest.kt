@@ -28,6 +28,7 @@ import io.kotest.core.annotation.DisplayName
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.restassured.RestAssured
 import io.restassured.http.ContentType
 import io.restassured.parsing.Parser
@@ -1369,6 +1370,218 @@ class SpeakingSessionControllerImplTest(
                     .body(mapOf("order" to correctOrderPayload))
                     .`when`()
                     .post("/speaking-sessions/any-session/post-activity/card-order")
+                    .then()
+                    .statusCode(401)
+                    .body("detailCode", equalTo(ExceptionResponseCode.EMPTY_TOKEN.detailCode))
+                    .body("message", equalTo("토큰이 없습니다."))
+            }
+        }
+    }
+
+    context("submitRetelling") {
+        val cardA = PostActivityConfig.Card(id = "card-a", text = "A 장면", correctOrder = 1)
+        val cardB = PostActivityConfig.Card(id = "card-b", text = "B 장면", correctOrder = 2)
+        val cardC = PostActivityConfig.Card(id = "card-c", text = "C 장면", correctOrder = 3)
+        val retellingKeywords = listOf("방귀", "며느리", "시아버지")
+        val testConfig = PostActivityConfig(
+            cards = listOf(cardC, cardA, cardB),
+            retellingKeywords = retellingKeywords,
+        )
+        val correctOrderPayload = listOf("card-a", "card-b", "card-c")
+        val wrongOrderPayload = listOf("card-c", "card-b", "card-a")
+        val validAudio = "방귀쟁이 며느리는 시아버지 덕분에 방귀를 뀔 수 있었어요"
+
+        context("성공") {
+            test("POST_ACTIVITY 세션에서 카드 정답 제출 후 재구성 발화 제출하면 200·retellingText·completedAt 세팅·세션 COMPLETED를 반환한다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId, postActivityConfig = testConfig))
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, status = SessionStatus.POST_ACTIVITY),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("order" to correctOrderPayload))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/post-activity/card-order")
+                    .then()
+                    .statusCode(200)
+                    .body("data.isOrderCorrect", equalTo(true))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("audio" to validAudio))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/post-activity/retelling")
+                    .then()
+                    .statusCode(200)
+                    .body("success", equalTo(true))
+                    .body("code", equalTo(200))
+                    .body("data.retellingText", equalTo(validAudio))
+                    .body("data.completedAt", not(emptyOrNullString()))
+                    .body("data.status", equalTo(SessionStatus.COMPLETED.name))
+
+                val storedResult = testPostActivityResultFixture.findBySessionId(sessionId)
+                storedResult?.retellingText shouldBe validAudio
+                storedResult?.completedAt shouldNotBe null
+
+                val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
+                storedSession?.status shouldBe SessionStatus.COMPLETED.name
+            }
+        }
+
+        context("예외케이스") {
+            test("카드 순서 결과 없이 재구성 제출하면 422와 BUSINESS_RULE_VIOLATION을 반환하고 저장되지 않는다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId, postActivityConfig = testConfig))
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, status = SessionStatus.POST_ACTIVITY),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("audio" to validAudio))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/post-activity/retelling")
+                    .then()
+                    .statusCode(422)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(422))
+                    .body("detailCode", equalTo(ExceptionResponseCode.BUSINESS_RULE_VIOLATION.detailCode))
+
+                val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
+                storedSession?.status shouldBe SessionStatus.POST_ACTIVITY.name
+            }
+
+            test("카드 오답 후 재구성 제출하면 422와 BUSINESS_RULE_VIOLATION을 반환하고 세션이 완료되지 않는다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId, postActivityConfig = testConfig))
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, status = SessionStatus.POST_ACTIVITY),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("order" to wrongOrderPayload))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/post-activity/card-order")
+                    .then()
+                    .statusCode(200)
+                    .body("data.isOrderCorrect", equalTo(false))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("audio" to validAudio))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/post-activity/retelling")
+                    .then()
+                    .statusCode(422)
+                    .body("detailCode", equalTo(ExceptionResponseCode.BUSINESS_RULE_VIOLATION.detailCode))
+
+                val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
+                storedSession?.status shouldBe SessionStatus.POST_ACTIVITY.name
+            }
+
+            test("blank audio(STT 실패)로 재구성 제출하면 422와 STT_TRANSCRIPTION_FAILED를 반환하고 완료되지 않는다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId, postActivityConfig = testConfig))
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, status = SessionStatus.POST_ACTIVITY),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("order" to correctOrderPayload))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/post-activity/card-order")
+                    .then()
+                    .statusCode(200)
+                    .body("data.isOrderCorrect", equalTo(true))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("audio" to "   "))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/post-activity/retelling")
+                    .then()
+                    .statusCode(422)
+                    .body("detailCode", equalTo(ExceptionResponseCode.STT_TRANSCRIPTION_FAILED.detailCode))
+
+                val storedResult = testPostActivityResultFixture.findBySessionId(sessionId)
+                storedResult?.retellingText shouldBe null
+                storedResult?.completedAt shouldBe null
+
+                val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
+                storedSession?.status shouldBe SessionStatus.POST_ACTIVITY.name
+            }
+
+            test("남의 아이 세션에 재구성 제출하면 404와 NOT_FOUND로 은닉한다") {
+                val (_, token) = authorizedGuardian()
+                val otherGuardianId = "other-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(otherGuardianId))
+                val otherChildId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(otherChildId, otherGuardianId))
+                testStoryFixture.saveStory(storyEntity(storyId, postActivityConfig = testConfig))
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, otherChildId, storyId, status = SessionStatus.POST_ACTIVITY),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("audio" to validAudio))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/post-activity/retelling")
+                    .then()
+                    .statusCode(404)
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+            }
+
+            test("존재하지 않는 세션에 재구성 제출하면 404와 NOT_FOUND를 반환한다") {
+                val (_, token) = authorizedGuardian()
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("audio" to validAudio))
+                    .`when`()
+                    .post("/speaking-sessions/missing-${uniqueSuffix()}/post-activity/retelling")
+                    .then()
+                    .statusCode(404)
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+            }
+
+            test("토큰이 없으면 401과 EMPTY_TOKEN을 반환한다") {
+                RestAssured.given()
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("audio" to validAudio))
+                    .`when`()
+                    .post("/speaking-sessions/any-session/post-activity/retelling")
                     .then()
                     .statusCode(401)
                     .body("detailCode", equalTo(ExceptionResponseCode.EMPTY_TOKEN.detailCode))
