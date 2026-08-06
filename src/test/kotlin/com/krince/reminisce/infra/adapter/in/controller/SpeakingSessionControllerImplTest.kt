@@ -1,5 +1,6 @@
 package com.krince.reminisce.infra.adapter.`in`.controller
 
+import com.krince.reminisce.domain.model.speakingsession.vo.SceneEndReason
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
 import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
@@ -146,6 +147,10 @@ class SpeakingSessionControllerImplTest(
         childId: String,
         storyId: String,
         currentSceneId: String? = null,
+        accumulatedElements: List<ThinkingElement> = emptyList(),
+        currentChildTurnCount: Int = 0,
+        turnsWithoutNewElement: Int = 0,
+        sceneEndReason: String? = null,
     ): SpeakingSessionOrmEntity = SpeakingSessionOrmEntity(
         sessionId = sessionId,
         childId = childId,
@@ -154,6 +159,10 @@ class SpeakingSessionControllerImplTest(
         status = SessionStatus.IN_PROGRESS.name,
         startedAt = LocalDateTime.now().minusMinutes(5),
         lastActivityAt = LocalDateTime.now().minusMinutes(1),
+        accumulatedElements = accumulatedElements,
+        currentChildTurnCount = currentChildTurnCount,
+        turnsWithoutNewElement = turnsWithoutNewElement,
+        sceneEndReason = sceneEndReason,
     )
 
     beforeSpec {
@@ -476,10 +485,8 @@ class SpeakingSessionControllerImplTest(
                     .body("data.scene.characterDisplayName", equalTo("방귀쟁이 며느리"))
                     .body("data.scene.maxTurns", equalTo(4))
             }
-        }
 
-        context("예외케이스") {
-            test("이미 장면 위 세션 advance는 422와 BUSINESS_RULE_VIOLATION을 반환한다") {
+            test("전개(NARRATION) 장면 세션 advance는 200과 다음 장면 SCENE 뷰를 반환한다") {
                 val (guardianId, token) = authorizedGuardian()
                 val childId = "child-${uniqueSuffix()}"
                 val storyId = "story-${uniqueSuffix()}"
@@ -487,8 +494,116 @@ class SpeakingSessionControllerImplTest(
                 testChildFixture.saveChild(childEntity(childId, guardianId))
                 testStoryFixture.saveStory(storyEntity(storyId))
                 testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                val narrationSceneId = "sc-1-$storyId"
+                val nextSceneId = "sc-3-$storyId"
                 testSpeakingSessionFixture.save(
-                    sessionEntity(sessionId, childId, storyId, currentSceneId = "sc-1-$storyId"),
+                    sessionEntity(sessionId, childId, storyId, currentSceneId = narrationSceneId),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/advance")
+                    .then()
+                    .statusCode(200)
+                    .body("data.viewType", equalTo("SCENE"))
+                    .body("data.intro", nullValue())
+                    .body("data.scene.sceneId", equalTo(nextSceneId))
+                    .body("data.scene.sceneOrder", equalTo(3))
+                    .body("data.scene.sceneType", equalTo(SceneType.DIALOGUE.name))
+
+                val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
+                storedSession?.currentSceneId shouldBe nextSceneId
+                storedSession?.status shouldBe SessionStatus.IN_PROGRESS.name
+            }
+
+            test("종료된 대화 장면 세션 advance는 200과 다음 장면 SCENE 뷰를 반환하고 장면 범위 상태를 0으로 초기화한다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 1))
+                testStoryFixture.saveScene(narrationEntity(storyId, 3))
+                val dialogueSceneId = "sc-1-$storyId"
+                val nextSceneId = "sc-3-$storyId"
+                testSpeakingSessionFixture.save(
+                    sessionEntity(
+                        sessionId,
+                        childId,
+                        storyId,
+                        currentSceneId = dialogueSceneId,
+                        accumulatedElements = listOf(ThinkingElement.EMOTION, ThinkingElement.PERSPECTIVE),
+                        currentChildTurnCount = 4,
+                        turnsWithoutNewElement = 2,
+                        sceneEndReason = SceneEndReason.MAX_TURNS.name,
+                    ),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/advance")
+                    .then()
+                    .statusCode(200)
+                    .body("data.viewType", equalTo("SCENE"))
+                    .body("data.scene.sceneId", equalTo(nextSceneId))
+                    .body("data.scene.sceneType", equalTo(SceneType.NARRATION.name))
+
+                val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
+                storedSession?.currentSceneId shouldBe nextSceneId
+                storedSession?.accumulatedElements shouldBe emptyList()
+                storedSession?.currentChildTurnCount shouldBe 0
+                storedSession?.turnsWithoutNewElement shouldBe 0
+                storedSession?.sceneEndReason shouldBe null
+                storedSession?.status shouldBe SessionStatus.IN_PROGRESS.name
+            }
+
+            test("마지막 장면 세션 advance는 200과 viewType=POST_ACTIVITY를 반환하고 세션 status를 POST_ACTIVITY로 전환한다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                val lastSceneId = "sc-1-$storyId"
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, currentSceneId = lastSceneId),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/advance")
+                    .then()
+                    .statusCode(200)
+                    .body("data.viewType", equalTo("POST_ACTIVITY"))
+                    .body("data.intro", nullValue())
+                    .body("data.scene", nullValue())
+
+                val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
+                storedSession?.status shouldBe SessionStatus.POST_ACTIVITY.name
+            }
+        }
+
+        context("예외케이스") {
+            test("종료되지 않은 대화 장면 세션 advance는 422와 BUSINESS_RULE_VIOLATION을 반환한다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                val dialogueSceneId = "sc-3-$storyId"
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, currentSceneId = dialogueSceneId, sceneEndReason = null),
                 )
 
                 RestAssured.given()

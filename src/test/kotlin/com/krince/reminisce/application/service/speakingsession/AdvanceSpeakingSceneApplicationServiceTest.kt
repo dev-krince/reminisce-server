@@ -8,6 +8,7 @@ import com.krince.reminisce.application.port.out.speakingsession.CommandSpeaking
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
+import com.krince.reminisce.domain.model.speakingsession.vo.SceneEndReason
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
 import com.krince.reminisce.domain.model.story.Scene
@@ -62,11 +63,17 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
     val childId = ChildId("child-uuid-1")
     val storyId = StoryId("story-uuid-1")
     val firstSceneIdStr = "scene-uuid-1"
+    val narrationSceneIdStr = "scene-uuid-narration"
+    val dialogueSceneIdStr = "scene-uuid-dialogue"
+    val nextSceneIdStr = "scene-uuid-next"
 
     fun command(): AdvanceSpeakingSceneCommand =
         AdvanceSpeakingSceneCommand(sessionId = sessionIdStr, guardianId = guardianIdStr)
 
-    fun session(currentSceneId: String?): SpeakingSession = SpeakingSession(
+    fun session(
+        currentSceneId: String?,
+        sceneEndReason: SceneEndReason? = null,
+    ): SpeakingSession = SpeakingSession(
         sessionId = SpeakingSessionId(sessionIdStr),
         childId = childId,
         storyId = storyId,
@@ -74,6 +81,7 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
         currentSceneId = currentSceneId,
         startedAt = LocalDateTime.now(fixedClock).minusMinutes(5),
         lastActivityAt = LocalDateTime.now(fixedClock).minusMinutes(1),
+        sceneEndReason = sceneEndReason,
     )
 
     fun firstScene(): Scene = Scene(
@@ -89,6 +97,37 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
         sceneGoal = "목표",
         requiredElements = listOf(ThinkingElement.PERSPECTIVE),
         maxTurns = 4,
+    )
+
+    fun narrationScene(): Scene = Scene(
+        sceneId = SceneId(narrationSceneIdStr),
+        storyId = storyId,
+        sceneOrder = 1,
+        sceneType = SceneType.NARRATION,
+        sceneDescription = "전개 설명",
+    )
+
+    fun dialogueScene(): Scene = Scene(
+        sceneId = SceneId(dialogueSceneIdStr),
+        storyId = storyId,
+        sceneOrder = 2,
+        sceneType = SceneType.DIALOGUE,
+        sceneDescription = "대화 설명",
+        characterName = "ch_x",
+        characterDisplayName = "표시명",
+        characterOpening = "여는 대사",
+        characterClosing = "닫는 대사",
+        sceneGoal = "목표",
+        requiredElements = listOf(ThinkingElement.PERSPECTIVE),
+        maxTurns = 4,
+    )
+
+    fun nextScene(): Scene = Scene(
+        sceneId = SceneId(nextSceneIdStr),
+        storyId = storyId,
+        sceneOrder = 3,
+        sceneType = SceneType.NARRATION,
+        sceneDescription = "다음 전개 설명",
     )
 
     context("게이트 실패") {
@@ -111,14 +150,18 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
             verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
         }
 
-        test("이미 장면 위 세션이면 BUSINESS_RULE_VIOLATION을 던지고 저장하지 않는다") {
-            every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(firstSceneIdStr)
+        test("종료되지 않은 DIALOGUE 장면 세션이면 BUSINESS_RULE_VIOLATION을 던지고 저장하지 않는다") {
+            every {
+                loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr))
+            } returns session(dialogueSceneIdStr, sceneEndReason = null)
             every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
 
             val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command()) }
 
             exception.exceptionResponseCode shouldBe BUSINESS_RULE_VIOLATION
             verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
+            verify(exactly = 0) { storyAccessPort.findNextScene(any(), any()) }
         }
     }
 
@@ -137,6 +180,66 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
             result.scene?.sceneId shouldBe firstSceneIdStr
             savedSlot.captured.currentSceneId shouldBe firstSceneIdStr
             savedSlot.captured.status shouldBe SessionStatus.IN_PROGRESS
+            savedSlot.captured.lastActivityAt shouldBe LocalDateTime.now(fixedClock)
+            verify(exactly = 1) { commandSpeakingSessionPort.save(any()) }
+        }
+
+        test("NARRATION 장면 세션이면 종료 여부와 무관하게 다음 장면으로 이동해 SCENE 뷰를 반환한다") {
+            every {
+                loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr))
+            } returns session(narrationSceneIdStr, sceneEndReason = null)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.findScene(storyId, narrationSceneIdStr) } returns narrationScene()
+            every { storyAccessPort.findNextScene(storyId, narrationSceneIdStr) } returns nextScene()
+            val savedSlot = slot<SpeakingSession>()
+            every { commandSpeakingSessionPort.save(capture(savedSlot)) } answers { savedSlot.captured }
+
+            val result = service.execute(command())
+
+            result.viewType shouldBe SpeakingSessionViewType.SCENE
+            result.scene?.sceneId shouldBe nextSceneIdStr
+            savedSlot.captured.currentSceneId shouldBe nextSceneIdStr
+            savedSlot.captured.status shouldBe SessionStatus.IN_PROGRESS
+            verify(exactly = 1) { commandSpeakingSessionPort.save(any()) }
+        }
+
+        test("종료된 DIALOGUE 장면 세션이면 다음 장면으로 이동해 상태를 초기화하고 SCENE 뷰를 반환한다") {
+            every {
+                loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr))
+            } returns session(dialogueSceneIdStr, sceneEndReason = SceneEndReason.MAX_TURNS)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
+            every { storyAccessPort.findNextScene(storyId, dialogueSceneIdStr) } returns nextScene()
+            val savedSlot = slot<SpeakingSession>()
+            every { commandSpeakingSessionPort.save(capture(savedSlot)) } answers { savedSlot.captured }
+
+            val result = service.execute(command())
+
+            result.viewType shouldBe SpeakingSessionViewType.SCENE
+            result.scene?.sceneId shouldBe nextSceneIdStr
+            savedSlot.captured.currentSceneId shouldBe nextSceneIdStr
+            savedSlot.captured.sceneEndReason shouldBe null
+            savedSlot.captured.currentChildTurnCount shouldBe 0
+            savedSlot.captured.status shouldBe SessionStatus.IN_PROGRESS
+            verify(exactly = 1) { commandSpeakingSessionPort.save(any()) }
+        }
+
+        test("다음 장면이 없는 마지막 장면 세션이면 POST_ACTIVITY로 전환해 저장하고 POST_ACTIVITY 뷰를 반환한다") {
+            every {
+                loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr))
+            } returns session(narrationSceneIdStr, sceneEndReason = null)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.findScene(storyId, narrationSceneIdStr) } returns narrationScene()
+            every { storyAccessPort.findNextScene(storyId, narrationSceneIdStr) } returns null
+            val savedSlot = slot<SpeakingSession>()
+            every { commandSpeakingSessionPort.save(capture(savedSlot)) } answers { savedSlot.captured }
+
+            val result = service.execute(command())
+
+            result.viewType shouldBe SpeakingSessionViewType.POST_ACTIVITY
+            result.scene shouldBe null
+            result.intro shouldBe null
+            savedSlot.captured.status shouldBe SessionStatus.POST_ACTIVITY
             savedSlot.captured.lastActivityAt shouldBe LocalDateTime.now(fixedClock)
             verify(exactly = 1) { commandSpeakingSessionPort.save(any()) }
         }
