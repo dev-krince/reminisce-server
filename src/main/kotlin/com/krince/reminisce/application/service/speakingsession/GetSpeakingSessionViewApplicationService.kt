@@ -6,6 +6,7 @@ import com.krince.reminisce.application.port.`in`.speakingsession.command.GetSpe
 import com.krince.reminisce.application.port.`in`.speakingsession.result.SpeakingSessionViewResult
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GetSpeakingSessionViewUseCase
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
+import com.krince.reminisce.application.port.out.tts.TtsPort
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
 import com.krince.reminisce.domain.model.story.Scene
@@ -21,6 +22,7 @@ class GetSpeakingSessionViewApplicationService(
     private val loadSpeakingSessionPort: LoadSpeakingSessionPort,
     private val childAccessPort: ChildAccessPort,
     private val storyAccessPort: StoryAccessPort,
+    private val ttsPort: TtsPort,
 ) : GetSpeakingSessionViewUseCase {
 
     @Transactional(readOnly = true)
@@ -57,7 +59,9 @@ class GetSpeakingSessionViewApplicationService(
     private fun sceneView(storyId: StoryId, sceneId: String): SpeakingSessionViewResult {
         val scene: Scene = storyAccessPort.findScene(storyId, sceneId)
             ?: throw NotFoundException(NOT_FOUND, NOT_FOUND.message)
+        val openingAudio: String? = scene.characterOpening?.let { ttsPort.synthesize(it) }
+        val closingAudio: String? = scene.characterClosing?.let { ttsPort.synthesize(it) }
 
-        return SpeakingSessionViewResult.scene(scene)
+        return SpeakingSessionViewResult.scene(scene, openingAudio, closingAudio)
     }
 }

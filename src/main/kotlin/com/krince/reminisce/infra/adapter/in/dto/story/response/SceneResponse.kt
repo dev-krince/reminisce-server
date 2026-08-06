@@ -29,6 +29,12 @@ class SceneResponse(
     @field:Schema(description = "장면 종료 시 캐릭터 고정 마지막 대사", example = "그래도 아직은 못 말하겠어. 조금만 더 참아 볼게.", required = false)
     val characterClosing: String?,
 
+    @field:Schema(description = "캐릭터 첫 대사 음성 참조", required = false)
+    val characterOpeningAudio: String?,
+
+    @field:Schema(description = "캐릭터 마지막 대사 음성 참조", required = false)
+    val characterClosingAudio: String?,
+
     @field:Schema(description = "장면의 갈등·고민 요약", example = "방귀를 참을지 솔직하게 말할지 고민한다.", required = false)
     val conflict: String?,
 
@@ -54,6 +60,8 @@ fun sceneResponse(result: SceneResult): SceneResponse = SceneResponse(
     characterDisplayName = result.characterDisplayName,
     characterOpening = result.characterOpening,
     characterClosing = result.characterClosing,
+    characterOpeningAudio = result.characterOpeningAudio,
+    characterClosingAudio = result.characterClosingAudio,
     conflict = result.conflict,
     sceneGoal = result.sceneGoal,
     requiredElements = result.requiredElements?.map { it.name },

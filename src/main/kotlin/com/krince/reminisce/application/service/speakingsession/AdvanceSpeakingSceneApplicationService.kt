@@ -7,6 +7,7 @@ import com.krince.reminisce.application.port.`in`.speakingsession.result.Speakin
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.AdvanceSpeakingSceneUseCase
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
+import com.krince.reminisce.application.port.out.tts.TtsPort
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
@@ -29,6 +30,7 @@ class AdvanceSpeakingSceneApplicationService(
     private val commandSpeakingSessionPort: CommandSpeakingSessionPort,
     private val childAccessPort: ChildAccessPort,
     private val storyAccessPort: StoryAccessPort,
+    private val ttsPort: TtsPort,
     private val clock: Clock,
 ) : AdvanceSpeakingSceneUseCase {
 
@@ -72,8 +74,10 @@ class AdvanceSpeakingSceneApplicationService(
     private fun transitionTo(session: SpeakingSession, scene: Scene): SpeakingSessionViewResult {
         val transitioned: SpeakingSession = session.transitionToScene(scene.sceneId.value, LocalDateTime.now(clock))
         commandSpeakingSessionPort.save(transitioned)
+        val openingAudio: String? = scene.characterOpening?.let { ttsPort.synthesize(it) }
+        val closingAudio: String? = scene.characterClosing?.let { ttsPort.synthesize(it) }
 
-        return SpeakingSessionViewResult.scene(scene)
+        return SpeakingSessionViewResult.scene(scene, openingAudio, closingAudio)
     }
 
     private fun verifyLeavable(session: SpeakingSession, currentScene: Scene) {

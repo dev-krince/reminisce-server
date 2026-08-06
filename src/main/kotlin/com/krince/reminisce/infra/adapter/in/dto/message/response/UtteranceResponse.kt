@@ -82,6 +82,9 @@ class CharacterReplyResponse(
 
     @field:Schema(description = "캐릭터 대사 텍스트", example = "네 이야기를 잘 들었어.", required = true)
     val text: String,
+
+    @field:Schema(description = "캐릭터 대사 음성 참조", required = false)
+    val characterReplyAudio: String?,
 )
 
 fun utteranceResponse(result: UtteranceResult): UtteranceResponse = UtteranceResponse(
@@ -106,5 +109,6 @@ fun utteranceResponse(result: UtteranceResult): UtteranceResponse = UtteranceRes
         speakerType = result.characterReply.speakerType,
         turnOrder = result.characterReply.turnOrder,
         text = result.characterReply.text,
+        characterReplyAudio = result.characterReply.audio,
     ),
 )

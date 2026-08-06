@@ -35,13 +35,15 @@ class UtteranceResult(
         val speakerType: String,
         val turnOrder: Long,
         val text: String,
+        val audio: String?,
     ) {
         companion object {
-            fun from(message: Message): CharacterReplyResult = CharacterReplyResult(
+            fun from(message: Message, audio: String?): CharacterReplyResult = CharacterReplyResult(
                 messageId = message.messageId.value,
                 speakerType = message.speakerType.name,
                 turnOrder = message.turnOrder,
                 text = message.text,
+                audio = audio,
             )
         }
     }
@@ -53,6 +55,7 @@ class UtteranceResult(
             session: SpeakingSession,
             missingElements: List<ThinkingElement>,
             characterMessage: Message,
+            characterReplyAudio: String?,
         ): UtteranceResult = UtteranceResult(
             messageId = message.messageId.value,
             sceneId = message.sceneId.value,
@@ -72,7 +75,7 @@ class UtteranceResult(
             sceneEndReason = session.sceneEndReason?.name,
             sceneGoalMet = session.sceneGoalMet,
             guidanceTarget = session.lastGuidanceTarget?.name,
-            characterReply = CharacterReplyResult.from(characterMessage),
+            characterReply = CharacterReplyResult.from(characterMessage, characterReplyAudio),
         )
     }
 }

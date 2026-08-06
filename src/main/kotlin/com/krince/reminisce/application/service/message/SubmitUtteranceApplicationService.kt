@@ -13,6 +13,7 @@ import com.krince.reminisce.application.port.out.reply.CharacterReplyPort
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
 import com.krince.reminisce.application.port.out.stt.SttPort
+import com.krince.reminisce.application.port.out.tts.TtsPort
 import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
 import com.krince.reminisce.domain.model.message.Message
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
@@ -42,6 +43,7 @@ class SubmitUtteranceApplicationService(
     private val childAccessPort: ChildAccessPort,
     private val storyAccessPort: StoryAccessPort,
     private val sttPort: SttPort,
+    private val ttsPort: TtsPort,
     private val commandMessagePort: CommandMessagePort,
     private val loadMessagePort: LoadMessagePort,
     private val speechAnalysisPort: SpeechAnalysisPort,
@@ -70,8 +72,9 @@ class SubmitUtteranceApplicationService(
         val progressedSession: SpeakingSession = progressAndSave(session, analysis, dialogueScene)
         val missingElements: List<ThinkingElement> = missingElements(dialogueScene, progressedSession)
         val characterMessage: Message = saveCharacterReply(message, dialogueScene, progressedSession)
+        val characterReplyAudio: String? = ttsPort.synthesize(characterMessage.text)
 
-        return UtteranceResult.from(message, analysis, progressedSession, missingElements, characterMessage)
+        return UtteranceResult.from(message, analysis, progressedSession, missingElements, characterMessage, characterReplyAudio)
     }
 
     private fun saveCharacterReply(

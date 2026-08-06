@@ -15,10 +15,14 @@ class SpeakingSessionViewResult(
             scene = null,
         )
 
-        fun scene(scene: Scene): SpeakingSessionViewResult = SpeakingSessionViewResult(
+        fun scene(
+            scene: Scene,
+            characterOpeningAudio: String?,
+            characterClosingAudio: String?,
+        ): SpeakingSessionViewResult = SpeakingSessionViewResult(
             viewType = SpeakingSessionViewType.SCENE,
             intro = null,
-            scene = SceneResult.from(scene),
+            scene = SceneResult.from(scene, characterOpeningAudio, characterClosingAudio),
         )
 
         fun postActivity(): SpeakingSessionViewResult = SpeakingSessionViewResult(
