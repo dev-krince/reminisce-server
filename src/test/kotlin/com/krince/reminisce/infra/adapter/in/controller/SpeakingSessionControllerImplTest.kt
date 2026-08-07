@@ -885,7 +885,7 @@ class SpeakingSessionControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("audio" to "  며느리가 참 힘들었겠어요  "))
+                    .body(mapOf("text" to "며느리가 참 힘들었겠어요", "sttRawText" to "며느리가 참 힘드러껬어요"))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/utterances")
                     .then()
@@ -915,7 +915,7 @@ class SpeakingSessionControllerImplTest(
                 val stored = testMessageFixture.findAllBySessionId(sessionId).first()
                 stored.speakerType shouldBe "CHILD"
                 stored.text shouldBe "며느리가 참 힘들었겠어요"
-                stored.sttRawText shouldBe "며느리가 참 힘들었겠어요"
+                stored.sttRawText shouldBe "며느리가 참 힘드러껬어요"
 
                 testUtteranceAnalysisFixture.count() shouldBe 1L
                 val storedAnalysis = testUtteranceAnalysisFixture.findAll().first()
@@ -946,7 +946,7 @@ class SpeakingSessionControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("audio" to "며느리가 참 힘들었겠어요"))
+                    .body(mapOf("text" to "며느리가 참 힘들었겠어요"))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/utterances")
                     .then()
@@ -959,7 +959,7 @@ class SpeakingSessionControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("audio" to "며느리 입장에서 생각하면 참 힘들었겠어요"))
+                    .body(mapOf("text" to "며느리 입장에서 생각하면 참 힘들었겠어요"))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/utterances")
                     .then()
@@ -989,13 +989,13 @@ class SpeakingSessionControllerImplTest(
                 testSpeakingSessionFixture.save(
                     sessionEntity(sessionId, childId, storyId, currentSceneId = dialogueSceneId),
                 )
-                val emotionOnlyAudio = "며느리가 참 힘들었겠어요"
+                val emotionOnlyText = "며느리가 참 힘들었겠어요"
 
                 repeat(3) {
                     RestAssured.given()
                         .header("Authorization", token)
                         .contentType(ContentType.JSON)
-                        .body(mapOf("audio" to emotionOnlyAudio))
+                        .body(mapOf("text" to emotionOnlyText))
                         .`when`()
                         .post("/speaking-sessions/$sessionId/utterances")
                         .then()
@@ -1006,7 +1006,7 @@ class SpeakingSessionControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("audio" to emotionOnlyAudio))
+                    .body(mapOf("text" to emotionOnlyText))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/utterances")
                     .then()
@@ -1050,7 +1050,7 @@ class SpeakingSessionControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("audio" to "며느리가 참 힘들었겠어요"))
+                    .body(mapOf("text" to "며느리가 참 힘들었겠어요"))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/utterances")
                     .then()
@@ -1084,7 +1084,7 @@ class SpeakingSessionControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("audio" to "며느리가 참 힘들었겠어요"))
+                    .body(mapOf("text" to "며느리가 참 힘들었겠어요"))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/utterances")
                     .then()
@@ -1096,7 +1096,7 @@ class SpeakingSessionControllerImplTest(
                 testMessageFixture.countBySessionId(sessionId) shouldBe 0L
             }
 
-            test("blank 발화(STT 실패)는 422와 STT_TRANSCRIPTION_FAILED를 반환하고 메시지가 생성되지 않는다") {
+            test("공백 발화 텍스트는 400과 INVALID_DTO_PARAMETER를 반환하고 메시지가 생성되지 않는다") {
                 val (guardianId, token) = authorizedGuardian()
                 val childId = "child-${uniqueSuffix()}"
                 val storyId = "story-${uniqueSuffix()}"
@@ -1112,18 +1112,45 @@ class SpeakingSessionControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("audio" to "   "))
+                    .body(mapOf("text" to "   "))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/utterances")
                     .then()
-                    .statusCode(422)
+                    .statusCode(400)
                     .body("success", equalTo(false))
-                    .body("code", equalTo(422))
-                    .body("detailCode", equalTo(ExceptionResponseCode.STT_TRANSCRIPTION_FAILED.detailCode))
-                    .body("message", equalTo("음성 인식에 실패해 발화를 저장할 수 없습니다."))
+                    .body("code", equalTo(400))
+                    .body("detailCode", equalTo(ExceptionResponseCode.INVALID_DTO_PARAMETER.detailCode))
 
                 testMessageFixture.countBySessionId(sessionId) shouldBe 0L
                 testUtteranceAnalysisFixture.count() shouldBe 0L
+            }
+
+            test("sttRawText 없이 발화 텍스트만 제출하면 201과 message.sttRawText null로 저장된다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                val dialogueSceneId = "sc-3-$storyId"
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, currentSceneId = dialogueSceneId),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("text" to "며느리가 참 힘들었겠어요"))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/utterances")
+                    .then()
+                    .statusCode(201)
+                    .body("data.text", equalTo("며느리가 참 힘들었겠어요"))
+
+                val stored = testMessageFixture.findAllBySessionId(sessionId).first()
+                stored.text shouldBe "며느리가 참 힘들었겠어요"
+                stored.sttRawText shouldBe null
             }
 
             test("도입 상태(current_scene_id null) 세션에 제출하면 422와 BUSINESS_RULE_VIOLATION을 반환하고 미생성이다") {
@@ -1139,7 +1166,7 @@ class SpeakingSessionControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("audio" to "며느리가 참 힘들었겠어요"))
+                    .body(mapOf("text" to "며느리가 참 힘들었겠어요"))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/utterances")
                     .then()
@@ -1165,7 +1192,7 @@ class SpeakingSessionControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("audio" to "며느리가 참 힘들었겠어요"))
+                    .body(mapOf("text" to "며느리가 참 힘들었겠어요"))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/utterances")
                     .then()
@@ -1193,7 +1220,7 @@ class SpeakingSessionControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("audio" to "며느리가 참 힘들었겠어요"))
+                    .body(mapOf("text" to "며느리가 참 힘들었겠어요"))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/utterances")
                     .then()
@@ -1209,7 +1236,7 @@ class SpeakingSessionControllerImplTest(
                 RestAssured.given()
                     .header("Authorization", token)
                     .contentType(ContentType.JSON)
-                    .body(mapOf("audio" to "며느리가 참 힘들었겠어요"))
+                    .body(mapOf("text" to "며느리가 참 힘들었겠어요"))
                     .`when`()
                     .post("/speaking-sessions/missing-${uniqueSuffix()}/utterances")
                     .then()
@@ -1220,7 +1247,7 @@ class SpeakingSessionControllerImplTest(
             test("토큰이 없으면 401과 EMPTY_TOKEN을 반환한다") {
                 RestAssured.given()
                     .contentType(ContentType.JSON)
-                    .body(mapOf("audio" to "any"))
+                    .body(mapOf("text" to "any"))
                     .`when`()
                     .post("/speaking-sessions/any-session/utterances")
                     .then()

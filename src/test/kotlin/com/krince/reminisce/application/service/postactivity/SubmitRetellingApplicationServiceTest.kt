@@ -6,7 +6,6 @@ import com.krince.reminisce.application.port.out.postactivityresult.CommandPostA
 import com.krince.reminisce.application.port.out.postactivityresult.LoadPostActivityResultPort
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
-import com.krince.reminisce.application.port.out.stt.SttPort
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.postactivityresult.PostActivityResult
 import com.krince.reminisce.domain.model.postactivityresult.vo.PostActivityResultId
@@ -43,7 +42,6 @@ class SubmitRetellingApplicationServiceTest : FunSpec({
     val loadPostActivityResultPort = mockk<LoadPostActivityResultPort>()
     val commandPostActivityResultPort = mockk<CommandPostActivityResultPort>()
     val commandSpeakingSessionPort = mockk<CommandSpeakingSessionPort>()
-    val sttPort = mockk<SttPort>()
     val fixedInstant: Instant = Instant.parse("2024-06-01T10:00:00Z")
     val fixedClock: Clock = Clock.fixed(fixedInstant, ZoneId.of("UTC"))
 
@@ -53,7 +51,6 @@ class SubmitRetellingApplicationServiceTest : FunSpec({
         loadPostActivityResultPort = loadPostActivityResultPort,
         commandPostActivityResultPort = commandPostActivityResultPort,
         commandSpeakingSessionPort = commandSpeakingSessionPort,
-        sttPort = sttPort,
         clock = fixedClock,
     )
 
@@ -165,15 +162,14 @@ class SubmitRetellingApplicationServiceTest : FunSpec({
             verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
         }
 
-        test("STT가 null을 반환하면 STT_TRANSCRIPTION_FAILED를 던지고 저장하지 않는다") {
+        test("blank audio이면 STT_TRANSCRIPTION_FAILED를 던지고 저장하지 않는다") {
             every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session()
             every { childAccessPort.findGuardianId(childId) } returns guardianId
             every {
                 loadPostActivityResultPort.findBySession(SpeakingSessionId(sessionIdStr))
             } returns savedResult(isOrderCorrect = true)
-            every { sttPort.transcribe(any()) } returns null
 
-            val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command()) }
+            val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command(audio = "   ")) }
 
             exception.exceptionResponseCode shouldBe STT_TRANSCRIPTION_FAILED
             verify(exactly = 0) { commandPostActivityResultPort.save(any()) }
@@ -189,7 +185,6 @@ class SubmitRetellingApplicationServiceTest : FunSpec({
             every {
                 loadPostActivityResultPort.findBySession(SpeakingSessionId(sessionIdStr))
             } returns existingResult
-            every { sttPort.transcribe(validAudio) } returns transcript
             every { commandPostActivityResultPort.save(any()) } answers { firstArg() }
             every { commandSpeakingSessionPort.save(any()) } answers { firstArg() }
 

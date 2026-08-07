@@ -10,7 +10,6 @@ import com.krince.reminisce.application.port.out.reply.CharacterReplyContext
 import com.krince.reminisce.application.port.out.reply.CharacterReplyPort
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
-import com.krince.reminisce.application.port.out.stt.SttPort
 import com.krince.reminisce.application.port.out.tts.TtsPort
 import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
 import com.krince.reminisce.domain.model.child.vo.ChildId
@@ -36,7 +35,6 @@ import com.krince.reminisce.shared.exception.BusinessRuleViolationException
 import com.krince.reminisce.shared.exception.NotFoundException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.BUSINESS_RULE_VIOLATION
 import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND
-import com.krince.reminisce.shared.response.ExceptionResponseCode.STT_TRANSCRIPTION_FAILED
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.annotation.DisplayName
 import io.kotest.core.annotation.Tags
@@ -59,7 +57,6 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
     val loadSpeakingSessionPort = mockk<LoadSpeakingSessionPort>()
     val childAccessPort = mockk<ChildAccessPort>()
     val storyAccessPort = mockk<StoryAccessPort>()
-    val sttPort = mockk<SttPort>()
     val ttsPort = mockk<TtsPort>()
     val commandMessagePort = mockk<CommandMessagePort>()
     val loadMessagePort = mockk<LoadMessagePort>()
@@ -73,7 +70,6 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
         loadSpeakingSessionPort = loadSpeakingSessionPort,
         childAccessPort = childAccessPort,
         storyAccessPort = storyAccessPort,
-        sttPort = sttPort,
         ttsPort = ttsPort,
         commandMessagePort = commandMessagePort,
         loadMessagePort = loadMessagePort,
@@ -97,10 +93,15 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
     val storyId = StoryId("story-uuid-1")
     val dialogueSceneIdStr = "scene-uuid-1"
     val narrationSceneIdStr = "scene-uuid-2"
-    val validAudio = "며느리가 참 힘들었겠어요"
+    val validText = "며느리가 참 힘들었겠어요"
 
-    fun command(audio: String = validAudio): SubmitUtteranceCommand =
-        SubmitUtteranceCommand(sessionId = sessionIdStr, guardianId = guardianIdStr, audio = audio)
+    fun command(text: String = validText, sttRawText: String? = null): SubmitUtteranceCommand =
+        SubmitUtteranceCommand(
+            sessionId = sessionIdStr,
+            guardianId = guardianIdStr,
+            text = text,
+            sttRawText = sttRawText,
+        )
 
     fun session(
         currentSceneId: String?,
@@ -213,7 +214,6 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command()) }
 
             exception.exceptionResponseCode shouldBe BUSINESS_RULE_VIOLATION
-            verify(exactly = 0) { sttPort.transcribe(any()) }
             verify(exactly = 0) { speechAnalysisPort.analyze(any()) }
             verify(exactly = 0) { commandMessagePort.save(any()) }
             verify(exactly = 0) { commandUtteranceAnalysisPort.save(any()) }
@@ -229,7 +229,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command()) }
 
             exception.exceptionResponseCode shouldBe BUSINESS_RULE_VIOLATION
-            verify(exactly = 0) { sttPort.transcribe(any()) }
+            verify(exactly = 0) { speechAnalysisPort.analyze(any()) }
             verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
         }
 
@@ -242,7 +242,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command()) }
 
             exception.exceptionResponseCode shouldBe BUSINESS_RULE_VIOLATION
-            verify(exactly = 0) { sttPort.transcribe(any()) }
+            verify(exactly = 0) { speechAnalysisPort.analyze(any()) }
             verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
         }
 
@@ -256,41 +256,25 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
 
             exception.exceptionResponseCode shouldBe BUSINESS_RULE_VIOLATION
             verify(exactly = 0) { storyAccessPort.findScene(any(), any()) }
-            verify(exactly = 0) { sttPort.transcribe(any()) }
-            verify(exactly = 0) { commandMessagePort.save(any()) }
-            verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
-        }
-
-        test("STT가 실패(null)하면 STT_TRANSCRIPTION_FAILED를 던지고 저장하지 않는다") {
-            every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(dialogueSceneIdStr)
-            every { childAccessPort.findGuardianId(childId) } returns guardianId
-            every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
-            every { sttPort.transcribe(any()) } returns null
-
-            val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command(audio = "   ")) }
-
-            exception.exceptionResponseCode shouldBe STT_TRANSCRIPTION_FAILED
-            verify(exactly = 0) { commandMessagePort.save(any()) }
             verify(exactly = 0) { speechAnalysisPort.analyze(any()) }
-            verify(exactly = 0) { commandUtteranceAnalysisPort.save(any()) }
+            verify(exactly = 0) { commandMessagePort.save(any()) }
             verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
-            verify(exactly = 0) { characterReplyPort.generate(any()) }
         }
     }
 
     context("성공") {
         test("대화 장면 진행 중이면 turnOrder=count+1로 아이 발화를 저장하고 결과를 반환한다") {
             val existingCount = 2L
-            val transcript = "며느리가 참 힘들었겠어요"
+            val text = "며느리가 참 힘들었겠어요"
+            val rawText = "며느리가 참 힘드러껬어요"
             val stubReply = "표시명: 스텁 대사"
             every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(dialogueSceneIdStr)
             every { childAccessPort.findGuardianId(childId) } returns guardianId
             every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
-            every { sttPort.transcribe(validAudio) } returns transcript
             every { loadMessagePort.countBySession(SpeakingSessionId(sessionIdStr)) } returns existingCount
             val savedSlot = mutableListOf<Message>()
             every { commandMessagePort.save(capture(savedSlot)) } answers { savedSlot.last() }
-            every { speechAnalysisPort.analyze(transcript) } returns
+            every { speechAnalysisPort.analyze(text) } returns
                 rawAnalysis(listOf(DetectedElement(ThinkingElement.EMOTION, "힘들")))
             val savedAnalysisSlot = slot<UtteranceAnalysis>()
             every { commandUtteranceAnalysisPort.save(capture(savedAnalysisSlot)) } answers { savedAnalysisSlot.captured }
@@ -298,18 +282,19 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             every { commandSpeakingSessionPort.save(capture(savedSessionSlot)) } answers { savedSessionSlot.captured }
             every { characterReplyPort.generate(any()) } returns stubReply
 
-            val result = service.execute(command())
+            val result = service.execute(command(text = text, sttRawText = rawText))
 
             val childMessage = savedSlot.first()
             childMessage.speakerType shouldBe SpeakerType.CHILD
             childMessage.turnOrder shouldBe existingCount + 1
-            childMessage.text shouldBe transcript
-            childMessage.sttRawText shouldBe transcript
+            childMessage.text shouldBe text
+            childMessage.sttRawText shouldBe rawText
             childMessage.sceneId.value shouldBe dialogueSceneIdStr
             childMessage.createdAt shouldBe LocalDateTime.now(fixedClock)
             result.speakerType shouldBe SpeakerType.CHILD.name
             result.turnOrder shouldBe existingCount + 1
-            result.text shouldBe transcript
+            result.text shouldBe text
+            verify(exactly = 1) { speechAnalysisPort.analyze(text) }
             savedAnalysisSlot.captured.messageId shouldBe childMessage.messageId
             savedAnalysisSlot.captured.detectedElements.map { it.type } shouldBe listOf(ThinkingElement.EMOTION)
             savedSessionSlot.captured.accumulatedElements shouldBe listOf(ThinkingElement.EMOTION)
@@ -339,22 +324,41 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             verify(exactly = 1) { commandSpeakingSessionPort.save(any()) }
         }
 
-        test("근거 없는 요소는 폐기되어 누적되지 않는다") {
-            val transcript = "며느리가 참 힘들었겠어요"
+        test("sttRawText 미제공이면 message.sttRawText는 null로 저장된다") {
+            val text = "며느리가 참 힘들었겠어요"
             every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(dialogueSceneIdStr)
             every { childAccessPort.findGuardianId(childId) } returns guardianId
             every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
-            every { sttPort.transcribe(validAudio) } returns transcript
+            every { loadMessagePort.countBySession(SpeakingSessionId(sessionIdStr)) } returns 0L
+            val savedSlot = mutableListOf<Message>()
+            every { commandMessagePort.save(capture(savedSlot)) } answers { savedSlot.last() }
+            every { speechAnalysisPort.analyze(text) } returns rawAnalysis(emptyList())
+            every { commandUtteranceAnalysisPort.save(any()) } answers { firstArg() }
+            every { commandSpeakingSessionPort.save(any()) } answers { firstArg() }
+            every { characterReplyPort.generate(any()) } returns "표시명: 스텁 대사"
+
+            service.execute(command(text = text, sttRawText = null))
+
+            val childMessage = savedSlot.first()
+            childMessage.text shouldBe text
+            childMessage.sttRawText shouldBe null
+        }
+
+        test("근거 없는 요소는 폐기되어 누적되지 않는다") {
+            val text = "며느리가 참 힘들었겠어요"
+            every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(dialogueSceneIdStr)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
             every { loadMessagePort.countBySession(SpeakingSessionId(sessionIdStr)) } returns 0L
             every { commandMessagePort.save(any()) } answers { firstArg() }
-            every { speechAnalysisPort.analyze(transcript) } returns
+            every { speechAnalysisPort.analyze(text) } returns
                 rawAnalysis(listOf(DetectedElement(ThinkingElement.PERSPECTIVE, "원문에 없는 근거")))
             val savedSessionSlot = slot<SpeakingSession>()
             every { commandUtteranceAnalysisPort.save(any()) } answers { firstArg() }
             every { commandSpeakingSessionPort.save(capture(savedSessionSlot)) } answers { savedSessionSlot.captured }
             every { characterReplyPort.generate(any()) } returns "표시명: 스텁 대사"
 
-            val result = service.execute(command())
+            val result = service.execute(command(text = text))
 
             savedSessionSlot.captured.accumulatedElements shouldBe emptyList()
             result.detectedElements shouldBe emptyList()
@@ -362,20 +366,19 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
         }
 
         test("첫 발화면 turnOrder=1이 된다") {
-            val transcript = "안녕하세요"
+            val text = "안녕하세요"
             every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(dialogueSceneIdStr)
             every { childAccessPort.findGuardianId(childId) } returns guardianId
             every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
-            every { sttPort.transcribe(validAudio) } returns transcript
             every { loadMessagePort.countBySession(SpeakingSessionId(sessionIdStr)) } returns 0L
             val savedSlot = mutableListOf<Message>()
             every { commandMessagePort.save(capture(savedSlot)) } answers { savedSlot.last() }
-            every { speechAnalysisPort.analyze(transcript) } returns rawAnalysis(emptyList())
+            every { speechAnalysisPort.analyze(text) } returns rawAnalysis(emptyList())
             every { commandUtteranceAnalysisPort.save(any()) } answers { firstArg() }
             every { commandSpeakingSessionPort.save(any()) } answers { firstArg() }
             every { characterReplyPort.generate(any()) } returns "표시명: 스텁 대사"
 
-            val result = service.execute(command())
+            val result = service.execute(command(text = text))
 
             savedSlot.first().turnOrder shouldBe 1L
             result.turnOrder shouldBe 1L
@@ -394,7 +397,6 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns lowInfoSession
             every { childAccessPort.findGuardianId(childId) } returns guardianId
             every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
-            every { sttPort.transcribe(validAudio) } returns transcript
             every { loadMessagePort.countBySession(SpeakingSessionId(sessionIdStr)) } returns existingCount
             val savedSlot = mutableListOf<Message>()
             every { commandMessagePort.save(capture(savedSlot)) } answers { savedSlot.last() }
@@ -404,7 +406,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             val contextSlot = slot<CharacterReplyContext>()
             every { characterReplyPort.generate(capture(contextSlot)) } returns stubReply
 
-            val result = service.execute(command())
+            val result = service.execute(command(text = transcript))
 
             result.mode shouldBe ResponseMode.GUIDED.name
             contextSlot.captured.mode shouldBe ResponseMode.GUIDED
@@ -423,7 +425,6 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns closingSession
             every { childAccessPort.findGuardianId(childId) } returns guardianId
             every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
-            every { sttPort.transcribe(validAudio) } returns transcript
             every { loadMessagePort.countBySession(SpeakingSessionId(sessionIdStr)) } returns existingCount
             val savedSlot = mutableListOf<Message>()
             every { commandMessagePort.save(capture(savedSlot)) } answers { savedSlot.last() }
@@ -432,7 +433,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             every { commandUtteranceAnalysisPort.save(any()) } answers { firstArg() }
             every { commandSpeakingSessionPort.save(any()) } answers { firstArg() }
 
-            val result = service.execute(command())
+            val result = service.execute(command(text = transcript))
 
             result.mode shouldBe ResponseMode.CLOSING.name
             val childMessage = savedSlot.first()
