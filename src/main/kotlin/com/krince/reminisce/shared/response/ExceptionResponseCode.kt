@@ -37,7 +37,6 @@ enum class ExceptionResponseCode(
     BUSINESS_RULE_VIOLATION(false, 422, "BRV-000", "Business Rule Violation", "도메인 정책에 의해 실행할 수 없습니다."),
     CHILD_LIMIT_EXCEEDED(false, 422, "BRV-001", "Child Limit Exceeded", "등록 가능한 아이 수를 초과했습니다."),
     CONSENT_REQUIRED(false, 422, "BRV-002", "Consent Required", "법정대리인 동의가 없어 세션을 시작할 수 없습니다."),
-    STT_TRANSCRIPTION_FAILED(false, 422, "BRV-003", "STT Transcription Failed", "음성 인식에 실패해 발화를 저장할 수 없습니다."),
     INTERNAL_SERVER_ERROR(false, 500, "ISR-000", "Internal Server Error", "서버 에러입니다. 개발자에게 문의해주세요."),
     BAD_GATEWAY(false, 502, "BG-000", "Bad Gateway", "게이트웨이 오류입니다."),
     SOCIAL_AUTH_FAILED(false, 502, "BG-002", "Social Auth Failed", "소셜 인증에 실패했습니다."),

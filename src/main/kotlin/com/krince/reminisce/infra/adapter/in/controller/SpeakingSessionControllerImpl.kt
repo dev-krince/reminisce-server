@@ -176,7 +176,7 @@ class SpeakingSessionControllerImpl(
         val command = SubmitRetellingCommand(
             sessionId = sessionId,
             guardianId = userDetails.getId(),
-            audio = request.audio,
+            text = request.text,
         )
         val result: RetellingResult = submitRetellingUseCase.execute(command)
         val response: RetellingResultResponse = retellingResultResponse(result)

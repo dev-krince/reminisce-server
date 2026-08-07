@@ -17,7 +17,6 @@ import com.krince.reminisce.shared.exception.BusinessRuleViolationException
 import com.krince.reminisce.shared.exception.NotFoundException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.BUSINESS_RULE_VIOLATION
 import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND
-import com.krince.reminisce.shared.response.ExceptionResponseCode.STT_TRANSCRIPTION_FAILED
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
@@ -46,22 +45,13 @@ class SubmitRetellingApplicationService(
             throw BusinessRuleViolationException(BUSINESS_RULE_VIOLATION, BUSINESS_RULE_VIOLATION.message)
         }
 
-        val transcript: String = requireConfirmedText(command.audio)
+        val transcript: String = command.text.trim()
 
         val now: LocalDateTime = LocalDateTime.now(clock)
         commandPostActivityResultPort.save(existing.completeWith(transcript, now))
         commandSpeakingSessionPort.save(session.complete(now))
 
         return RetellingResult(retellingText = transcript, completedAt = now, status = SessionStatus.COMPLETED)
-    }
-
-    private fun requireConfirmedText(audio: String): String {
-        val trimmed: String = audio.trim()
-        if (trimmed.isBlank()) {
-            throw BusinessRuleViolationException(STT_TRANSCRIPTION_FAILED, STT_TRANSCRIPTION_FAILED.message)
-        }
-
-        return trimmed
     }
 
     private fun loadOwnedSession(sessionId: String, guardianId: String): SpeakingSession {
