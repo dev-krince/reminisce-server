@@ -12,7 +12,6 @@ import com.krince.reminisce.application.port.out.reply.CharacterReplyContext
 import com.krince.reminisce.application.port.out.reply.CharacterReplyPort
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
-import com.krince.reminisce.application.port.out.stt.SttPort
 import com.krince.reminisce.application.port.out.tts.TtsPort
 import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
 import com.krince.reminisce.domain.model.message.Message
@@ -31,7 +30,6 @@ import com.krince.reminisce.shared.exception.BusinessRuleViolationException
 import com.krince.reminisce.shared.exception.NotFoundException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.BUSINESS_RULE_VIOLATION
 import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND
-import com.krince.reminisce.shared.response.ExceptionResponseCode.STT_TRANSCRIPTION_FAILED
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
@@ -42,7 +40,6 @@ class SubmitUtteranceApplicationService(
     private val loadSpeakingSessionPort: LoadSpeakingSessionPort,
     private val childAccessPort: ChildAccessPort,
     private val storyAccessPort: StoryAccessPort,
-    private val sttPort: SttPort,
     private val ttsPort: TtsPort,
     private val commandMessagePort: CommandMessagePort,
     private val loadMessagePort: LoadMessagePort,
@@ -66,8 +63,7 @@ class SubmitUtteranceApplicationService(
             throw BusinessRuleViolationException(BUSINESS_RULE_VIOLATION, BUSINESS_RULE_VIOLATION.message)
         }
         val dialogueScene: Scene = requireDialogueScene(session)
-        val transcript: String = transcribe(command.audio)
-        val message: Message = saveChildUtterance(session, dialogueScene, transcript)
+        val message: Message = saveChildUtterance(session, dialogueScene, command.text, command.sttRawText)
         val analysis: UtteranceAnalysis = analyzeAndSave(message)
         val progressedSession: SpeakingSession = progressAndSave(session, analysis, dialogueScene)
         val missingElements: List<ThinkingElement> = missingElements(dialogueScene, progressedSession)
@@ -173,18 +169,19 @@ class SubmitUtteranceApplicationService(
         return scene
     }
 
-    private fun transcribe(audio: String): String =
-        sttPort.transcribe(audio)
-            ?: throw BusinessRuleViolationException(STT_TRANSCRIPTION_FAILED, STT_TRANSCRIPTION_FAILED.message)
-
-    private fun saveChildUtterance(session: SpeakingSession, scene: Scene, transcript: String): Message {
+    private fun saveChildUtterance(
+        session: SpeakingSession,
+        scene: Scene,
+        text: String,
+        sttRawText: String?,
+    ): Message {
         val turnOrder: Long = loadMessagePort.countBySession(session.sessionId) + firstTurnOffset
         val message: Message = Message.childUtterance(
             sessionId = session.sessionId,
             sceneId = SceneId(scene.sceneId.value),
             turnOrder = turnOrder,
-            text = transcript,
-            sttRawText = transcript,
+            text = text,
+            sttRawText = sttRawText,
             at = LocalDateTime.now(clock),
         )
 

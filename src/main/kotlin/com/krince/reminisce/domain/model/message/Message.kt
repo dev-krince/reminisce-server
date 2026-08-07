@@ -23,7 +23,7 @@ class Message(
             sceneId: SceneId,
             turnOrder: Long,
             text: String,
-            sttRawText: String,
+            sttRawText: String?,
             at: LocalDateTime,
         ): Message = Message(
             messageId = MessageId(UuidGenerator.generate()),

@@ -8,7 +8,6 @@ import com.krince.reminisce.application.port.out.postactivityresult.CommandPostA
 import com.krince.reminisce.application.port.out.postactivityresult.LoadPostActivityResultPort
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
-import com.krince.reminisce.application.port.out.stt.SttPort
 import com.krince.reminisce.domain.model.postactivityresult.PostActivityResult
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
@@ -31,7 +30,6 @@ class SubmitRetellingApplicationService(
     private val loadPostActivityResultPort: LoadPostActivityResultPort,
     private val commandPostActivityResultPort: CommandPostActivityResultPort,
     private val commandSpeakingSessionPort: CommandSpeakingSessionPort,
-    private val sttPort: SttPort,
     private val clock: Clock,
 ) : SubmitRetellingUseCase {
 
@@ -48,14 +46,22 @@ class SubmitRetellingApplicationService(
             throw BusinessRuleViolationException(BUSINESS_RULE_VIOLATION, BUSINESS_RULE_VIOLATION.message)
         }
 
-        val transcript: String = sttPort.transcribe(command.audio)
-            ?: throw BusinessRuleViolationException(STT_TRANSCRIPTION_FAILED, STT_TRANSCRIPTION_FAILED.message)
+        val transcript: String = requireConfirmedText(command.audio)
 
         val now: LocalDateTime = LocalDateTime.now(clock)
         commandPostActivityResultPort.save(existing.completeWith(transcript, now))
         commandSpeakingSessionPort.save(session.complete(now))
 
         return RetellingResult(retellingText = transcript, completedAt = now, status = SessionStatus.COMPLETED)
+    }
+
+    private fun requireConfirmedText(audio: String): String {
+        val trimmed: String = audio.trim()
+        if (trimmed.isBlank()) {
+            throw BusinessRuleViolationException(STT_TRANSCRIPTION_FAILED, STT_TRANSCRIPTION_FAILED.message)
+        }
+
+        return trimmed
     }
 
     private fun loadOwnedSession(sessionId: String, guardianId: String): SpeakingSession {

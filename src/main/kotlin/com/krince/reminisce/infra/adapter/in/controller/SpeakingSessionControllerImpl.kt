@@ -123,7 +123,8 @@ class SpeakingSessionControllerImpl(
         val command = SubmitUtteranceCommand(
             sessionId = sessionId,
             guardianId = userDetails.getId(),
-            audio = request.audio,
+            text = request.text,
+            sttRawText = request.sttRawText,
         )
         val result: UtteranceResult = submitUtteranceUseCase.execute(command)
         val response: UtteranceResponse = utteranceResponse(result)
