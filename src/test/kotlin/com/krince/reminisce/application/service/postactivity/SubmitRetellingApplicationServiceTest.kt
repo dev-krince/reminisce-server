@@ -18,7 +18,6 @@ import com.krince.reminisce.shared.exception.BusinessRuleViolationException
 import com.krince.reminisce.shared.exception.NotFoundException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.BUSINESS_RULE_VIOLATION
 import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND
-import com.krince.reminisce.shared.response.ExceptionResponseCode.STT_TRANSCRIPTION_FAILED
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.annotation.DisplayName
 import io.kotest.core.annotation.Tags
@@ -62,11 +61,11 @@ class SubmitRetellingApplicationServiceTest : FunSpec({
     val otherGuardianId = UserId("guardian-uuid-2")
     val childId = ChildId("child-uuid-1")
     val storyId = StoryId("story-uuid-1")
-    val validAudio = "방귀쟁이 며느리는 시아버지 덕분에 방귀를 뀔 수 있었어요"
+    val validText = "방귀쟁이 며느리는 시아버지 덕분에 방귀를 뀔 수 있었어요"
     val transcript = "방귀쟁이 며느리는 시아버지 덕분에 방귀를 뀔 수 있었어요"
 
-    fun command(audio: String = validAudio): SubmitRetellingCommand =
-        SubmitRetellingCommand(sessionId = sessionIdStr, guardianId = guardianIdStr, audio = audio)
+    fun command(text: String = validText): SubmitRetellingCommand =
+        SubmitRetellingCommand(sessionId = sessionIdStr, guardianId = guardianIdStr, text = text)
 
     fun session(status: SessionStatus = SessionStatus.POST_ACTIVITY): SpeakingSession = SpeakingSession(
         sessionId = SpeakingSessionId(sessionIdStr),
@@ -161,24 +160,10 @@ class SubmitRetellingApplicationServiceTest : FunSpec({
             verify(exactly = 0) { commandPostActivityResultPort.save(any()) }
             verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
         }
-
-        test("blank audio이면 STT_TRANSCRIPTION_FAILED를 던지고 저장하지 않는다") {
-            every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session()
-            every { childAccessPort.findGuardianId(childId) } returns guardianId
-            every {
-                loadPostActivityResultPort.findBySession(SpeakingSessionId(sessionIdStr))
-            } returns savedResult(isOrderCorrect = true)
-
-            val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command(audio = "   ")) }
-
-            exception.exceptionResponseCode shouldBe STT_TRANSCRIPTION_FAILED
-            verify(exactly = 0) { commandPostActivityResultPort.save(any()) }
-            verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
-        }
     }
 
     context("성공") {
-        test("POST_ACTIVITY·정답결과·유효 audio이면 completeWith·complete로 2회 저장하고 status=COMPLETED를 반환한다") {
+        test("POST_ACTIVITY·정답결과·유효 text이면 completeWith·complete로 2회 저장하고 status=COMPLETED를 반환한다") {
             val existingResult = savedResult(isOrderCorrect = true)
             every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session()
             every { childAccessPort.findGuardianId(childId) } returns guardianId
