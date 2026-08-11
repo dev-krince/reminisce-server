@@ -36,5 +36,14 @@ class User(
             role = Role.user(),
             providerId = providerId,
         )
+
+        fun naver(providerId: String, email: Email?, nickname: Nickname): User = User(
+            userId = UserId(UuidGenerator.generate()),
+            email = email,
+            nickname = nickname,
+            provider = AuthProvider.NAVER,
+            role = Role.user(),
+            providerId = providerId,
+        )
     }
 }

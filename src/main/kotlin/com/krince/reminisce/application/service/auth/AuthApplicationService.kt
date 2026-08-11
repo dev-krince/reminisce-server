@@ -3,16 +3,20 @@ package com.krince.reminisce.application.service.auth
 import com.krince.reminisce.application.port.`in`.auth.command.GoogleLoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.KakaoLoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.LogoutCommand
+import com.krince.reminisce.application.port.`in`.auth.command.NaverLoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.ReissueTokenCommand
 import com.krince.reminisce.application.port.`in`.auth.result.TokenResult
 import com.krince.reminisce.application.port.`in`.auth.usecase.GoogleLoginUseCase
 import com.krince.reminisce.application.port.`in`.auth.usecase.KakaoLoginUseCase
 import com.krince.reminisce.application.port.`in`.auth.usecase.LogoutUseCase
+import com.krince.reminisce.application.port.`in`.auth.usecase.NaverLoginUseCase
 import com.krince.reminisce.application.port.`in`.auth.usecase.ReissueTokenUseCase
 import com.krince.reminisce.application.port.out.auth.GoogleOAuthPort
 import com.krince.reminisce.application.port.out.auth.GoogleUserInfo
 import com.krince.reminisce.application.port.out.auth.KakaoOAuthPort
 import com.krince.reminisce.application.port.out.auth.KakaoUserInfo
+import com.krince.reminisce.application.port.out.auth.NaverOAuthPort
+import com.krince.reminisce.application.port.out.auth.NaverUserInfo
 import com.krince.reminisce.application.port.out.auth.RefreshTokenPort
 import com.krince.reminisce.application.port.out.auth.TokenProviderPort
 import com.krince.reminisce.application.port.out.user.CommandUserPort
@@ -35,7 +39,8 @@ class AuthApplicationService(
     private val accessTokenBlacklister: AccessTokenBlacklister,
     private val kakaoOAuthPort: KakaoOAuthPort,
     private val googleOAuthPort: GoogleOAuthPort,
-) : ReissueTokenUseCase, LogoutUseCase, KakaoLoginUseCase, GoogleLoginUseCase {
+    private val naverOAuthPort: NaverOAuthPort,
+) : ReissueTokenUseCase, LogoutUseCase, KakaoLoginUseCase, GoogleLoginUseCase, NaverLoginUseCase {
 
     override fun execute(command: KakaoLoginCommand): TokenResult {
         val kakaoUser: KakaoUserInfo = kakaoOAuthPort.exchangeCodeForUser(command.authorizationCode)
@@ -49,6 +54,14 @@ class AuthApplicationService(
         val googleUser: GoogleUserInfo = googleOAuthPort.exchangeCodeForUser(command.authorizationCode)
         val user: User = loadUserPort.findByProviderAndProviderId(AuthProvider.GOOGLE, googleUser.id)
             ?: registerGoogleUser(googleUser)
+
+        return issueTokens(userId = user.userId.value, role = user.role.value)
+    }
+
+    override fun execute(command: NaverLoginCommand): TokenResult {
+        val naverUser: NaverUserInfo = naverOAuthPort.exchangeCodeForUser(command.authorizationCode, command.state)
+        val user: User = loadUserPort.findByProviderAndProviderId(AuthProvider.NAVER, naverUser.id)
+            ?: registerNaverUser(naverUser)
 
         return issueTokens(userId = user.userId.value, role = user.role.value)
     }
@@ -91,6 +104,16 @@ class AuthApplicationService(
             providerId = googleUser.id,
             email = googleUser.email?.let { Email(it) },
             nickname = Nickname(googleUser.nickname),
+        )
+
+        return commandUserPort.save(user)
+    }
+
+    private fun registerNaverUser(naverUser: NaverUserInfo): User {
+        val user: User = User.naver(
+            providerId = naverUser.id,
+            email = naverUser.email?.let { Email(it) },
+            nickname = Nickname(naverUser.nickname),
         )
 
         return commandUserPort.save(user)

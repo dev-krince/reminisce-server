@@ -41,6 +41,7 @@ class SecurityConfig(
     private val permitAllPostUrls = listOf(
         "/api/auth/tokens/kakao",
         "/api/auth/tokens/google",
+        "/api/auth/tokens/naver",
         "/api/auth/tokens/refresh",
     )
     private val permitAllPutUrls = listOf<String>()

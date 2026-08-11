@@ -3,14 +3,17 @@ package com.krince.reminisce.infra.adapter.`in`.controller
 import com.krince.reminisce.application.port.`in`.auth.command.GoogleLoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.KakaoLoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.LogoutCommand
+import com.krince.reminisce.application.port.`in`.auth.command.NaverLoginCommand
 import com.krince.reminisce.application.port.`in`.auth.command.ReissueTokenCommand
 import com.krince.reminisce.application.port.`in`.auth.result.TokenResult
 import com.krince.reminisce.application.port.`in`.auth.usecase.GoogleLoginUseCase
 import com.krince.reminisce.application.port.`in`.auth.usecase.KakaoLoginUseCase
 import com.krince.reminisce.application.port.`in`.auth.usecase.LogoutUseCase
+import com.krince.reminisce.application.port.`in`.auth.usecase.NaverLoginUseCase
 import com.krince.reminisce.application.port.`in`.auth.usecase.ReissueTokenUseCase
 import com.krince.reminisce.infra.adapter.`in`.dto.auth.request.GoogleLoginRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.auth.request.KakaoLoginRequest
+import com.krince.reminisce.infra.adapter.`in`.dto.auth.request.NaverLoginRequest
 import com.krince.reminisce.shared.exception.UnauthorizedRefreshTokenException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.EMPTY_REFRESH_TOKEN
 import com.krince.reminisce.shared.response.SuccessResponseCode.NO_CONTENT
@@ -31,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController
 class AuthControllerImpl(
     private val kakaoLoginUseCase: KakaoLoginUseCase,
     private val googleLoginUseCase: GoogleLoginUseCase,
+    private val naverLoginUseCase: NaverLoginUseCase,
     private val reissueTokenUseCase: ReissueTokenUseCase,
     private val logoutUseCase: LogoutUseCase,
 ) : AuthController {
@@ -50,6 +54,17 @@ class AuthControllerImpl(
     override fun googleLogin(@Valid @RequestBody request: GoogleLoginRequest): ResponseEntity<Void> {
         val command = GoogleLoginCommand(authorizationCode = request.authorizationCode)
         val result: TokenResult = googleLoginUseCase.execute(command)
+
+        return ResponseEntity.status(OK.code)
+            .header(ACCESS_TOKEN_HEADER_NAME, result.accessToken)
+            .header(REFRESH_TOKEN_HEADER_NAME, result.refreshToken)
+            .build()
+    }
+
+    @PostMapping("/tokens/naver")
+    override fun naverLogin(@Valid @RequestBody request: NaverLoginRequest): ResponseEntity<Void> {
+        val command = NaverLoginCommand(authorizationCode = request.authorizationCode, state = request.state)
+        val result: TokenResult = naverLoginUseCase.execute(command)
 
         return ResponseEntity.status(OK.code)
             .header(ACCESS_TOKEN_HEADER_NAME, result.accessToken)
