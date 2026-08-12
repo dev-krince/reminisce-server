@@ -17,6 +17,7 @@ import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSes
 import com.krince.reminisce.application.port.out.user.CommandUserPort
 import com.krince.reminisce.application.port.out.user.LoadUserPort
 import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
+import com.krince.reminisce.application.port.out.wordbook.CommandSavedWordPort
 import com.krince.reminisce.application.service.auth.AccessTokenBlacklister
 import com.krince.reminisce.domain.model.child.Child
 import com.krince.reminisce.domain.model.child.vo.ChildId
@@ -44,6 +45,7 @@ class WithdrawGuardianApplicationService(
     private val commandReportPort: CommandReportPort,
     private val commandPostActivityResultPort: CommandPostActivityResultPort,
     private val commandUtteranceAnalysisPort: CommandUtteranceAnalysisPort,
+    private val commandSavedWordPort: CommandSavedWordPort,
     private val storeFilePort: StoreFilePort,
     private val refreshTokenPort: RefreshTokenPort,
     private val accessTokenBlacklister: AccessTokenBlacklister,
@@ -70,6 +72,7 @@ class WithdrawGuardianApplicationService(
         }
         val retellingAudioUrls: List<String> = purgeSessionData(childIds)
         commandChildConsentPort.deleteAllByChildIds(childIds)
+        commandSavedWordPort.deleteAllByChildIds(childIds)
         commandChildPort.deleteAllByGuardianId(guardianId)
 
         return retellingAudioUrls
