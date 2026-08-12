@@ -6,18 +6,10 @@ import com.krince.reminisce.application.port.out.child.CommandChildPort
 import com.krince.reminisce.application.port.out.child.LoadChildPort
 import com.krince.reminisce.application.port.out.childconsent.CommandChildConsentPort
 import com.krince.reminisce.application.port.out.file.StoreFilePort
-import com.krince.reminisce.application.port.out.message.CommandMessagePort
-import com.krince.reminisce.application.port.out.message.LoadMessagePort
-import com.krince.reminisce.application.port.out.postactivityresult.CommandPostActivityResultPort
-import com.krince.reminisce.application.port.out.postactivityresult.LoadPostActivityResultPort
-import com.krince.reminisce.application.port.out.report.CommandReportPort
-import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
-import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
 import com.krince.reminisce.application.port.out.user.CommandUserPort
 import com.krince.reminisce.application.port.out.user.LoadUserPort
-import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
-import com.krince.reminisce.application.port.out.wordbook.CommandSavedWordPort
 import com.krince.reminisce.application.service.auth.AccessTokenBlacklister
+import com.krince.reminisce.application.service.child.ChildLearningDataPurger
 import com.krince.reminisce.domain.model.child.Child
 import com.krince.reminisce.domain.model.child.vo.BirthYear
 import com.krince.reminisce.domain.model.child.vo.ChildId
@@ -46,36 +38,20 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
 
     val loadUserPort = mockk<LoadUserPort>()
     val loadChildPort = mockk<LoadChildPort>()
-    val loadSpeakingSessionPort = mockk<LoadSpeakingSessionPort>()
-    val loadMessagePort = mockk<LoadMessagePort>()
-    val loadPostActivityResultPort = mockk<LoadPostActivityResultPort>()
     val commandChildConsentPort = mockk<CommandChildConsentPort>()
     val commandChildPort = mockk<CommandChildPort>()
     val commandUserPort = mockk<CommandUserPort>()
-    val commandSpeakingSessionPort = mockk<CommandSpeakingSessionPort>()
-    val commandMessagePort = mockk<CommandMessagePort>()
-    val commandReportPort = mockk<CommandReportPort>()
-    val commandPostActivityResultPort = mockk<CommandPostActivityResultPort>()
-    val commandUtteranceAnalysisPort = mockk<CommandUtteranceAnalysisPort>()
-    val commandSavedWordPort = mockk<CommandSavedWordPort>()
+    val childLearningDataPurger = mockk<ChildLearningDataPurger>()
     val storeFilePort = mockk<StoreFilePort>()
     val refreshTokenPort = mockk<RefreshTokenPort>()
     val accessTokenBlacklister = mockk<AccessTokenBlacklister>()
     val service = WithdrawGuardianApplicationService(
         loadUserPort = loadUserPort,
         loadChildPort = loadChildPort,
-        loadSpeakingSessionPort = loadSpeakingSessionPort,
-        loadMessagePort = loadMessagePort,
-        loadPostActivityResultPort = loadPostActivityResultPort,
         commandChildConsentPort = commandChildConsentPort,
         commandChildPort = commandChildPort,
         commandUserPort = commandUserPort,
-        commandSpeakingSessionPort = commandSpeakingSessionPort,
-        commandMessagePort = commandMessagePort,
-        commandReportPort = commandReportPort,
-        commandPostActivityResultPort = commandPostActivityResultPort,
-        commandUtteranceAnalysisPort = commandUtteranceAnalysisPort,
-        commandSavedWordPort = commandSavedWordPort,
+        childLearningDataPurger = childLearningDataPurger,
         storeFilePort = storeFilePort,
         refreshTokenPort = refreshTokenPort,
         accessTokenBlacklister = accessTokenBlacklister,
@@ -103,13 +79,12 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
     )
 
     context("하드 삭제 순서·조건") {
-        test("동의→아이→유저 순으로 각 1회 삭제하고 유저를 조회한다") {
+        test("학습데이터 파기→동의→아이→유저 순으로 삭제하고 유저를 조회한다") {
             val children = listOf(child("child-1"), child("child-2"))
             every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns kakaoGuardian()
             every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns children
-            every { loadSpeakingSessionPort.findSessionIdsByChildIds(any()) } returns emptyList()
+            every { childLearningDataPurger.purge(children.map { it.childId }) } returns emptyList()
             every { commandChildConsentPort.deleteAllByChildIds(any()) } returns Unit
-            every { commandSavedWordPort.deleteAllByChildIds(any()) } returns Unit
             every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
             every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
@@ -118,18 +93,18 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
             service.execute(WithdrawGuardianCommand(userId = guardianIdStr, accessToken = null))
 
             verifyOrder {
+                childLearningDataPurger.purge(children.map { it.childId })
                 commandChildConsentPort.deleteAllByChildIds(children.map { it.childId })
-                commandSavedWordPort.deleteAllByChildIds(children.map { it.childId })
                 commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr))
                 commandUserPort.delete(UserId(guardianIdStr))
             }
+            verify(exactly = 1) { childLearningDataPurger.purge(children.map { it.childId }) }
             verify(exactly = 1) { commandChildConsentPort.deleteAllByChildIds(any()) }
-            verify(exactly = 1) { commandSavedWordPort.deleteAllByChildIds(any()) }
             verify(exactly = 1) { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) }
             verify(exactly = 1) { commandUserPort.delete(UserId(guardianIdStr)) }
         }
 
-        test("아이가 없으면 동의 삭제를 호출하지 않고 아이·유저만 삭제한다") {
+        test("아이가 없으면 파기·동의 삭제를 호출하지 않고 아이·유저만 삭제한다") {
             every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns kakaoGuardian()
             every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns emptyList()
             every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
@@ -139,8 +114,8 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
 
             service.execute(WithdrawGuardianCommand(userId = guardianIdStr, accessToken = null))
 
+            verify(exactly = 0) { childLearningDataPurger.purge(any()) }
             verify(exactly = 0) { commandChildConsentPort.deleteAllByChildIds(any()) }
-            verify(exactly = 0) { commandSavedWordPort.deleteAllByChildIds(any()) }
             verify(exactly = 1) { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) }
             verify(exactly = 1) { commandUserPort.delete(UserId(guardianIdStr)) }
         }
@@ -153,31 +128,22 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
             }
 
             exception.exceptionResponseCode shouldBe NOT_FOUND_USER
+            verify(exactly = 0) { childLearningDataPurger.purge(any()) }
             verify(exactly = 0) { commandChildConsentPort.deleteAllByChildIds(any()) }
             verify(exactly = 0) { commandChildPort.deleteAllByGuardianId(any()) }
             verify(exactly = 0) { commandUserPort.delete(any()) }
         }
     }
 
-    context("세션 계열 하드 삭제 조율") {
+    context("학습데이터 파기 위임") {
         val children = listOf(child("child-1"), child("child-2"))
         val childIds = children.map { it.childId }
-        val sessionIds = listOf("session-1", "session-2")
-        val messageIds = listOf("message-1", "message-2")
 
-        test("발화분석→메시지→리포트→후속활동→세션 순으로 leaf→root 삭제하고 세션 계열이 동의·아이보다 먼저 지워진다") {
+        test("아이가 있으면 파기를 아이 식별자 목록으로 위임한다") {
             every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns kakaoGuardian()
             every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns children
-            every { loadSpeakingSessionPort.findSessionIdsByChildIds(childIds) } returns sessionIds
-            every { loadPostActivityResultPort.findRetellingAudioUrlsBySessionIds(sessionIds) } returns emptyList()
-            every { loadMessagePort.findMessageIdsBySessionIds(sessionIds) } returns messageIds
-            every { commandUtteranceAnalysisPort.deleteAllByMessageIds(messageIds) } returns Unit
-            every { commandMessagePort.deleteAllBySessionIds(sessionIds) } returns Unit
-            every { commandReportPort.deleteAllBySessionIds(sessionIds) } returns Unit
-            every { commandPostActivityResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
-            every { commandSpeakingSessionPort.deleteAllByChildIds(childIds) } returns Unit
+            every { childLearningDataPurger.purge(childIds) } returns emptyList()
             every { commandChildConsentPort.deleteAllByChildIds(childIds) } returns Unit
-            every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
             every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
@@ -185,65 +151,10 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
 
             service.execute(WithdrawGuardianCommand(userId = guardianIdStr, accessToken = null))
 
-            verifyOrder {
-                commandUtteranceAnalysisPort.deleteAllByMessageIds(messageIds)
-                commandMessagePort.deleteAllBySessionIds(sessionIds)
-                commandReportPort.deleteAllBySessionIds(sessionIds)
-                commandPostActivityResultPort.deleteAllBySessionIds(sessionIds)
-                commandSpeakingSessionPort.deleteAllByChildIds(childIds)
-                commandChildConsentPort.deleteAllByChildIds(childIds)
-                commandSavedWordPort.deleteAllByChildIds(childIds)
-                commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr))
-                commandUserPort.delete(UserId(guardianIdStr))
-            }
+            verify(exactly = 1) { childLearningDataPurger.purge(childIds) }
         }
 
-        test("세션이 없으면 세션 계열 삭제를 전혀 호출하지 않고 메시지 조회도 하지 않는다") {
-            every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns kakaoGuardian()
-            every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns children
-            every { loadSpeakingSessionPort.findSessionIdsByChildIds(childIds) } returns emptyList()
-            every { commandChildConsentPort.deleteAllByChildIds(childIds) } returns Unit
-            every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
-            every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
-            every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
-            every { refreshTokenPort.delete(guardianIdStr) } returns Unit
-            every { accessTokenBlacklister.blacklist(null) } returns Unit
-
-            service.execute(WithdrawGuardianCommand(userId = guardianIdStr, accessToken = null))
-
-            verify(exactly = 0) { loadMessagePort.findMessageIdsBySessionIds(any()) }
-            verify(exactly = 0) { commandUtteranceAnalysisPort.deleteAllByMessageIds(any()) }
-            verify(exactly = 0) { commandMessagePort.deleteAllBySessionIds(any()) }
-            verify(exactly = 0) { commandReportPort.deleteAllBySessionIds(any()) }
-            verify(exactly = 0) { commandPostActivityResultPort.deleteAllBySessionIds(any()) }
-            verify(exactly = 0) { commandSpeakingSessionPort.deleteAllByChildIds(any()) }
-        }
-
-        test("메시지가 없으면 발화분석 삭제는 건너뛰고 나머지 세션 계열은 삭제한다") {
-            every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns kakaoGuardian()
-            every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns children
-            every { loadSpeakingSessionPort.findSessionIdsByChildIds(childIds) } returns sessionIds
-            every { loadPostActivityResultPort.findRetellingAudioUrlsBySessionIds(sessionIds) } returns emptyList()
-            every { loadMessagePort.findMessageIdsBySessionIds(sessionIds) } returns emptyList()
-            every { commandMessagePort.deleteAllBySessionIds(sessionIds) } returns Unit
-            every { commandReportPort.deleteAllBySessionIds(sessionIds) } returns Unit
-            every { commandPostActivityResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
-            every { commandSpeakingSessionPort.deleteAllByChildIds(childIds) } returns Unit
-            every { commandChildConsentPort.deleteAllByChildIds(childIds) } returns Unit
-            every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
-            every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
-            every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
-            every { refreshTokenPort.delete(guardianIdStr) } returns Unit
-            every { accessTokenBlacklister.blacklist(null) } returns Unit
-
-            service.execute(WithdrawGuardianCommand(userId = guardianIdStr, accessToken = null))
-
-            verify(exactly = 0) { commandUtteranceAnalysisPort.deleteAllByMessageIds(any()) }
-            verify(exactly = 1) { commandMessagePort.deleteAllBySessionIds(sessionIds) }
-            verify(exactly = 1) { commandSpeakingSessionPort.deleteAllByChildIds(childIds) }
-        }
-
-        test("아이가 없으면 세션 조회조차 하지 않는다") {
+        test("아이가 없으면 파기를 호출하지 않는다") {
             every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns kakaoGuardian()
             every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns emptyList()
             every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
@@ -253,8 +164,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
 
             service.execute(WithdrawGuardianCommand(userId = guardianIdStr, accessToken = null))
 
-            verify(exactly = 0) { loadSpeakingSessionPort.findSessionIdsByChildIds(any()) }
-            verify(exactly = 0) { commandSpeakingSessionPort.deleteAllByChildIds(any()) }
+            verify(exactly = 0) { childLearningDataPurger.purge(any()) }
         }
     }
 
@@ -287,21 +197,13 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
     context("커밋 이후 재구성 음성 파일 파기") {
         val children = listOf(child("child-1"), child("child-2"))
         val childIds = children.map { it.childId }
-        val sessionIds = listOf("session-1", "session-2")
         val audioUrls = listOf("/files/retelling-1.m4a", "/files/retelling-2.webm")
 
-        test("탈퇴 시 수집한 재구성 음성 URL마다 storeFilePort.deleteFile을 호출한다") {
+        test("탈퇴 시 파기가 반환한 재구성 음성 URL마다 storeFilePort.deleteFile을 호출한다") {
             every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns kakaoGuardian()
             every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns children
-            every { loadSpeakingSessionPort.findSessionIdsByChildIds(childIds) } returns sessionIds
-            every { loadPostActivityResultPort.findRetellingAudioUrlsBySessionIds(sessionIds) } returns audioUrls
-            every { loadMessagePort.findMessageIdsBySessionIds(sessionIds) } returns emptyList()
-            every { commandMessagePort.deleteAllBySessionIds(sessionIds) } returns Unit
-            every { commandReportPort.deleteAllBySessionIds(sessionIds) } returns Unit
-            every { commandPostActivityResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
-            every { commandSpeakingSessionPort.deleteAllByChildIds(childIds) } returns Unit
+            every { childLearningDataPurger.purge(childIds) } returns audioUrls
             every { commandChildConsentPort.deleteAllByChildIds(childIds) } returns Unit
-            every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
             every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
@@ -314,18 +216,11 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
             verify(exactly = 1) { storeFilePort.deleteFile("/files/retelling-2.webm") }
         }
 
-        test("수집된 재구성 음성 URL이 없으면 deleteFile을 호출하지 않는다") {
+        test("파기가 반환한 재구성 음성 URL이 없으면 deleteFile을 호출하지 않는다") {
             every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns kakaoGuardian()
             every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns children
-            every { loadSpeakingSessionPort.findSessionIdsByChildIds(childIds) } returns sessionIds
-            every { loadPostActivityResultPort.findRetellingAudioUrlsBySessionIds(sessionIds) } returns emptyList()
-            every { loadMessagePort.findMessageIdsBySessionIds(sessionIds) } returns emptyList()
-            every { commandMessagePort.deleteAllBySessionIds(sessionIds) } returns Unit
-            every { commandReportPort.deleteAllBySessionIds(sessionIds) } returns Unit
-            every { commandPostActivityResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
-            every { commandSpeakingSessionPort.deleteAllByChildIds(childIds) } returns Unit
+            every { childLearningDataPurger.purge(childIds) } returns emptyList()
             every { commandChildConsentPort.deleteAllByChildIds(childIds) } returns Unit
-            every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
             every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit

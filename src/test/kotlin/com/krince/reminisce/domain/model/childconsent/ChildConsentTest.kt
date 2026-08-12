@@ -43,4 +43,28 @@ class ChildConsentTest : FunSpec({
             }
         }
     }
+
+    context("withdraw") {
+        val withdrawnAt = LocalDateTime.of(2026, 7, 1, 0, 0)
+
+        test("철회하면 전달한 시각이 withdrawnAt에 담긴다") {
+            val consent = ChildConsent.givenByAuthenticatedParent(childId, consentVersion, consentedAt)
+
+            val withdrawn = consent.withdraw(withdrawnAt)
+
+            withdrawn.withdrawnAt shouldBe withdrawnAt
+        }
+
+        test("철회해도 식별자·아이·버전·동의시각은 그대로 유지한다") {
+            val consent = ChildConsent.givenByAuthenticatedParent(childId, consentVersion, consentedAt)
+
+            val withdrawn = consent.withdraw(withdrawnAt)
+
+            withdrawn.consentId shouldBe consent.consentId
+            withdrawn.childId shouldBe childId
+            withdrawn.consentVersion shouldBe consentVersion
+            withdrawn.verificationMethod shouldBe consent.verificationMethod
+            withdrawn.consentedAt shouldBe consentedAt
+        }
+    }
 })
