@@ -59,6 +59,10 @@ class StoryOrmEntity(
     @Comment("이야기 공개 및 운영 상태")
     val status: String,
 
+    @Column(name = "story_genre")
+    @Comment("이야기 장르 (전래동화·창작동화)")
+    val storyGenre: String? = null,
+
     @Column(name = "post_activity_config", columnDefinition = "text")
     @Convert(converter = PostActivityConfigConverter::class)
     @Comment("말하기 후 활동 설정 (JSON)")

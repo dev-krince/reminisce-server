@@ -20,6 +20,9 @@ class StoryDetailResponse(
     @field:Schema(description = "아이 역할", example = "며느리의 고민을 들어주는 친구", required = false)
     val childRole: String?,
 
+    @field:Schema(description = "이야기 장르", example = "전래동화", required = false)
+    val genre: String?,
+
     @field:Schema(description = "말하기 후 활동 설정", required = false)
     val postActivity: PostActivityResponse?,
 
@@ -33,6 +36,7 @@ fun storyDetailResponse(result: StoryDetailResult): StoryDetailResponse = StoryD
     intro = result.intro,
     situation = result.situation,
     childRole = result.childRole,
+    genre = result.genre,
     postActivity = result.postActivity?.let { postActivityResponse(result = it) },
     scenes = result.scenes.map { sceneResponse(result = it) },
 )

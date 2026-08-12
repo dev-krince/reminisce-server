@@ -9,6 +9,7 @@ import com.krince.reminisce.domain.model.story.VoiceGender
 import com.krince.reminisce.domain.model.story.vo.Difficulty
 import com.krince.reminisce.domain.model.story.vo.SceneId
 import com.krince.reminisce.domain.model.story.vo.SceneType
+import com.krince.reminisce.domain.model.story.vo.StoryGenre
 import com.krince.reminisce.domain.model.story.vo.StoryId
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
 import com.krince.reminisce.domain.model.story.vo.ThinkingElement
@@ -16,6 +17,7 @@ import com.krince.reminisce.infra.adapter.out.persistence.story.SceneRepository
 import com.krince.reminisce.infra.adapter.out.persistence.story.StoryRepository
 import com.krince.reminisce.infra.adapter.out.persistence.story.StoryTopicRepository
 import com.krince.reminisce.infra.adapter.out.persistence.story.dto.StoryAggregateEntity
+import com.krince.reminisce.infra.adapter.out.persistence.story.entity.StoryOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.mapper.StoryMapper
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
@@ -31,15 +33,41 @@ class StoryContentSeeder(
 ) : ApplicationRunner {
 
     override fun run(args: ApplicationArguments) {
-        if (storyRepository.existsById(BANGGUI_STORY_ID)) {
+        val aggregateEntity: StoryAggregateEntity = StoryMapper.toEntity(bangguiStory())
+
+        val existing: StoryOrmEntity? = storyRepository.findById(BANGGUI_STORY_ID).orElse(null)
+        if (existing != null) {
+            backfillGenre(existing, aggregateEntity.storyOrmEntity)
             return
         }
 
-        val aggregateEntity: StoryAggregateEntity = StoryMapper.toEntity(bangguiStory())
         storyRepository.save(aggregateEntity.storyOrmEntity)
         sceneRepository.saveAll(aggregateEntity.sceneOrmEntities)
         storyTopicRepository.saveAll(aggregateEntity.storyTopicOrmEntities)
     }
+
+    private fun backfillGenre(existing: StoryOrmEntity, seeded: StoryOrmEntity) {
+        if (existing.storyGenre != null) {
+            return
+        }
+
+        storyRepository.save(withGenre(existing, seeded.storyGenre))
+    }
+
+    private fun withGenre(source: StoryOrmEntity, storyGenre: String?): StoryOrmEntity = StoryOrmEntity(
+        storyId = source.storyId,
+        title = source.title,
+        summary = source.summary,
+        intro = source.intro,
+        situation = source.situation,
+        childRole = source.childRole,
+        difficulty = source.difficulty,
+        estimatedMinutes = source.estimatedMinutes,
+        representativeImageUrl = source.representativeImageUrl,
+        status = source.status,
+        storyGenre = storyGenre,
+        postActivityConfig = source.postActivityConfig,
+    )
 
     private fun bangguiStory(): Story = Story(
         storyId = StoryId(BANGGUI_STORY_ID),
@@ -54,6 +82,7 @@ class StoryContentSeeder(
         status = StoryStatus.PUBLISHED,
         postActivityConfig = null,
         topics = listOf("다름", "자기이해", "장점 발견"),
+        genre = StoryGenre.FOLKTALE,
         scenes = bangguiScenes(),
     )
 

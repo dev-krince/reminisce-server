@@ -19,6 +19,9 @@ class StorySummaryResponse(
 
     @field:Schema(description = "이야기의 주요 주제", example = "[\"다름\", \"자기이해\"]", required = true)
     val topics: List<String>,
+
+    @field:Schema(description = "이야기 장르", example = "전래동화", required = false)
+    val genre: String?,
 )
 
 fun storySummaryResponse(result: StorySummaryResult): StorySummaryResponse = StorySummaryResponse(
@@ -27,4 +30,5 @@ fun storySummaryResponse(result: StorySummaryResult): StorySummaryResponse = Sto
     representativeImageUrl = result.representativeImageUrl,
     estimatedMinutes = result.estimatedMinutes,
     topics = result.topics,
+    genre = result.genre,
 )

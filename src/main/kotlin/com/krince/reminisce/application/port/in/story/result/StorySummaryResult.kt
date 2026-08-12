@@ -8,6 +8,7 @@ class StorySummaryResult(
     val representativeImageUrl: String?,
     val estimatedMinutes: Int?,
     val topics: List<String>,
+    val genre: String?,
 ) {
     companion object {
         fun from(story: Story): StorySummaryResult = StorySummaryResult(
@@ -16,6 +17,7 @@ class StorySummaryResult(
             representativeImageUrl = story.representativeImageUrl,
             estimatedMinutes = story.estimatedMinutes,
             topics = story.topics,
+            genre = story.genre?.label,
         )
     }
 }

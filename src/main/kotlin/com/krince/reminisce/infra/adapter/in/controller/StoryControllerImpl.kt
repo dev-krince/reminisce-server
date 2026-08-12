@@ -8,6 +8,8 @@ import com.krince.reminisce.application.port.`in`.story.result.StorySummaryResul
 import com.krince.reminisce.application.port.`in`.story.usecase.GetRecommendedStoriesUseCase
 import com.krince.reminisce.application.port.`in`.story.usecase.GetStoriesUseCase
 import com.krince.reminisce.application.port.`in`.story.usecase.GetStoryUseCase
+import com.krince.reminisce.domain.model.story.vo.StoryGenre
+import com.krince.reminisce.domain.model.story.vo.StorySort
 import com.krince.reminisce.infra.adapter.`in`.dto.story.response.StoryDetailResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.story.response.StorySummaryResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.story.response.storyDetailResponse
@@ -37,8 +39,16 @@ class StoryControllerImpl(
     @GetMapping
     override fun getStories(
         @RequestParam(required = false) topic: String?,
+        @RequestParam(required = false) genre: StoryGenre?,
+        @RequestParam(required = false) q: String?,
+        @RequestParam(required = false) sort: StorySort?,
     ): ResponseEntity<SuccessResponse<List<StorySummaryResponse>>> {
-        val command = GetStoriesCommand(topic = topic)
+        val command = GetStoriesCommand(
+            topic = topic,
+            genre = genre,
+            titleKeyword = q,
+            sort = sort ?: StorySort.RECOMMENDED,
+        )
         val results: List<StorySummaryResult> = getStoriesUseCase.execute(command)
         val response: List<StorySummaryResponse> = results.map { storySummaryResponse(result = it) }
         val responseBody: SuccessResponse<List<StorySummaryResponse>> =

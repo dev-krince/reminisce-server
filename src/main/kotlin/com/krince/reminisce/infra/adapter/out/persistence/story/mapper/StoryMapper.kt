@@ -5,6 +5,7 @@ import com.krince.reminisce.domain.model.story.Story
 import com.krince.reminisce.domain.model.story.vo.Difficulty
 import com.krince.reminisce.domain.model.story.vo.SceneId
 import com.krince.reminisce.domain.model.story.vo.SceneType
+import com.krince.reminisce.domain.model.story.vo.StoryGenre
 import com.krince.reminisce.domain.model.story.vo.StoryId
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
 import com.krince.reminisce.infra.adapter.out.persistence.story.dto.StoryAggregateEntity
@@ -30,6 +31,7 @@ object StoryMapper {
             status = StoryStatus.valueOf(storyOrmEntity.status),
             postActivityConfig = storyOrmEntity.postActivityConfig,
             topics = aggregateEntity.storyTopicOrmEntities.map { it.topic },
+            genre = storyOrmEntity.storyGenre?.let { StoryGenre.valueOf(it) },
             scenes = aggregateEntity.sceneOrmEntities.map { toScene(it) },
             createdDate = storyOrmEntity.createdDate,
             modifiedDate = storyOrmEntity.modifiedDate,
@@ -72,6 +74,7 @@ object StoryMapper {
         estimatedMinutes = story.estimatedMinutes?.toShort(),
         representativeImageUrl = story.representativeImageUrl,
         status = story.status.name,
+        storyGenre = story.genre?.name,
         postActivityConfig = story.postActivityConfig,
     ).apply {
         createdDate = story.createdDate

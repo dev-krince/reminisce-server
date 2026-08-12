@@ -1,5 +1,7 @@
 package com.krince.reminisce.infra.adapter.`in`.controller
 
+import com.krince.reminisce.domain.model.story.vo.StoryGenre
+import com.krince.reminisce.domain.model.story.vo.StorySort
 import com.krince.reminisce.infra.adapter.`in`.dto.story.response.StoryDetailResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.story.response.StorySummaryResponse
 import com.krince.reminisce.infra.swagger.ExceptionExample
@@ -26,7 +28,10 @@ import org.springframework.web.bind.annotation.RequestParam
 @Tag(name = "이야기(Stories)")
 interface StoryController {
 
-    @Operation(summary = "이야기 목록 조회", description = "공개된 이야기 목록을 조회합니다. topic 파라미터로 주제 필터링이 가능합니다.")
+    @Operation(
+        summary = "이야기 목록 조회",
+        description = "공개된 이야기 목록을 조회합니다. topic·genre로 필터링하고 q로 제목 부분검색, sort로 정렬합니다.",
+    )
     @SwaggerSuccessResponse(responseCode = OK, description = "이야기 목록 조회 성공")
     @SwaggerExceptionResponse(
         examples = [
@@ -40,6 +45,15 @@ interface StoryController {
         @Parameter(description = "필터링할 주제", example = "다름", required = false)
         @RequestParam(required = false)
         topic: String?,
+        @Parameter(description = "필터링할 장르", example = "FOLKTALE", required = false)
+        @RequestParam(required = false)
+        genre: StoryGenre?,
+        @Parameter(description = "제목 부분검색어", example = "며느리", required = false)
+        @RequestParam(required = false)
+        q: String?,
+        @Parameter(description = "정렬 기준 (미지정 시 RECOMMENDED)", example = "RECOMMENDED", required = false)
+        @RequestParam(required = false)
+        sort: StorySort?,
     ): ResponseEntity<SuccessResponse<List<StorySummaryResponse>>>
 
     @Operation(summary = "이야기 상세 조회", description = "공개된 이야기의 상세 정보와 순서대로 정렬된 장면 목록을 조회합니다.")

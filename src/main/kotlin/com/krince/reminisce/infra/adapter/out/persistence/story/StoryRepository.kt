@@ -7,6 +7,4 @@ interface StoryRepository : JpaRepository<StoryOrmEntity, String> {
     fun findAllByStatus(status: String): List<StoryOrmEntity>
 
     fun findByStoryIdAndStatus(storyId: String, status: String): StoryOrmEntity?
-
-    fun findAllByStoryIdInAndStatus(storyIds: Collection<String>, status: String): List<StoryOrmEntity>
 }

@@ -4,8 +4,6 @@ import com.krince.reminisce.infra.adapter.out.persistence.story.entity.StoryTopi
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface StoryTopicRepository : JpaRepository<StoryTopicOrmEntity, String> {
-    fun findAllByTopic(topic: String): List<StoryTopicOrmEntity>
-
     fun findAllByStoryId(storyId: String): List<StoryTopicOrmEntity>
 
     fun findAllByStoryIdIn(storyIds: Collection<String>): List<StoryTopicOrmEntity>

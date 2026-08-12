@@ -2,7 +2,9 @@ package com.krince.reminisce.infra.adapter.out.persistence.story
 
 import com.krince.reminisce.application.port.out.story.LoadStoryPort
 import com.krince.reminisce.domain.model.story.Story
+import com.krince.reminisce.domain.model.story.vo.StoryGenre
 import com.krince.reminisce.domain.model.story.vo.StoryId
+import com.krince.reminisce.domain.model.story.vo.StorySort
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
 import com.krince.reminisce.infra.adapter.out.persistence.story.dto.StoryAggregateEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.entity.SceneOrmEntity
@@ -16,6 +18,7 @@ class StoryOrmAdapter(
     private val storyRepository: StoryRepository,
     private val sceneRepository: SceneRepository,
     private val storyTopicRepository: StoryTopicRepository,
+    private val storyQueryRepository: StoryQueryRepository,
 ) : LoadStoryPort {
 
     override fun findAllPublished(): List<Story> {
@@ -24,14 +27,17 @@ class StoryOrmAdapter(
         return toSummaryDomains(storyOrmEntities)
     }
 
-    override fun findAllPublishedByTopic(topic: String): List<Story> {
-        val storyIds: List<String> = storyTopicRepository.findAllByTopic(topic).map { it.storyId }.distinct()
-        if (storyIds.isEmpty()) {
-            return emptyList()
-        }
+    override fun findAllPublishedByTopic(topic: String): List<Story> =
+        findPublished(genre = null, topic = topic, titleKeyword = null, sort = StorySort.RECOMMENDED)
 
+    override fun findPublished(
+        genre: StoryGenre?,
+        topic: String?,
+        titleKeyword: String?,
+        sort: StorySort,
+    ): List<Story> {
         val storyOrmEntities: List<StoryOrmEntity> =
-            storyRepository.findAllByStoryIdInAndStatus(storyIds, StoryStatus.PUBLISHED.name)
+            storyQueryRepository.findPublished(genre, topic, titleKeyword, sort)
 
         return toSummaryDomains(storyOrmEntities)
     }

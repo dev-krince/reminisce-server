@@ -2,6 +2,7 @@ package com.krince.reminisce.domain.model.story
 
 import com.krince.reminisce.domain.model.story.vo.Difficulty
 import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
+import com.krince.reminisce.domain.model.story.vo.StoryGenre
 import com.krince.reminisce.domain.model.story.vo.StoryId
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
 import java.time.LocalDateTime
@@ -19,6 +20,7 @@ class Story(
     val status: StoryStatus,
     val postActivityConfig: PostActivityConfig?,
     val topics: List<String>,
+    val genre: StoryGenre? = null,
     scenes: List<Scene>,
     val createdDate: LocalDateTime? = null,
     val modifiedDate: LocalDateTime? = null,

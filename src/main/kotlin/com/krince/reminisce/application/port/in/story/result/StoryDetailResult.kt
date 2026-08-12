@@ -8,6 +8,7 @@ class StoryDetailResult(
     val intro: String,
     val situation: String?,
     val childRole: String?,
+    val genre: String?,
     val postActivity: PostActivityConfigResult?,
     val scenes: List<SceneResult>,
 ) {
@@ -18,6 +19,7 @@ class StoryDetailResult(
             intro = story.intro,
             situation = story.situation,
             childRole = story.childRole,
+            genre = story.genre?.label,
             postActivity = story.postActivityConfig?.let { PostActivityConfigResult.from(it) },
             scenes = story.scenes.map { SceneResult.from(it) },
         )

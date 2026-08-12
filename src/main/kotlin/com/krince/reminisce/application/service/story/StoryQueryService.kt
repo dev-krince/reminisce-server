@@ -20,14 +20,9 @@ class StoryQueryService(
 ) : GetStoriesUseCase, GetStoryUseCase {
 
     @Transactional(readOnly = true)
-    override fun execute(command: GetStoriesCommand): List<StorySummaryResult> {
-        val topic: String? = command.topic
-        if (topic == null) {
-            return loadStoryPort.findAllPublished().map { StorySummaryResult.from(it) }
-        }
-
-        return loadStoryPort.findAllPublishedByTopic(topic).map { StorySummaryResult.from(it) }
-    }
+    override fun execute(command: GetStoriesCommand): List<StorySummaryResult> =
+        loadStoryPort.findPublished(command.genre, command.topic, command.titleKeyword, command.sort)
+            .map { StorySummaryResult.from(it) }
 
     @Transactional(readOnly = true)
     override fun execute(command: GetStoryCommand): StoryDetailResult {
