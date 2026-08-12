@@ -3,6 +3,18 @@ package com.krince.reminisce.infra.adapter.`in`.dto.story.response
 import com.krince.reminisce.application.port.`in`.story.result.SceneResult
 import io.swagger.v3.oas.annotations.media.Schema
 
+@Schema(title = "CharacterVoiceResponse", description = "캐릭터 음성 메타 응답")
+class CharacterVoiceResponse(
+    @field:Schema(description = "성별", example = "FEMALE", required = true)
+    val gender: String,
+
+    @field:Schema(description = "연령대", example = "ADULT", required = true)
+    val ageGroup: String,
+
+    @field:Schema(description = "음성 프로파일 키", example = "young_woman_gentle", required = true)
+    val voiceProfile: String,
+)
+
 @Schema(title = "MissionResponse", description = "장면 미션 응답")
 class MissionResponse(
     @field:Schema(description = "미션 목표", required = true)
@@ -61,6 +73,9 @@ class SceneResponse(
 
     @field:Schema(description = "장면 미션 (DIALOGUE 전용 선택)", required = false)
     val mission: MissionResponse?,
+
+    @field:Schema(description = "캐릭터 음성 메타 (DIALOGUE 전용 선택)", required = false)
+    val characterVoice: CharacterVoiceResponse?,
 )
 
 fun sceneResponse(result: SceneResult): SceneResponse = SceneResponse(
@@ -80,4 +95,7 @@ fun sceneResponse(result: SceneResult): SceneResponse = SceneResponse(
     preferredTurns = result.preferredTurns,
     maxTurns = result.maxTurns,
     mission = result.mission?.let { MissionResponse(goal = it.goal, examples = it.examples) },
+    characterVoice = result.characterVoice?.let {
+        CharacterVoiceResponse(gender = it.gender.name, ageGroup = it.ageGroup.name, voiceProfile = it.voiceProfile)
+    },
 )

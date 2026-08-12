@@ -1,8 +1,11 @@
 package com.krince.reminisce.infra.seed
 
+import com.krince.reminisce.domain.model.story.CharacterVoice
 import com.krince.reminisce.domain.model.story.Mission
 import com.krince.reminisce.domain.model.story.Scene
 import com.krince.reminisce.domain.model.story.Story
+import com.krince.reminisce.domain.model.story.VoiceAgeGroup
+import com.krince.reminisce.domain.model.story.VoiceGender
 import com.krince.reminisce.domain.model.story.vo.Difficulty
 import com.krince.reminisce.domain.model.story.vo.SceneId
 import com.krince.reminisce.domain.model.story.vo.SceneType
@@ -85,6 +88,7 @@ class StoryContentSeeder(
                 ThinkingElement.SOLUTION,
             ),
             maxTurns = 4,
+            characterVoice = DAUGHTER_IN_LAW_VOICE,
         ),
         narrationScene(
             sceneId = "sc_banggui_04",
@@ -109,6 +113,7 @@ class StoryContentSeeder(
                 ThinkingElement.SOLUTION,
             ),
             maxTurns = 5,
+            characterVoice = FATHER_IN_LAW_VOICE,
         ),
         narrationScene(
             sceneId = "sc_banggui_06",
@@ -138,6 +143,7 @@ class StoryContentSeeder(
                 goal = BANGGUI_07_MISSION_GOAL,
                 examples = BANGGUI_07_MISSION_EXAMPLES,
             ),
+            characterVoice = VILLAGE_CHIEF_VOICE,
         ),
         narrationScene(
             sceneId = "sc_banggui_08",
@@ -167,6 +173,7 @@ class StoryContentSeeder(
                 goal = BANGGUI_09_MISSION_GOAL,
                 examples = BANGGUI_09_MISSION_EXAMPLES,
             ),
+            characterVoice = DAUGHTER_IN_LAW_VOICE,
         ),
     )
 
@@ -190,6 +197,7 @@ class StoryContentSeeder(
         requiredElements: List<ThinkingElement>,
         maxTurns: Int,
         mission: Mission? = null,
+        characterVoice: CharacterVoice? = null,
     ): Scene = Scene(
         sceneId = SceneId(sceneId),
         storyId = StoryId(BANGGUI_STORY_ID),
@@ -206,10 +214,31 @@ class StoryContentSeeder(
         preferredTurns = null,
         maxTurns = maxTurns,
         mission = mission,
+        characterVoice = characterVoice,
     )
 
     private companion object {
         const val BANGGUI_STORY_ID = "s_banggui_daughter_in_law_001"
+
+        const val VOICE_PROFILE_YOUNG_WOMAN_GENTLE = "young_woman_gentle"
+        const val VOICE_PROFILE_ELDERLY_MAN_STERN = "elderly_man_stern"
+        const val VOICE_PROFILE_ELDERLY_MAN_WARM = "elderly_man_warm"
+
+        val DAUGHTER_IN_LAW_VOICE = CharacterVoice(
+            gender = VoiceGender.FEMALE,
+            ageGroup = VoiceAgeGroup.ADULT,
+            voiceProfile = VOICE_PROFILE_YOUNG_WOMAN_GENTLE,
+        )
+        val FATHER_IN_LAW_VOICE = CharacterVoice(
+            gender = VoiceGender.MALE,
+            ageGroup = VoiceAgeGroup.ELDER,
+            voiceProfile = VOICE_PROFILE_ELDERLY_MAN_STERN,
+        )
+        val VILLAGE_CHIEF_VOICE = CharacterVoice(
+            gender = VoiceGender.MALE,
+            ageGroup = VoiceAgeGroup.ELDER,
+            voiceProfile = VOICE_PROFILE_ELDERLY_MAN_WARM,
+        )
         const val BANGGUI_INTRO = "옛날 어느 마을에 방귀를 아주 크게 뀌는 며느리가 살았습니다. " +
             "며느리는 시집에 온 뒤로 늘 얌전하고 예의 바르게 보이고 싶었습니다. " +
             "시댁 식구들이 자신을 이상하게 볼까 봐 걱정했기 때문입니다."

@@ -1,7 +1,9 @@
 package com.krince.reminisce.infra.adapter.out.persistence.story.entity
 
+import com.krince.reminisce.domain.model.story.CharacterVoice
 import com.krince.reminisce.domain.model.story.Mission
 import com.krince.reminisce.domain.model.story.vo.ThinkingElement
+import com.krince.reminisce.infra.adapter.out.persistence.story.converter.CharacterVoiceConverter
 import com.krince.reminisce.infra.adapter.out.persistence.story.converter.MissionConverter
 import com.krince.reminisce.infra.adapter.out.persistence.story.converter.RequiredElementsConverter
 import jakarta.persistence.Column
@@ -88,6 +90,11 @@ class SceneOrmEntity(
     @Convert(converter = MissionConverter::class)
     @Comment("장면 미션 메타 (목표·예시 힌트, JSON, DIALOGUE 전용 선택)")
     val mission: Mission? = null,
+
+    @Column(name = "character_voice", columnDefinition = "text")
+    @Convert(converter = CharacterVoiceConverter::class)
+    @Comment("캐릭터 음성 메타 (성별·연령대·프로파일 키, JSON, DIALOGUE 전용 선택)")
+    val characterVoice: CharacterVoice? = null,
 ) {
     @Column(name = "created_date", nullable = false, updatable = false)
     @CreatedDate

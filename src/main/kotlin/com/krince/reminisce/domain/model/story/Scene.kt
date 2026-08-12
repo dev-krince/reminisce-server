@@ -21,6 +21,7 @@ class Scene(
     val preferredTurns: Int? = null,
     val maxTurns: Int? = null,
     val mission: Mission? = null,
+    val characterVoice: CharacterVoice? = null,
 ) {
     init {
         when (sceneType) {
@@ -41,6 +42,7 @@ class Scene(
             preferredTurns,
             maxTurns,
             mission,
+            characterVoice,
         )
 
         require(dialogueOnlyFields.all { it == null }) { "NARRATION 장면은 대화 전용 필드를 가질 수 없습니다" }

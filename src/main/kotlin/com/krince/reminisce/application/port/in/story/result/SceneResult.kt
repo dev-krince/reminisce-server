@@ -1,5 +1,6 @@
 package com.krince.reminisce.application.port.`in`.story.result
 
+import com.krince.reminisce.domain.model.story.CharacterVoice
 import com.krince.reminisce.domain.model.story.Mission
 import com.krince.reminisce.domain.model.story.Scene
 import com.krince.reminisce.domain.model.story.vo.SceneType
@@ -22,6 +23,7 @@ class SceneResult(
     val preferredTurns: Int?,
     val maxTurns: Int?,
     val mission: Mission?,
+    val characterVoice: CharacterVoice?,
 ) {
     companion object {
         fun from(scene: Scene): SceneResult = from(scene, null, null)
@@ -47,6 +49,7 @@ class SceneResult(
             preferredTurns = scene.preferredTurns,
             maxTurns = scene.maxTurns,
             mission = scene.mission,
+            characterVoice = scene.characterVoice,
         )
     }
 }
