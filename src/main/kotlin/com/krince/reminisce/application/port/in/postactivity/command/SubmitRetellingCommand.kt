@@ -4,4 +4,5 @@ data class SubmitRetellingCommand(
     val sessionId: String,
     val guardianId: String,
     val text: String,
+    val retellingAudioUrl: String? = null,
 )

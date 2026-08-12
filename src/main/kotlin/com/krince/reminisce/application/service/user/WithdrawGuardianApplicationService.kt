@@ -6,9 +6,11 @@ import com.krince.reminisce.application.port.out.auth.RefreshTokenPort
 import com.krince.reminisce.application.port.out.child.CommandChildPort
 import com.krince.reminisce.application.port.out.child.LoadChildPort
 import com.krince.reminisce.application.port.out.childconsent.CommandChildConsentPort
+import com.krince.reminisce.application.port.out.file.StoreFilePort
 import com.krince.reminisce.application.port.out.message.CommandMessagePort
 import com.krince.reminisce.application.port.out.message.LoadMessagePort
 import com.krince.reminisce.application.port.out.postactivityresult.CommandPostActivityResultPort
+import com.krince.reminisce.application.port.out.postactivityresult.LoadPostActivityResultPort
 import com.krince.reminisce.application.port.out.report.CommandReportPort
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
@@ -33,6 +35,7 @@ class WithdrawGuardianApplicationService(
     private val loadChildPort: LoadChildPort,
     private val loadSpeakingSessionPort: LoadSpeakingSessionPort,
     private val loadMessagePort: LoadMessagePort,
+    private val loadPostActivityResultPort: LoadPostActivityResultPort,
     private val commandChildConsentPort: CommandChildConsentPort,
     private val commandChildPort: CommandChildPort,
     private val commandUserPort: CommandUserPort,
@@ -41,6 +44,7 @@ class WithdrawGuardianApplicationService(
     private val commandReportPort: CommandReportPort,
     private val commandPostActivityResultPort: CommandPostActivityResultPort,
     private val commandUtteranceAnalysisPort: CommandUtteranceAnalysisPort,
+    private val storeFilePort: StoreFilePort,
     private val refreshTokenPort: RefreshTokenPort,
     private val accessTokenBlacklister: AccessTokenBlacklister,
 ) : WithdrawGuardianUseCase {
@@ -51,27 +55,32 @@ class WithdrawGuardianApplicationService(
         val user: User = loadUserPort.findByUserId(userId)
             ?: throw NotFoundException(NOT_FOUND_USER, NOT_FOUND_USER.message)
 
-        purgeChildData(userId)
+        val retellingAudioUrls: List<String> = purgeChildData(userId)
         commandUserPort.delete(userId)
 
-        registerRedisCleanup(user.userId, command.accessToken)
+        registerAfterCommitCleanup(user.userId, command.accessToken, retellingAudioUrls)
     }
 
-    private fun purgeChildData(guardianId: UserId) {
+    private fun purgeChildData(guardianId: UserId): List<String> {
         val children: List<Child> = loadChildPort.findAllByGuardianId(guardianId)
         val childIds: List<ChildId> = children.map { it.childId }
-        if (childIds.isNotEmpty()) {
-            purgeSessionData(childIds)
-            commandChildConsentPort.deleteAllByChildIds(childIds)
+        if (childIds.isEmpty()) {
+            commandChildPort.deleteAllByGuardianId(guardianId)
+            return emptyList()
         }
+        val retellingAudioUrls: List<String> = purgeSessionData(childIds)
+        commandChildConsentPort.deleteAllByChildIds(childIds)
         commandChildPort.deleteAllByGuardianId(guardianId)
+
+        return retellingAudioUrls
     }
 
-    private fun purgeSessionData(childIds: List<ChildId>) {
+    private fun purgeSessionData(childIds: List<ChildId>): List<String> {
         val sessionIds: List<String> = loadSpeakingSessionPort.findSessionIdsByChildIds(childIds)
         if (sessionIds.isEmpty()) {
-            return
+            return emptyList()
         }
+        val retellingAudioUrls: List<String> = loadPostActivityResultPort.findRetellingAudioUrlsBySessionIds(sessionIds)
         val messageIds: List<String> = loadMessagePort.findMessageIdsBySessionIds(sessionIds)
         if (messageIds.isNotEmpty()) {
             commandUtteranceAnalysisPort.deleteAllByMessageIds(messageIds)
@@ -80,16 +89,24 @@ class WithdrawGuardianApplicationService(
         commandReportPort.deleteAllBySessionIds(sessionIds)
         commandPostActivityResultPort.deleteAllBySessionIds(sessionIds)
         commandSpeakingSessionPort.deleteAllByChildIds(childIds)
+
+        return retellingAudioUrls
     }
 
-    private fun registerRedisCleanup(userId: UserId, accessToken: String?) {
+    private fun registerAfterCommitCleanup(
+        userId: UserId,
+        accessToken: String?,
+        retellingAudioUrls: List<String>,
+    ) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             cleanupSessionState(userId, accessToken)
+            deleteRetellingAudioFiles(retellingAudioUrls)
             return
         }
         TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {
             override fun afterCommit() {
                 cleanupSessionState(userId, accessToken)
+                deleteRetellingAudioFiles(retellingAudioUrls)
             }
         })
     }
@@ -97,5 +114,9 @@ class WithdrawGuardianApplicationService(
     internal fun cleanupSessionState(userId: UserId, accessToken: String?) {
         refreshTokenPort.delete(userId.value)
         accessTokenBlacklister.blacklist(accessToken)
+    }
+
+    internal fun deleteRetellingAudioFiles(retellingAudioUrls: List<String>) {
+        retellingAudioUrls.forEach { storeFilePort.deleteFile(it) }
     }
 }

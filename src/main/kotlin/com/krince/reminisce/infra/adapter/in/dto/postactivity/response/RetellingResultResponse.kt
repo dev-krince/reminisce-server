@@ -9,6 +9,9 @@ data class RetellingResultResponse(
     @field:Schema(description = "재구성 발화 텍스트", required = true)
     val retellingText: String,
 
+    @field:Schema(description = "재구성 녹음 음성 파일 URL. 음성이 제출되지 않으면 null")
+    val retellingAudioUrl: String?,
+
     @field:Schema(description = "완료 일시", required = true)
     val completedAt: LocalDateTime,
 
@@ -18,6 +21,7 @@ data class RetellingResultResponse(
 
 fun retellingResultResponse(result: RetellingResult): RetellingResultResponse = RetellingResultResponse(
     retellingText = result.retellingText,
+    retellingAudioUrl = result.retellingAudioUrl,
     completedAt = result.completedAt,
     status = result.status.name,
 )

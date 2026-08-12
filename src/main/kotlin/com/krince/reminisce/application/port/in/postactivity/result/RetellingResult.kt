@@ -5,6 +5,7 @@ import java.time.LocalDateTime
 
 data class RetellingResult(
     val retellingText: String,
+    val retellingAudioUrl: String?,
     val completedAt: LocalDateTime,
     val status: SessionStatus,
 )

@@ -23,6 +23,7 @@ import com.krince.reminisce.application.port.`in`.speakingsession.usecase.Advanc
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GetResumableSessionsUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GetSpeakingSessionViewUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.StartSpeakingSessionUseCase
+import com.krince.reminisce.application.port.out.file.StoreFilePort
 import com.krince.reminisce.infra.adapter.`in`.dto.message.request.SubmitUtteranceRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.message.response.UtteranceResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.message.response.utteranceResponse
@@ -48,6 +49,7 @@ import com.krince.reminisce.shared.response.SuccessResponseCode.CREATED
 import com.krince.reminisce.shared.response.SuccessResponseCode.OK
 import com.krince.reminisce.shared.response.successResponse
 import jakarta.validation.Valid
+import org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
@@ -57,7 +59,9 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.multipart.MultipartFile
 
 @Validated
 @RestController
@@ -71,6 +75,7 @@ class SpeakingSessionControllerImpl(
     private val submitCardOrderUseCase: SubmitCardOrderUseCase,
     private val submitRetellingUseCase: SubmitRetellingUseCase,
     private val getSessionReportUseCase: GetSessionReportUseCase,
+    private val storeFilePort: StoreFilePort,
 ) : SpeakingSessionController {
 
     @PostMapping
@@ -167,18 +172,26 @@ class SpeakingSessionControllerImpl(
         return ResponseEntity.status(responseBody.code).body(responseBody)
     }
 
-    @PostMapping("/{sessionId}/post-activity/retelling")
+    @PostMapping("/{sessionId}/post-activity/retelling", consumes = [MULTIPART_FORM_DATA_VALUE])
     override fun submitRetelling(
         @PathVariable sessionId: String,
-        @Valid @RequestBody request: SubmitRetellingRequest,
+        @Valid @RequestPart("request") request: SubmitRetellingRequest,
+        @RequestPart("audio", required = false) audio: MultipartFile?,
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<RetellingResultResponse>> {
+        val retellingAudioUrl: String? = audio?.let { storeFilePort.saveAudioOrThrows(it) }
         val command = SubmitRetellingCommand(
             sessionId = sessionId,
             guardianId = userDetails.getId(),
             text = request.text,
+            retellingAudioUrl = retellingAudioUrl,
         )
-        val result: RetellingResult = submitRetellingUseCase.execute(command)
+        val result: RetellingResult = try {
+            submitRetellingUseCase.execute(command)
+        } catch (exception: Exception) {
+            retellingAudioUrl?.let { storeFilePort.deleteFile(it) }
+            throw exception
+        }
         val response: RetellingResultResponse = retellingResultResponse(result)
         val responseBody: SuccessResponse<RetellingResultResponse> =
             successResponse(responseCode = OK, data = response)

@@ -48,10 +48,15 @@ class SubmitRetellingApplicationService(
         val transcript: String = command.text.trim()
 
         val now: LocalDateTime = LocalDateTime.now(clock)
-        commandPostActivityResultPort.save(existing.completeWith(transcript, now))
+        commandPostActivityResultPort.save(existing.completeWith(transcript, command.retellingAudioUrl, now))
         commandSpeakingSessionPort.save(session.complete(now))
 
-        return RetellingResult(retellingText = transcript, completedAt = now, status = SessionStatus.COMPLETED)
+        return RetellingResult(
+            retellingText = transcript,
+            retellingAudioUrl = command.retellingAudioUrl,
+            completedAt = now,
+            status = SessionStatus.COMPLETED,
+        )
     }
 
     private fun loadOwnedSession(sessionId: String, guardianId: String): SpeakingSession {

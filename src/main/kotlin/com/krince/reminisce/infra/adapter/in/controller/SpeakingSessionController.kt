@@ -37,6 +37,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RequestPart
+import org.springframework.web.multipart.MultipartFile
 
 @Tag(name = "말하기 세션(SpeakingSessions)")
 interface SpeakingSessionController {
@@ -167,7 +169,7 @@ interface SpeakingSessionController {
 
     @Operation(
         summary = "이야기 재구성 발화 제출",
-        description = "로그인한 보호자가 본인 아이의 POST_ACTIVITY 세션에서 카드 순서를 정답으로 맞춘 뒤 기기 STT로 확정한 아이의 재구성 발화 텍스트를 제출합니다. 재구성 텍스트를 저장하고 세션을 완료 처리합니다.",
+        description = "로그인한 보호자가 본인 아이의 POST_ACTIVITY 세션에서 카드 순서를 정답으로 맞춘 뒤 재구성 발화를 제출합니다. multipart/form-data로 request 파트(JSON: 기기 STT로 확정한 재구성 발화 텍스트)와 선택 audio 파트(재구성 녹음 음성 파일)를 받습니다. 재구성 텍스트와 음성 URL을 저장하고 세션을 완료 처리합니다. audio 파트가 없으면 음성 URL은 null입니다.",
     )
     @SwaggerSuccessResponse(responseCode = OK, description = "재구성 발화 제출 성공")
     @SwaggerExceptionResponse(
@@ -183,7 +185,8 @@ interface SpeakingSessionController {
     )
     fun submitRetelling(
         @Parameter(description = "말하기 세션 고유 식별자", required = true) @PathVariable sessionId: String,
-        @Valid @RequestBody request: SubmitRetellingRequest,
+        @Valid @RequestPart("request") request: SubmitRetellingRequest,
+        @RequestPart("audio", required = false) audio: MultipartFile?,
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<RetellingResultResponse>>
 
