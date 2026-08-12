@@ -5,4 +5,6 @@ import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
 
 interface LoadPostActivityResultPort {
     fun findBySession(sessionId: SpeakingSessionId): PostActivityResult?
+
+    fun findRetellingAudioUrlsBySessionIds(sessionIds: List<String>): List<String>
 }

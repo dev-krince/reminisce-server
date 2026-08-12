@@ -43,6 +43,10 @@ class PostActivityResultOrmEntity(
     @Comment("재구성 발화 텍스트")
     val retellingText: String? = null,
 
+    @Column(name = "retelling_audio_url", columnDefinition = "text", nullable = true)
+    @Comment("재구성 녹음 음성 파일 URL")
+    val retellingAudioUrl: String? = null,
+
     @Column(name = "completed_at", nullable = true)
     @Comment("완료 시각")
     val completedAt: LocalDateTime? = null,

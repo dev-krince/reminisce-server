@@ -26,6 +26,14 @@ class PostActivityResultOrmAdapter(
         return PostActivityResultMapper.toDomain(ormEntity)
     }
 
+    override fun findRetellingAudioUrlsBySessionIds(sessionIds: List<String>): List<String> {
+        if (sessionIds.isEmpty()) {
+            return emptyList()
+        }
+
+        return repository.findRetellingAudioUrlsBySessionIdIn(sessionIds)
+    }
+
     override fun deleteAllBySessionIds(sessionIds: List<String>) {
         if (sessionIds.isEmpty()) {
             return
