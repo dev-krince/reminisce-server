@@ -26,6 +26,7 @@ import io.kotest.matchers.shouldBe
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import java.time.Clock
 import java.time.Instant
@@ -64,8 +65,15 @@ class SubmitRetellingApplicationServiceTest : FunSpec({
     val validText = "방귀쟁이 며느리는 시아버지 덕분에 방귀를 뀔 수 있었어요"
     val transcript = "방귀쟁이 며느리는 시아버지 덕분에 방귀를 뀔 수 있었어요"
 
-    fun command(text: String = validText): SubmitRetellingCommand =
-        SubmitRetellingCommand(sessionId = sessionIdStr, guardianId = guardianIdStr, text = text)
+    val audioUrl = "/files/retelling-audio-uuid.m4a"
+
+    fun command(text: String = validText, retellingAudioUrl: String? = null): SubmitRetellingCommand =
+        SubmitRetellingCommand(
+            sessionId = sessionIdStr,
+            guardianId = guardianIdStr,
+            text = text,
+            retellingAudioUrl = retellingAudioUrl,
+        )
 
     fun session(status: SessionStatus = SessionStatus.POST_ACTIVITY): SpeakingSession = SpeakingSession(
         sessionId = SpeakingSessionId(sessionIdStr),
@@ -165,18 +173,42 @@ class SubmitRetellingApplicationServiceTest : FunSpec({
     context("성공") {
         test("POST_ACTIVITY·정답결과·유효 text이면 completeWith·complete로 2회 저장하고 status=COMPLETED를 반환한다") {
             val existingResult = savedResult(isOrderCorrect = true)
+            val savedSlot = slot<PostActivityResult>()
             every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session()
             every { childAccessPort.findGuardianId(childId) } returns guardianId
             every {
                 loadPostActivityResultPort.findBySession(SpeakingSessionId(sessionIdStr))
             } returns existingResult
-            every { commandPostActivityResultPort.save(any()) } answers { firstArg() }
+            every { commandPostActivityResultPort.save(capture(savedSlot)) } answers { firstArg() }
             every { commandSpeakingSessionPort.save(any()) } answers { firstArg() }
 
             val result = service.execute(command())
 
             result.retellingText shouldBe transcript
+            result.retellingAudioUrl shouldBe null
             result.status shouldBe SessionStatus.COMPLETED
+            savedSlot.captured.retellingAudioUrl shouldBe null
+            verify(exactly = 1) { commandPostActivityResultPort.save(any()) }
+            verify(exactly = 1) { commandSpeakingSessionPort.save(any()) }
+        }
+
+        test("retellingAudioUrl이 주어지면 PostActivityResult에 그 URL을 저장하고 응답에 노출한다") {
+            val existingResult = savedResult(isOrderCorrect = true)
+            val savedSlot = slot<PostActivityResult>()
+            every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session()
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every {
+                loadPostActivityResultPort.findBySession(SpeakingSessionId(sessionIdStr))
+            } returns existingResult
+            every { commandPostActivityResultPort.save(capture(savedSlot)) } answers { firstArg() }
+            every { commandSpeakingSessionPort.save(any()) } answers { firstArg() }
+
+            val result = service.execute(command(retellingAudioUrl = audioUrl))
+
+            result.retellingText shouldBe transcript
+            result.retellingAudioUrl shouldBe audioUrl
+            result.status shouldBe SessionStatus.COMPLETED
+            savedSlot.captured.retellingAudioUrl shouldBe audioUrl
             verify(exactly = 1) { commandPostActivityResultPort.save(any()) }
             verify(exactly = 1) { commandSpeakingSessionPort.save(any()) }
         }

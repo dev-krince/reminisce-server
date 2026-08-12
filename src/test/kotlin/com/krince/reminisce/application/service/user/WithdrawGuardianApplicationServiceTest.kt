@@ -5,9 +5,11 @@ import com.krince.reminisce.application.port.out.auth.RefreshTokenPort
 import com.krince.reminisce.application.port.out.child.CommandChildPort
 import com.krince.reminisce.application.port.out.child.LoadChildPort
 import com.krince.reminisce.application.port.out.childconsent.CommandChildConsentPort
+import com.krince.reminisce.application.port.out.file.StoreFilePort
 import com.krince.reminisce.application.port.out.message.CommandMessagePort
 import com.krince.reminisce.application.port.out.message.LoadMessagePort
 import com.krince.reminisce.application.port.out.postactivityresult.CommandPostActivityResultPort
+import com.krince.reminisce.application.port.out.postactivityresult.LoadPostActivityResultPort
 import com.krince.reminisce.application.port.out.report.CommandReportPort
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
@@ -45,6 +47,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
     val loadChildPort = mockk<LoadChildPort>()
     val loadSpeakingSessionPort = mockk<LoadSpeakingSessionPort>()
     val loadMessagePort = mockk<LoadMessagePort>()
+    val loadPostActivityResultPort = mockk<LoadPostActivityResultPort>()
     val commandChildConsentPort = mockk<CommandChildConsentPort>()
     val commandChildPort = mockk<CommandChildPort>()
     val commandUserPort = mockk<CommandUserPort>()
@@ -53,6 +56,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
     val commandReportPort = mockk<CommandReportPort>()
     val commandPostActivityResultPort = mockk<CommandPostActivityResultPort>()
     val commandUtteranceAnalysisPort = mockk<CommandUtteranceAnalysisPort>()
+    val storeFilePort = mockk<StoreFilePort>()
     val refreshTokenPort = mockk<RefreshTokenPort>()
     val accessTokenBlacklister = mockk<AccessTokenBlacklister>()
     val service = WithdrawGuardianApplicationService(
@@ -60,6 +64,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
         loadChildPort = loadChildPort,
         loadSpeakingSessionPort = loadSpeakingSessionPort,
         loadMessagePort = loadMessagePort,
+        loadPostActivityResultPort = loadPostActivityResultPort,
         commandChildConsentPort = commandChildConsentPort,
         commandChildPort = commandChildPort,
         commandUserPort = commandUserPort,
@@ -68,6 +73,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
         commandReportPort = commandReportPort,
         commandPostActivityResultPort = commandPostActivityResultPort,
         commandUtteranceAnalysisPort = commandUtteranceAnalysisPort,
+        storeFilePort = storeFilePort,
         refreshTokenPort = refreshTokenPort,
         accessTokenBlacklister = accessTokenBlacklister,
     )
@@ -156,6 +162,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
             every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns kakaoGuardian()
             every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns children
             every { loadSpeakingSessionPort.findSessionIdsByChildIds(childIds) } returns sessionIds
+            every { loadPostActivityResultPort.findRetellingAudioUrlsBySessionIds(sessionIds) } returns emptyList()
             every { loadMessagePort.findMessageIdsBySessionIds(sessionIds) } returns messageIds
             every { commandUtteranceAnalysisPort.deleteAllByMessageIds(messageIds) } returns Unit
             every { commandMessagePort.deleteAllBySessionIds(sessionIds) } returns Unit
@@ -206,6 +213,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
             every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns kakaoGuardian()
             every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns children
             every { loadSpeakingSessionPort.findSessionIdsByChildIds(childIds) } returns sessionIds
+            every { loadPostActivityResultPort.findRetellingAudioUrlsBySessionIds(sessionIds) } returns emptyList()
             every { loadMessagePort.findMessageIdsBySessionIds(sessionIds) } returns emptyList()
             every { commandMessagePort.deleteAllBySessionIds(sessionIds) } returns Unit
             every { commandReportPort.deleteAllBySessionIds(sessionIds) } returns Unit
@@ -262,6 +270,68 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
 
             verify(exactly = 1) { refreshTokenPort.delete(guardianIdStr) }
             verify(exactly = 1) { accessTokenBlacklister.blacklist(null) }
+        }
+    }
+
+    context("커밋 이후 재구성 음성 파일 파기") {
+        val children = listOf(child("child-1"), child("child-2"))
+        val childIds = children.map { it.childId }
+        val sessionIds = listOf("session-1", "session-2")
+        val audioUrls = listOf("/files/retelling-1.m4a", "/files/retelling-2.webm")
+
+        test("탈퇴 시 수집한 재구성 음성 URL마다 storeFilePort.deleteFile을 호출한다") {
+            every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns kakaoGuardian()
+            every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns children
+            every { loadSpeakingSessionPort.findSessionIdsByChildIds(childIds) } returns sessionIds
+            every { loadPostActivityResultPort.findRetellingAudioUrlsBySessionIds(sessionIds) } returns audioUrls
+            every { loadMessagePort.findMessageIdsBySessionIds(sessionIds) } returns emptyList()
+            every { commandMessagePort.deleteAllBySessionIds(sessionIds) } returns Unit
+            every { commandReportPort.deleteAllBySessionIds(sessionIds) } returns Unit
+            every { commandPostActivityResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
+            every { commandSpeakingSessionPort.deleteAllByChildIds(childIds) } returns Unit
+            every { commandChildConsentPort.deleteAllByChildIds(childIds) } returns Unit
+            every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
+            every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
+            every { refreshTokenPort.delete(guardianIdStr) } returns Unit
+            every { accessTokenBlacklister.blacklist(null) } returns Unit
+            every { storeFilePort.deleteFile(any()) } returns Unit
+
+            service.execute(WithdrawGuardianCommand(userId = guardianIdStr, accessToken = null))
+
+            verify(exactly = 1) { storeFilePort.deleteFile("/files/retelling-1.m4a") }
+            verify(exactly = 1) { storeFilePort.deleteFile("/files/retelling-2.webm") }
+        }
+
+        test("수집된 재구성 음성 URL이 없으면 deleteFile을 호출하지 않는다") {
+            every { loadUserPort.findByUserId(UserId(guardianIdStr)) } returns kakaoGuardian()
+            every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns children
+            every { loadSpeakingSessionPort.findSessionIdsByChildIds(childIds) } returns sessionIds
+            every { loadPostActivityResultPort.findRetellingAudioUrlsBySessionIds(sessionIds) } returns emptyList()
+            every { loadMessagePort.findMessageIdsBySessionIds(sessionIds) } returns emptyList()
+            every { commandMessagePort.deleteAllBySessionIds(sessionIds) } returns Unit
+            every { commandReportPort.deleteAllBySessionIds(sessionIds) } returns Unit
+            every { commandPostActivityResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
+            every { commandSpeakingSessionPort.deleteAllByChildIds(childIds) } returns Unit
+            every { commandChildConsentPort.deleteAllByChildIds(childIds) } returns Unit
+            every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
+            every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
+            every { refreshTokenPort.delete(guardianIdStr) } returns Unit
+            every { accessTokenBlacklister.blacklist(null) } returns Unit
+
+            service.execute(WithdrawGuardianCommand(userId = guardianIdStr, accessToken = null))
+
+            verify(exactly = 0) { storeFilePort.deleteFile(any()) }
+        }
+
+        test("deleteRetellingAudioFiles는 유효 URL마다 순서대로 deleteFile에 위임한다") {
+            every { storeFilePort.deleteFile(any()) } returns Unit
+
+            service.deleteRetellingAudioFiles(audioUrls)
+
+            verifyOrder {
+                storeFilePort.deleteFile("/files/retelling-1.m4a")
+                storeFilePort.deleteFile("/files/retelling-2.webm")
+            }
         }
     }
 })

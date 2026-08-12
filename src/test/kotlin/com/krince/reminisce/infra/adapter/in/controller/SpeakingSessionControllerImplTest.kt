@@ -36,8 +36,11 @@ import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.restassured.RestAssured
+import io.restassured.builder.MultiPartSpecBuilder
 import io.restassured.http.ContentType
 import io.restassured.parsing.Parser
+import io.restassured.specification.MultiPartSpecification
+import java.nio.charset.StandardCharsets
 import org.hamcrest.Matchers.empty
 import org.hamcrest.Matchers.emptyOrNullString
 import org.hamcrest.Matchers.equalTo
@@ -1436,8 +1439,64 @@ class SpeakingSessionControllerImplTest(
         val wrongOrderPayload = listOf("card-c", "card-b", "card-a")
         val validText = "방귀쟁이 며느리는 시아버지 덕분에 방귀를 뀔 수 있었어요"
 
+        fun requestPart(text: String): MultiPartSpecification =
+            MultiPartSpecBuilder("""{"text":"$text"}""".toByteArray(StandardCharsets.UTF_8))
+                .controlName("request")
+                .mimeType("application/json")
+                .charset(StandardCharsets.UTF_8)
+                .build()
+
         context("성공") {
-            test("POST_ACTIVITY 세션에서 카드 정답 제출 후 재구성 발화 제출하면 200·retellingText·completedAt 세팅·세션 COMPLETED를 반환한다") {
+            test("POST_ACTIVITY 세션에서 카드 정답 제출 후 재구성 음성과 함께 제출하면 200·retellingAudioUrl non-null·세션 COMPLETED를 반환하고 URL이 저장된다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId, postActivityConfig = testConfig))
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, status = SessionStatus.POST_ACTIVITY),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("order" to correctOrderPayload))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/post-activity/card-order")
+                    .then()
+                    .statusCode(200)
+                    .body("data.isOrderCorrect", equalTo(true))
+
+                val storedAudioUrl = RestAssured.given()
+                    .header("Authorization", token)
+                    .multiPart(requestPart(validText))
+                    .multiPart("audio", "retelling.m4a", "audio-bytes".toByteArray(), "audio/mp4")
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/post-activity/retelling")
+                    .then()
+                    .statusCode(200)
+                    .body("success", equalTo(true))
+                    .body("code", equalTo(200))
+                    .body("data.retellingText", equalTo(validText))
+                    .body("data.retellingAudioUrl", not(emptyOrNullString()))
+                    .body("data.completedAt", not(emptyOrNullString()))
+                    .body("data.status", equalTo(SessionStatus.COMPLETED.name))
+                    .extract()
+                    .path<String>("data.retellingAudioUrl")
+
+                storedAudioUrl.startsWith("/files/") shouldBe true
+
+                val storedResult = testPostActivityResultFixture.findBySessionId(sessionId)
+                storedResult?.retellingText shouldBe validText
+                storedResult?.retellingAudioUrl shouldBe storedAudioUrl
+                storedResult?.completedAt shouldNotBe null
+
+                val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
+                storedSession?.status shouldBe SessionStatus.COMPLETED.name
+            }
+
+            test("음성 없이 재구성 텍스트만 제출하면 200·retellingAudioUrl null·세션 COMPLETED를 반환하고 URL이 null로 저장된다") {
                 val (guardianId, token) = authorizedGuardian()
                 val childId = "child-${uniqueSuffix()}"
                 val storyId = "story-${uniqueSuffix()}"
@@ -1460,20 +1519,19 @@ class SpeakingSessionControllerImplTest(
 
                 RestAssured.given()
                     .header("Authorization", token)
-                    .contentType(ContentType.JSON)
-                    .body(mapOf("text" to validText))
+                    .multiPart(requestPart(validText))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/post-activity/retelling")
                     .then()
                     .statusCode(200)
-                    .body("success", equalTo(true))
-                    .body("code", equalTo(200))
                     .body("data.retellingText", equalTo(validText))
+                    .body("data.retellingAudioUrl", nullValue())
                     .body("data.completedAt", not(emptyOrNullString()))
                     .body("data.status", equalTo(SessionStatus.COMPLETED.name))
 
                 val storedResult = testPostActivityResultFixture.findBySessionId(sessionId)
                 storedResult?.retellingText shouldBe validText
+                storedResult?.retellingAudioUrl shouldBe null
                 storedResult?.completedAt shouldNotBe null
 
                 val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
@@ -1495,8 +1553,7 @@ class SpeakingSessionControllerImplTest(
 
                 RestAssured.given()
                     .header("Authorization", token)
-                    .contentType(ContentType.JSON)
-                    .body(mapOf("text" to validText))
+                    .multiPart(requestPart(validText))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/post-activity/retelling")
                     .then()
@@ -1532,8 +1589,7 @@ class SpeakingSessionControllerImplTest(
 
                 RestAssured.given()
                     .header("Authorization", token)
-                    .contentType(ContentType.JSON)
-                    .body(mapOf("text" to validText))
+                    .multiPart(requestPart(validText))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/post-activity/retelling")
                     .then()
@@ -1567,8 +1623,7 @@ class SpeakingSessionControllerImplTest(
 
                 RestAssured.given()
                     .header("Authorization", token)
-                    .contentType(ContentType.JSON)
-                    .body(mapOf("text" to "   "))
+                    .multiPart(requestPart("   "))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/post-activity/retelling")
                     .then()
@@ -1579,6 +1634,7 @@ class SpeakingSessionControllerImplTest(
 
                 val storedResult = testPostActivityResultFixture.findBySessionId(sessionId)
                 storedResult?.retellingText shouldBe null
+                storedResult?.retellingAudioUrl shouldBe null
                 storedResult?.completedAt shouldBe null
 
                 val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
@@ -1600,8 +1656,7 @@ class SpeakingSessionControllerImplTest(
 
                 RestAssured.given()
                     .header("Authorization", token)
-                    .contentType(ContentType.JSON)
-                    .body(mapOf("text" to validText))
+                    .multiPart(requestPart(validText))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/post-activity/retelling")
                     .then()
@@ -1614,8 +1669,7 @@ class SpeakingSessionControllerImplTest(
 
                 RestAssured.given()
                     .header("Authorization", token)
-                    .contentType(ContentType.JSON)
-                    .body(mapOf("text" to validText))
+                    .multiPart(requestPart(validText))
                     .`when`()
                     .post("/speaking-sessions/missing-${uniqueSuffix()}/post-activity/retelling")
                     .then()
@@ -1625,8 +1679,7 @@ class SpeakingSessionControllerImplTest(
 
             test("토큰이 없으면 401과 EMPTY_TOKEN을 반환한다") {
                 RestAssured.given()
-                    .contentType(ContentType.JSON)
-                    .body(mapOf("text" to validText))
+                    .multiPart(requestPart(validText))
                     .`when`()
                     .post("/speaking-sessions/any-session/post-activity/retelling")
                     .then()

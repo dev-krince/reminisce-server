@@ -2,7 +2,9 @@ package com.krince.reminisce.infra.adapter.out
 
 import com.krince.reminisce.infra.config.properties.FileStorageProperties
 import com.krince.reminisce.shared.exception.BadRequestException
+import com.krince.reminisce.shared.response.ExceptionResponseCode.INVALID_FILE_EXTENSION
 import com.krince.reminisce.shared.response.ExceptionResponseCode.INVALID_MULTIPART_FILE
+import com.krince.reminisce.shared.response.ExceptionResponseCode.REQUIRE_FILE_EXTENSION
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.annotation.DisplayName
 import io.kotest.core.annotation.Tags
@@ -82,6 +84,77 @@ class FileAdapterTest : FunSpec({
                 val ex = shouldThrow<BadRequestException> { adapter.saveImageOrThrows(null) }
 
                 ex.exceptionResponseCode shouldBe INVALID_MULTIPART_FILE
+                Files.deleteIfExists(Paths.get(storagePath))
+            }
+        }
+    }
+
+    context("saveAudioOrThrows") {
+        context("성공") {
+            test("유효한 오디오 파일이면 저장 후 /files/ URL을 반환하고 실제 파일이 생성된다") {
+                val storagePath = Files.createTempDirectory("fileadapter").toString()
+                val props = FileStorageProperties(path = storagePath, cachePeriod = 3600)
+                val adapter = FileAdapter(props)
+                val file = MockMultipartFile(
+                    "audio",
+                    "retelling.m4a",
+                    "audio/mp4",
+                    "audio-content".toByteArray()
+                )
+
+                val result = adapter.saveAudioOrThrows(file)
+
+                result.shouldStartWith("/files/")
+                result.shouldEndWith(".m4a")
+                val fileName = result.removePrefix("/files/")
+                Files.exists(Paths.get(storagePath, fileName)) shouldBe true
+                Files.deleteIfExists(Paths.get(storagePath, fileName))
+                Files.deleteIfExists(Paths.get(storagePath))
+            }
+        }
+        context("실패") {
+            test("file이 null이면 INVALID_MULTIPART_FILE 예외를 던진다") {
+                val storagePath = Files.createTempDirectory("fileadapter").toString()
+                val props = FileStorageProperties(path = storagePath, cachePeriod = 3600)
+                val adapter = FileAdapter(props)
+
+                val ex = shouldThrow<BadRequestException> { adapter.saveAudioOrThrows(null) }
+
+                ex.exceptionResponseCode shouldBe INVALID_MULTIPART_FILE
+                Files.deleteIfExists(Paths.get(storagePath))
+            }
+
+            test("확장자가 없으면 REQUIRE_FILE_EXTENSION 예외를 던진다") {
+                val storagePath = Files.createTempDirectory("fileadapter").toString()
+                val props = FileStorageProperties(path = storagePath, cachePeriod = 3600)
+                val adapter = FileAdapter(props)
+                val file = MockMultipartFile(
+                    "audio",
+                    "retelling",
+                    "audio/mp4",
+                    "audio-content".toByteArray()
+                )
+
+                val ex = shouldThrow<BadRequestException> { adapter.saveAudioOrThrows(file) }
+
+                ex.exceptionResponseCode shouldBe REQUIRE_FILE_EXTENSION
+                Files.deleteIfExists(Paths.get(storagePath))
+            }
+
+            test("허용되지 않은 확장자면 INVALID_FILE_EXTENSION 예외를 던진다") {
+                val storagePath = Files.createTempDirectory("fileadapter").toString()
+                val props = FileStorageProperties(path = storagePath, cachePeriod = 3600)
+                val adapter = FileAdapter(props)
+                val file = MockMultipartFile(
+                    "audio",
+                    "retelling.png",
+                    "image/png",
+                    "audio-content".toByteArray()
+                )
+
+                val ex = shouldThrow<BadRequestException> { adapter.saveAudioOrThrows(file) }
+
+                ex.exceptionResponseCode shouldBe INVALID_FILE_EXTENSION
                 Files.deleteIfExists(Paths.get(storagePath))
             }
         }
