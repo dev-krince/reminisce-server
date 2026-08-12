@@ -7,18 +7,10 @@ import com.krince.reminisce.application.port.out.child.CommandChildPort
 import com.krince.reminisce.application.port.out.child.LoadChildPort
 import com.krince.reminisce.application.port.out.childconsent.CommandChildConsentPort
 import com.krince.reminisce.application.port.out.file.StoreFilePort
-import com.krince.reminisce.application.port.out.message.CommandMessagePort
-import com.krince.reminisce.application.port.out.message.LoadMessagePort
-import com.krince.reminisce.application.port.out.postactivityresult.CommandPostActivityResultPort
-import com.krince.reminisce.application.port.out.postactivityresult.LoadPostActivityResultPort
-import com.krince.reminisce.application.port.out.report.CommandReportPort
-import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
-import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
 import com.krince.reminisce.application.port.out.user.CommandUserPort
 import com.krince.reminisce.application.port.out.user.LoadUserPort
-import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
-import com.krince.reminisce.application.port.out.wordbook.CommandSavedWordPort
 import com.krince.reminisce.application.service.auth.AccessTokenBlacklister
+import com.krince.reminisce.application.service.child.ChildLearningDataPurger
 import com.krince.reminisce.domain.model.child.Child
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.user.User
@@ -34,18 +26,10 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 class WithdrawGuardianApplicationService(
     private val loadUserPort: LoadUserPort,
     private val loadChildPort: LoadChildPort,
-    private val loadSpeakingSessionPort: LoadSpeakingSessionPort,
-    private val loadMessagePort: LoadMessagePort,
-    private val loadPostActivityResultPort: LoadPostActivityResultPort,
     private val commandChildConsentPort: CommandChildConsentPort,
     private val commandChildPort: CommandChildPort,
     private val commandUserPort: CommandUserPort,
-    private val commandSpeakingSessionPort: CommandSpeakingSessionPort,
-    private val commandMessagePort: CommandMessagePort,
-    private val commandReportPort: CommandReportPort,
-    private val commandPostActivityResultPort: CommandPostActivityResultPort,
-    private val commandUtteranceAnalysisPort: CommandUtteranceAnalysisPort,
-    private val commandSavedWordPort: CommandSavedWordPort,
+    private val childLearningDataPurger: ChildLearningDataPurger,
     private val storeFilePort: StoreFilePort,
     private val refreshTokenPort: RefreshTokenPort,
     private val accessTokenBlacklister: AccessTokenBlacklister,
@@ -70,28 +54,9 @@ class WithdrawGuardianApplicationService(
             commandChildPort.deleteAllByGuardianId(guardianId)
             return emptyList()
         }
-        val retellingAudioUrls: List<String> = purgeSessionData(childIds)
+        val retellingAudioUrls: List<String> = childLearningDataPurger.purge(childIds)
         commandChildConsentPort.deleteAllByChildIds(childIds)
-        commandSavedWordPort.deleteAllByChildIds(childIds)
         commandChildPort.deleteAllByGuardianId(guardianId)
-
-        return retellingAudioUrls
-    }
-
-    private fun purgeSessionData(childIds: List<ChildId>): List<String> {
-        val sessionIds: List<String> = loadSpeakingSessionPort.findSessionIdsByChildIds(childIds)
-        if (sessionIds.isEmpty()) {
-            return emptyList()
-        }
-        val retellingAudioUrls: List<String> = loadPostActivityResultPort.findRetellingAudioUrlsBySessionIds(sessionIds)
-        val messageIds: List<String> = loadMessagePort.findMessageIdsBySessionIds(sessionIds)
-        if (messageIds.isNotEmpty()) {
-            commandUtteranceAnalysisPort.deleteAllByMessageIds(messageIds)
-        }
-        commandMessagePort.deleteAllBySessionIds(sessionIds)
-        commandReportPort.deleteAllBySessionIds(sessionIds)
-        commandPostActivityResultPort.deleteAllBySessionIds(sessionIds)
-        commandSpeakingSessionPort.deleteAllByChildIds(childIds)
 
         return retellingAudioUrls
     }
