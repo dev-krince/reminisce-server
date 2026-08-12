@@ -16,6 +16,7 @@ import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSes
 import com.krince.reminisce.application.port.out.user.CommandUserPort
 import com.krince.reminisce.application.port.out.user.LoadUserPort
 import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
+import com.krince.reminisce.application.port.out.wordbook.CommandSavedWordPort
 import com.krince.reminisce.application.service.auth.AccessTokenBlacklister
 import com.krince.reminisce.domain.model.child.Child
 import com.krince.reminisce.domain.model.child.vo.BirthYear
@@ -56,6 +57,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
     val commandReportPort = mockk<CommandReportPort>()
     val commandPostActivityResultPort = mockk<CommandPostActivityResultPort>()
     val commandUtteranceAnalysisPort = mockk<CommandUtteranceAnalysisPort>()
+    val commandSavedWordPort = mockk<CommandSavedWordPort>()
     val storeFilePort = mockk<StoreFilePort>()
     val refreshTokenPort = mockk<RefreshTokenPort>()
     val accessTokenBlacklister = mockk<AccessTokenBlacklister>()
@@ -73,6 +75,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
         commandReportPort = commandReportPort,
         commandPostActivityResultPort = commandPostActivityResultPort,
         commandUtteranceAnalysisPort = commandUtteranceAnalysisPort,
+        commandSavedWordPort = commandSavedWordPort,
         storeFilePort = storeFilePort,
         refreshTokenPort = refreshTokenPort,
         accessTokenBlacklister = accessTokenBlacklister,
@@ -106,6 +109,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
             every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns children
             every { loadSpeakingSessionPort.findSessionIdsByChildIds(any()) } returns emptyList()
             every { commandChildConsentPort.deleteAllByChildIds(any()) } returns Unit
+            every { commandSavedWordPort.deleteAllByChildIds(any()) } returns Unit
             every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
             every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
@@ -115,10 +119,12 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
 
             verifyOrder {
                 commandChildConsentPort.deleteAllByChildIds(children.map { it.childId })
+                commandSavedWordPort.deleteAllByChildIds(children.map { it.childId })
                 commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr))
                 commandUserPort.delete(UserId(guardianIdStr))
             }
             verify(exactly = 1) { commandChildConsentPort.deleteAllByChildIds(any()) }
+            verify(exactly = 1) { commandSavedWordPort.deleteAllByChildIds(any()) }
             verify(exactly = 1) { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) }
             verify(exactly = 1) { commandUserPort.delete(UserId(guardianIdStr)) }
         }
@@ -134,6 +140,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
             service.execute(WithdrawGuardianCommand(userId = guardianIdStr, accessToken = null))
 
             verify(exactly = 0) { commandChildConsentPort.deleteAllByChildIds(any()) }
+            verify(exactly = 0) { commandSavedWordPort.deleteAllByChildIds(any()) }
             verify(exactly = 1) { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) }
             verify(exactly = 1) { commandUserPort.delete(UserId(guardianIdStr)) }
         }
@@ -170,6 +177,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
             every { commandPostActivityResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
             every { commandSpeakingSessionPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandChildConsentPort.deleteAllByChildIds(childIds) } returns Unit
+            every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
             every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
@@ -184,6 +192,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
                 commandPostActivityResultPort.deleteAllBySessionIds(sessionIds)
                 commandSpeakingSessionPort.deleteAllByChildIds(childIds)
                 commandChildConsentPort.deleteAllByChildIds(childIds)
+                commandSavedWordPort.deleteAllByChildIds(childIds)
                 commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr))
                 commandUserPort.delete(UserId(guardianIdStr))
             }
@@ -194,6 +203,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
             every { loadChildPort.findAllByGuardianId(UserId(guardianIdStr)) } returns children
             every { loadSpeakingSessionPort.findSessionIdsByChildIds(childIds) } returns emptyList()
             every { commandChildConsentPort.deleteAllByChildIds(childIds) } returns Unit
+            every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
             every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
@@ -220,6 +230,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
             every { commandPostActivityResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
             every { commandSpeakingSessionPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandChildConsentPort.deleteAllByChildIds(childIds) } returns Unit
+            every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
             every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
@@ -290,6 +301,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
             every { commandPostActivityResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
             every { commandSpeakingSessionPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandChildConsentPort.deleteAllByChildIds(childIds) } returns Unit
+            every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
             every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
@@ -313,6 +325,7 @@ class WithdrawGuardianApplicationServiceTest : FunSpec({
             every { commandPostActivityResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
             every { commandSpeakingSessionPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandChildConsentPort.deleteAllByChildIds(childIds) } returns Unit
+            every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandChildPort.deleteAllByGuardianId(UserId(guardianIdStr)) } returns Unit
             every { commandUserPort.delete(UserId(guardianIdStr)) } returns Unit
             every { refreshTokenPort.delete(guardianIdStr) } returns Unit
