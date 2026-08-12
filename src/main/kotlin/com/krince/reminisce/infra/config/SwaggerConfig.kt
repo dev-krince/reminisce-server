@@ -65,13 +65,13 @@ class SwaggerConfig(
                 .url("http://localhost:8080")
                 .description("로컬 서버"),
             Server()
-                .url("https://test.pcntv.net:8070")
+                .url("https://test.pcntv.net:53143")
                 .description("개발 서버"),
             Server()
-                .url("https://test.pcntv.net:8060")
+                .url("https://test.pcntv.net:53144")
                 .description("스테이징 서버"),
             Server()
-                .url("https://test.pcntv.net:8050")
+                .url("https://test.pcntv.net:53145")
                 .description("운영 서버"),
         )
     }
