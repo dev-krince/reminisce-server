@@ -6,6 +6,7 @@ import com.krince.reminisce.domain.model.story.VoiceAgeGroup
 import com.krince.reminisce.domain.model.story.VoiceGender
 import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.SceneType
+import com.krince.reminisce.domain.model.story.vo.StoryGenre
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
 import com.krince.reminisce.domain.model.story.vo.ThinkingElement
 import com.krince.reminisce.infra.adapter.out.persistence.child.entity.ChildOrmEntity
@@ -79,9 +80,11 @@ class StoryControllerImplTest(
         childRole: String? = null,
         postActivityConfig: PostActivityConfig? = null,
         difficulty: String = "보통",
+        title: String = "제목-$storyId",
+        storyGenre: String? = null,
     ): StoryOrmEntity = StoryOrmEntity(
         storyId = storyId,
-        title = "제목-$storyId",
+        title = title,
         summary = "요약-$storyId",
         intro = "도입-$storyId",
         situation = situation,
@@ -90,6 +93,7 @@ class StoryControllerImplTest(
         estimatedMinutes = 20,
         representativeImageUrl = "/files/$storyId.png",
         status = status,
+        storyGenre = storyGenre,
         postActivityConfig = postActivityConfig,
     )
 
@@ -260,6 +264,195 @@ class StoryControllerImplTest(
                     .body("data", hasSize<Any>(1))
                     .body("data[0].storyId", equalTo(matchedId))
                     .body("data[0].topics", contains("다름"))
+            }
+
+            test("topic 파라미터가 빈 값이면 그 빈 주제를 가진 이야기가 없어 빈 목록을 반환한다") {
+                val token = authorizedToken()
+                val publishedId = "empty-topic-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(publishedId))
+                testStoryFixture.saveTopic(topicEntity(publishedId, "다름"))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("topic", "")
+                    .`when`()
+                    .get("/stories")
+                    .then()
+                    .statusCode(200)
+                    .body("success", equalTo(true))
+                    .body("data", hasSize<Any>(0))
+            }
+
+            test("genre로 필터하면 그 장르 공개 이야기만 반환하고 장르 라벨을 노출한다") {
+                val token = authorizedToken()
+                val folktaleId = "folktale-${uniqueSuffix()}"
+                val creativeId = "creative-${uniqueSuffix()}"
+                val genrelessId = "genreless-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(folktaleId, storyGenre = StoryGenre.FOLKTALE.name))
+                testStoryFixture.saveStory(storyEntity(creativeId, storyGenre = StoryGenre.CREATIVE.name))
+                testStoryFixture.saveStory(storyEntity(genrelessId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("genre", StoryGenre.FOLKTALE.name)
+                    .`when`()
+                    .get("/stories")
+                    .then()
+                    .statusCode(200)
+                    .body("success", equalTo(true))
+                    .body("data", hasSize<Any>(1))
+                    .body("data[0].storyId", equalTo(folktaleId))
+                    .body("data[0].genre", equalTo("전래동화"))
+            }
+
+            test("장르가 없는 이야기는 genre가 null로 응답된다") {
+                val token = authorizedToken()
+                val genrelessId = "genreless-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(genrelessId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/stories")
+                    .then()
+                    .statusCode(200)
+                    .body("data", hasSize<Any>(1))
+                    .body("data[0].storyId", equalTo(genrelessId))
+                    .body("data[0].genre", nullValue())
+            }
+
+            test("q로 제목 일부를 검색하면 대소문자 무시로 매칭되는 공개 이야기만 반환한다") {
+                val token = authorizedToken()
+                val matchedId = "qmatch-${uniqueSuffix()}"
+                val unmatchedId = "qmiss-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(matchedId, title = "Banggui 며느리 이야기"))
+                testStoryFixture.saveStory(storyEntity(unmatchedId, title = "다른 이야기"))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("q", "banggui")
+                    .`when`()
+                    .get("/stories")
+                    .then()
+                    .statusCode(200)
+                    .body("data", hasSize<Any>(1))
+                    .body("data[0].storyId", equalTo(matchedId))
+            }
+
+            test("sort=DIFFICULTY로 조회하면 난이도 오름차순으로 정렬된다") {
+                val token = authorizedToken()
+                val hardId = "hard-${uniqueSuffix()}"
+                val easyId = "easy-${uniqueSuffix()}"
+                val midId = "mid-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(hardId, difficulty = "다"))
+                testStoryFixture.saveStory(storyEntity(easyId, difficulty = "가"))
+                testStoryFixture.saveStory(storyEntity(midId, difficulty = "나"))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("sort", "DIFFICULTY")
+                    .`when`()
+                    .get("/stories")
+                    .then()
+                    .statusCode(200)
+                    .body("data", hasSize<Any>(3))
+                    .body("data.storyId", contains(easyId, midId, hardId))
+            }
+
+            test("sort=LATEST로 조회하면 최신 생성 순으로 정렬된다") {
+                val token = authorizedToken()
+                val firstId = "first-${uniqueSuffix()}"
+                val secondId = "second-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(firstId))
+                Thread.sleep(10)
+                testStoryFixture.saveStory(storyEntity(secondId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("sort", "LATEST")
+                    .`when`()
+                    .get("/stories")
+                    .then()
+                    .statusCode(200)
+                    .body("data", hasSize<Any>(2))
+                    .body("data.storyId", contains(secondId, firstId))
+            }
+
+            test("sort=RECOMMENDED로 조회하면 생성 오름차순(기본순)으로 정렬된다") {
+                val token = authorizedToken()
+                val firstId = "rec-first-${uniqueSuffix()}"
+                val secondId = "rec-second-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(firstId))
+                Thread.sleep(10)
+                testStoryFixture.saveStory(storyEntity(secondId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("sort", "RECOMMENDED")
+                    .`when`()
+                    .get("/stories")
+                    .then()
+                    .statusCode(200)
+                    .body("data", hasSize<Any>(2))
+                    .body("data.storyId", contains(firstId, secondId))
+            }
+
+            test("sort 미지정이면 RECOMMENDED(생성 오름차순) 순서로 정렬된다") {
+                val token = authorizedToken()
+                val firstId = "default-first-${uniqueSuffix()}"
+                val secondId = "default-second-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(firstId))
+                Thread.sleep(10)
+                testStoryFixture.saveStory(storyEntity(secondId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/stories")
+                    .then()
+                    .statusCode(200)
+                    .body("data", hasSize<Any>(2))
+                    .body("data.storyId", contains(firstId, secondId))
+            }
+
+            test("genre·q·topic을 함께 주면 모두 만족하는 공개 이야기만 반환한다") {
+                val token = authorizedToken()
+                val targetId = "combo-target-${uniqueSuffix()}"
+                val wrongGenreId = "combo-genre-${uniqueSuffix()}"
+                val wrongTopicId = "combo-topic-${uniqueSuffix()}"
+                testStoryFixture.saveStory(
+                    storyEntity(targetId, title = "용감한 며느리", storyGenre = StoryGenre.FOLKTALE.name),
+                )
+                testStoryFixture.saveStory(
+                    storyEntity(wrongGenreId, title = "용감한 며느리", storyGenre = StoryGenre.CREATIVE.name),
+                )
+                testStoryFixture.saveStory(
+                    storyEntity(wrongTopicId, title = "용감한 며느리", storyGenre = StoryGenre.FOLKTALE.name),
+                )
+                testStoryFixture.saveTopic(topicEntity(targetId, "용기"))
+                testStoryFixture.saveTopic(topicEntity(wrongGenreId, "용기"))
+                testStoryFixture.saveTopic(topicEntity(wrongTopicId, "다름"))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("genre", StoryGenre.FOLKTALE.name)
+                    .queryParam("q", "며느리")
+                    .queryParam("topic", "용기")
+                    .`when`()
+                    .get("/stories")
+                    .then()
+                    .statusCode(200)
+                    .body("data", hasSize<Any>(1))
+                    .body("data[0].storyId", equalTo(targetId))
             }
         }
         context("예외케이스") {

@@ -9,7 +9,9 @@ import com.krince.reminisce.domain.model.story.vo.Difficulty
 import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.SceneId
 import com.krince.reminisce.domain.model.story.vo.SceneType
+import com.krince.reminisce.domain.model.story.vo.StoryGenre
 import com.krince.reminisce.domain.model.story.vo.StoryId
+import com.krince.reminisce.domain.model.story.vo.StorySort
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
 import com.krince.reminisce.domain.model.story.vo.ThinkingElement
 import com.krince.reminisce.shared.exception.NotFoundException
@@ -78,15 +80,20 @@ class StoryQueryServiceTest : FunSpec({
         status = StoryStatus.PUBLISHED,
         postActivityConfig = postActivityConfig,
         topics = listOf("다름", "자기이해"),
+        genre = StoryGenre.FOLKTALE,
         scenes = scenes,
     )
 
     context("GetStoriesUseCase") {
         context("성공") {
-            test("topic이 없으면 전체 공개 이야기를 요약 결과로 반환한다") {
-                every { loadStoryPort.findAllPublished() } returns listOf(story(scenes = emptyList()))
+            test("파라미터 미지정이면 필터 없이 RECOMMENDED로 전체 공개 이야기를 요약 결과로 반환한다") {
+                every {
+                    loadStoryPort.findPublished(null, null, null, StorySort.RECOMMENDED)
+                } returns listOf(story(scenes = emptyList()))
 
-                val results = service.execute(GetStoriesCommand(topic = null))
+                val results = service.execute(
+                    GetStoriesCommand(topic = null, genre = null, titleKeyword = null, sort = StorySort.RECOMMENDED),
+                )
 
                 results shouldHaveSize 1
                 results.first().storyId shouldBe storyIdStr
@@ -94,25 +101,84 @@ class StoryQueryServiceTest : FunSpec({
                 results.first().representativeImageUrl shouldBe "/files/story.png"
                 results.first().estimatedMinutes shouldBe 20
                 results.first().topics shouldContainExactly listOf("다름", "자기이해")
-                verify(exactly = 1) { loadStoryPort.findAllPublished() }
-                verify(exactly = 0) { loadStoryPort.findAllPublishedByTopic(any()) }
+                results.first().genre shouldBe "전래동화"
+                verify(exactly = 1) { loadStoryPort.findPublished(null, null, null, StorySort.RECOMMENDED) }
             }
 
-            test("topic이 있으면 주제 필터 조회 결과만 반환한다") {
-                every { loadStoryPort.findAllPublishedByTopic("다름") } returns listOf(story(scenes = emptyList()))
+            test("genre만 지정하면 genre 인자로 findPublished에 위임한다") {
+                every {
+                    loadStoryPort.findPublished(StoryGenre.FOLKTALE, null, null, StorySort.RECOMMENDED)
+                } returns listOf(story(scenes = emptyList()))
 
-                val results = service.execute(GetStoriesCommand(topic = "다름"))
+                val results = service.execute(
+                    GetStoriesCommand(
+                        topic = null,
+                        genre = StoryGenre.FOLKTALE,
+                        titleKeyword = null,
+                        sort = StorySort.RECOMMENDED,
+                    ),
+                )
 
                 results shouldHaveSize 1
-                results.first().storyId shouldBe storyIdStr
-                verify(exactly = 1) { loadStoryPort.findAllPublishedByTopic("다름") }
-                verify(exactly = 0) { loadStoryPort.findAllPublished() }
+                verify(exactly = 1) {
+                    loadStoryPort.findPublished(StoryGenre.FOLKTALE, null, null, StorySort.RECOMMENDED)
+                }
+            }
+
+            test("q(제목검색어)를 titleKeyword 인자로 findPublished에 위임한다") {
+                every {
+                    loadStoryPort.findPublished(null, null, "며느리", StorySort.RECOMMENDED)
+                } returns listOf(story(scenes = emptyList()))
+
+                val results = service.execute(
+                    GetStoriesCommand(topic = null, genre = null, titleKeyword = "며느리", sort = StorySort.RECOMMENDED),
+                )
+
+                results shouldHaveSize 1
+                verify(exactly = 1) { loadStoryPort.findPublished(null, null, "며느리", StorySort.RECOMMENDED) }
+            }
+
+            test("topic을 topic 인자로 findPublished에 위임한다") {
+                every {
+                    loadStoryPort.findPublished(null, "다름", null, StorySort.RECOMMENDED)
+                } returns listOf(story(scenes = emptyList()))
+
+                val results = service.execute(
+                    GetStoriesCommand(topic = "다름", genre = null, titleKeyword = null, sort = StorySort.RECOMMENDED),
+                )
+
+                results shouldHaveSize 1
+                verify(exactly = 1) { loadStoryPort.findPublished(null, "다름", null, StorySort.RECOMMENDED) }
+            }
+
+            test("genre·q·topic·sort를 모두 담아 그대로 findPublished에 위임한다") {
+                every {
+                    loadStoryPort.findPublished(StoryGenre.CREATIVE, "용기", "곰", StorySort.LATEST)
+                } returns listOf(story(scenes = emptyList()))
+
+                val results = service.execute(
+                    GetStoriesCommand(
+                        topic = "용기",
+                        genre = StoryGenre.CREATIVE,
+                        titleKeyword = "곰",
+                        sort = StorySort.LATEST,
+                    ),
+                )
+
+                results shouldHaveSize 1
+                verify(exactly = 1) {
+                    loadStoryPort.findPublished(StoryGenre.CREATIVE, "용기", "곰", StorySort.LATEST)
+                }
             }
 
             test("공개 이야기가 없으면 빈 목록을 반환한다") {
-                every { loadStoryPort.findAllPublished() } returns emptyList()
+                every {
+                    loadStoryPort.findPublished(null, null, null, StorySort.RECOMMENDED)
+                } returns emptyList()
 
-                val results = service.execute(GetStoriesCommand(topic = null))
+                val results = service.execute(
+                    GetStoriesCommand(topic = null, genre = null, titleKeyword = null, sort = StorySort.RECOMMENDED),
+                )
 
                 results shouldHaveSize 0
             }
