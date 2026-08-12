@@ -17,6 +17,17 @@ class ChildConsent(
     val createdDate: LocalDateTime? = null,
     val modifiedDate: LocalDateTime? = null,
 ) {
+    fun withdraw(at: LocalDateTime): ChildConsent = ChildConsent(
+        consentId = consentId,
+        childId = childId,
+        consentVersion = consentVersion,
+        verificationMethod = verificationMethod,
+        consentedAt = consentedAt,
+        withdrawnAt = at,
+        createdDate = createdDate,
+        modifiedDate = modifiedDate,
+    )
+
     companion object {
         fun givenByAuthenticatedParent(
             childId: ChildId,

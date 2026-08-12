@@ -23,6 +23,10 @@ class ChildConsentOrmAdapter(
     override fun existsActiveByChildId(childId: ChildId): Boolean =
         repository.existsByChildIdAndWithdrawnAtIsNull(childId.value)
 
+    override fun findActiveByChildId(childId: ChildId): ChildConsent? =
+        repository.findFirstByChildIdAndWithdrawnAtIsNull(childId.value)
+            ?.let { ChildConsentMapper.toDomain(it) }
+
     override fun deleteAllByChildIds(childIds: List<ChildId>) {
         repository.deleteAllByChildIdIn(childIds.map { it.value })
     }
