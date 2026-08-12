@@ -1,8 +1,11 @@
 package com.krince.reminisce.infra.adapter.out.persistence.story.mapper
 
+import com.krince.reminisce.domain.model.story.CharacterVoice
 import com.krince.reminisce.domain.model.story.Mission
 import com.krince.reminisce.domain.model.story.Scene
 import com.krince.reminisce.domain.model.story.Story
+import com.krince.reminisce.domain.model.story.VoiceAgeGroup
+import com.krince.reminisce.domain.model.story.VoiceGender
 import com.krince.reminisce.domain.model.story.vo.Difficulty
 import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.SceneId
@@ -83,6 +86,24 @@ class StoryMapperTest : FunSpec({
         requiredElements = listOf(ThinkingElement.PERSPECTIVE, ThinkingElement.EMOTION),
         preferredTurns = null,
         maxTurns = 4,
+    )
+
+    fun dialogueEntityWithCharacterVoice(sceneId: String, sceneOrder: Short, characterVoice: CharacterVoice): SceneOrmEntity = SceneOrmEntity(
+        sceneId = sceneId,
+        storyId = storyIdStr,
+        sceneOrder = sceneOrder,
+        sceneType = "DIALOGUE",
+        sceneDescription = "대화 설명 $sceneOrder",
+        characterName = "ch_banggui_daughter_in_law",
+        characterDisplayName = "방귀쟁이 며느리",
+        characterOpening = "고정 첫 대사",
+        characterClosing = "고정 마지막 대사",
+        conflict = null,
+        sceneGoal = "장면 발화 목표",
+        requiredElements = listOf(ThinkingElement.PERSPECTIVE, ThinkingElement.EMOTION),
+        preferredTurns = null,
+        maxTurns = 4,
+        characterVoice = characterVoice,
     )
 
     context("toDomain") {
@@ -176,6 +197,23 @@ class StoryMapperTest : FunSpec({
 
                 dialogue.mission shouldBe mission
             }
+
+            test("음성 메타가 있는 대화 장면 엔티티의 characterVoice를 도메인으로 옮긴다") {
+                val voice = CharacterVoice(
+                    gender = VoiceGender.FEMALE,
+                    ageGroup = VoiceAgeGroup.ADULT,
+                    voiceProfile = "young_woman_gentle",
+                )
+                val aggregateEntity = StoryAggregateEntity(
+                    storyOrmEntity = storyOrmEntity(),
+                    sceneOrmEntities = listOf(dialogueEntityWithCharacterVoice("sc-3", 3, voice)),
+                    storyTopicOrmEntities = emptyList(),
+                )
+
+                val dialogue = StoryMapper.toDomain(aggregateEntity).scenes.first()
+
+                dialogue.characterVoice shouldBe voice
+            }
         }
     }
 
@@ -251,6 +289,7 @@ class StoryMapperTest : FunSpec({
                 savedScenes[1].preferredTurns shouldBe null
                 savedScenes[1].maxTurns shouldBe 5.toShort()
                 savedScenes[1].mission shouldBe null
+                savedScenes[1].characterVoice shouldBe null
 
                 val savedTopics = aggregateEntity.storyTopicOrmEntities
                 savedTopics.map { it.topic } shouldContainExactly listOf("다름", "자기이해")
@@ -317,6 +356,23 @@ class StoryMapperTest : FunSpec({
                 val restored = StoryMapper.toEntity(StoryMapper.toDomain(aggregateEntity))
 
                 restored.sceneOrmEntities.first().mission shouldBe mission
+            }
+
+            test("음성 메타가 있는 대화 장면도 toDomain 후 toEntity 하면 characterVoice가 보존된다") {
+                val voice = CharacterVoice(
+                    gender = VoiceGender.FEMALE,
+                    ageGroup = VoiceAgeGroup.ADULT,
+                    voiceProfile = "young_woman_gentle",
+                )
+                val aggregateEntity = StoryAggregateEntity(
+                    storyOrmEntity = storyOrmEntity(),
+                    sceneOrmEntities = listOf(dialogueEntityWithCharacterVoice("sc-3", 3, voice)),
+                    storyTopicOrmEntities = emptyList(),
+                )
+
+                val restored = StoryMapper.toEntity(StoryMapper.toDomain(aggregateEntity))
+
+                restored.sceneOrmEntities.first().characterVoice shouldBe voice
             }
         }
     }

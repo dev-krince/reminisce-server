@@ -1,6 +1,9 @@
 package com.krince.reminisce.infra.adapter.`in`.controller
 
+import com.krince.reminisce.domain.model.story.CharacterVoice
 import com.krince.reminisce.domain.model.story.Mission
+import com.krince.reminisce.domain.model.story.VoiceAgeGroup
+import com.krince.reminisce.domain.model.story.VoiceGender
 import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
@@ -162,6 +165,30 @@ class StoryControllerImplTest(
         preferredTurns = null,
         maxTurns = 5,
         mission = mission,
+    )
+
+    fun dialogueEntityWithCharacterVoice(
+        storyId: String,
+        sceneOrder: Short,
+        characterName: String,
+        characterDisplayName: String,
+        characterVoice: CharacterVoice,
+    ): SceneOrmEntity = SceneOrmEntity(
+        sceneId = "sc-$sceneOrder-$storyId",
+        storyId = storyId,
+        sceneOrder = sceneOrder,
+        sceneType = SceneType.DIALOGUE.name,
+        sceneDescription = "대화 설명 $sceneOrder",
+        characterName = characterName,
+        characterDisplayName = characterDisplayName,
+        characterOpening = "고정 첫 대사 $sceneOrder",
+        characterClosing = "고정 마지막 대사 $sceneOrder",
+        conflict = null,
+        sceneGoal = "장면 발화 목표 $sceneOrder",
+        requiredElements = listOf(ThinkingElement.PERSPECTIVE, ThinkingElement.EMOTION),
+        preferredTurns = null,
+        maxTurns = 4,
+        characterVoice = characterVoice,
     )
 
     fun topicEntity(storyId: String, topic: String): StoryTopicOrmEntity = StoryTopicOrmEntity(
@@ -342,6 +369,67 @@ class StoryControllerImplTest(
                     .body("data.scenes[0].mission", nullValue())
                     .body("data.scenes[1].mission.goal", equalTo("높은 배나무의 배를 떨어뜨리기 위해 며느리의 방귀를 안전하게 사용할 수 있는 방법 찾기"))
                     .body("data.scenes[1].mission.examples", contains("무엇을 사용할 것인지", "주변 사람들과 시아버지는 어디로 피해야 할지"))
+            }
+
+            test("음성 메타가 있는 대화 장면은 characterVoice를 담아 반환하고 내레이션은 characterVoice가 null이다") {
+                val token = authorizedToken()
+                val storyId = "voice-${uniqueSuffix()}"
+                val daughterVoice = CharacterVoice(
+                    gender = VoiceGender.FEMALE,
+                    ageGroup = VoiceAgeGroup.ADULT,
+                    voiceProfile = "young_woman_gentle",
+                )
+                val chiefVoice = CharacterVoice(
+                    gender = VoiceGender.MALE,
+                    ageGroup = VoiceAgeGroup.ELDER,
+                    voiceProfile = "elderly_man_warm",
+                )
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testStoryFixture.saveScene(
+                    dialogueEntityWithCharacterVoice(
+                        storyId = storyId,
+                        sceneOrder = 2,
+                        characterName = "ch_banggui_daughter_in_law",
+                        characterDisplayName = "방귀쟁이 며느리",
+                        characterVoice = daughterVoice,
+                    ),
+                )
+                testStoryFixture.saveScene(
+                    dialogueEntityWithCharacterVoice(
+                        storyId = storyId,
+                        sceneOrder = 3,
+                        characterName = "ch_banggui_daughter_in_law",
+                        characterDisplayName = "방귀쟁이 며느리",
+                        characterVoice = daughterVoice,
+                    ),
+                )
+                testStoryFixture.saveScene(
+                    dialogueEntityWithCharacterVoice(
+                        storyId = storyId,
+                        sceneOrder = 4,
+                        characterName = "ch_banggui_village_chief",
+                        characterDisplayName = "마을 이장",
+                        characterVoice = chiefVoice,
+                    ),
+                )
+                testStoryFixture.saveTopic(topicEntity(storyId, "다름"))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/stories/$storyId")
+                    .then()
+                    .statusCode(200)
+                    .body("data.scenes[0].characterVoice", nullValue())
+                    .body("data.scenes[1].characterVoice.gender", equalTo("FEMALE"))
+                    .body("data.scenes[1].characterVoice.ageGroup", equalTo("ADULT"))
+                    .body("data.scenes[1].characterVoice.voiceProfile", equalTo("young_woman_gentle"))
+                    .body("data.scenes[2].characterVoice.voiceProfile", equalTo("young_woman_gentle"))
+                    .body("data.scenes[3].characterVoice.gender", equalTo("MALE"))
+                    .body("data.scenes[3].characterVoice.ageGroup", equalTo("ELDER"))
+                    .body("data.scenes[3].characterVoice.voiceProfile", equalTo("elderly_man_warm"))
             }
         }
         context("예외케이스") {
