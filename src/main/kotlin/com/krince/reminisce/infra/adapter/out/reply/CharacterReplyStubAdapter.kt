@@ -3,9 +3,11 @@ package com.krince.reminisce.infra.adapter.out.reply
 import com.krince.reminisce.application.port.out.reply.CharacterReplyContext
 import com.krince.reminisce.application.port.out.reply.CharacterReplyPort
 import com.krince.reminisce.domain.model.speakingsession.vo.ResponseMode
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 
 @Component
+@ConditionalOnProperty(name = ["analysis.engine"], havingValue = "stub", matchIfMissing = true)
 class CharacterReplyStubAdapter : CharacterReplyPort {
 
     private val normalTemplate: String = "%s: 네 이야기를 잘 들었어. 나도 그렇게 느꼈어."

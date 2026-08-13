@@ -102,6 +102,9 @@ class SubmitUtteranceApplicationService(
                 mode = mode,
                 childUtterance = childMessage.text,
                 guidanceTarget = session.lastGuidanceTarget,
+                characterOpening = scene.characterOpening,
+                conflict = scene.conflict,
+                sceneGoal = scene.sceneGoal,
             ),
         )
     }

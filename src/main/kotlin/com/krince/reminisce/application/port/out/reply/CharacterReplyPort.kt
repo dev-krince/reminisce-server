@@ -8,6 +8,9 @@ class CharacterReplyContext(
     val mode: ResponseMode,
     val childUtterance: String,
     val guidanceTarget: ThinkingElement?,
+    val characterOpening: String? = null,
+    val conflict: String? = null,
+    val sceneGoal: String? = null,
 )
 
 interface CharacterReplyPort {
