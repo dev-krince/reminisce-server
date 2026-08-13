@@ -6,9 +6,11 @@ import com.krince.reminisce.domain.model.utteranceanalysis.DetectedElement
 import com.krince.reminisce.domain.model.utteranceanalysis.RawUtteranceAnalysis
 import com.krince.reminisce.domain.model.utteranceanalysis.vo.ChildIntent
 import com.krince.reminisce.domain.model.utteranceanalysis.vo.UtteranceValidity
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 
 @Component
+@ConditionalOnProperty(name = ["analysis.engine"], havingValue = "stub", matchIfMissing = true)
 class SpeechAnalysisStubAdapter : SpeechAnalysisPort {
 
     override fun analyze(text: String): RawUtteranceAnalysis {
