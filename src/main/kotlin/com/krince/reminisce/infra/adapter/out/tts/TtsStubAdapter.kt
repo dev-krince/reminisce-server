@@ -1,9 +1,11 @@
 package com.krince.reminisce.infra.adapter.out.tts
 
 import com.krince.reminisce.application.port.out.tts.TtsPort
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 
 @Component
+@ConditionalOnProperty(name = ["analysis.engine"], havingValue = "stub", matchIfMissing = true)
 class TtsStubAdapter : TtsPort {
 
     companion object {

@@ -32,6 +32,19 @@ class FileAdapter(private val fileStorageProperties: FileStorageProperties) : St
     override fun saveAudioOrThrows(file: MultipartFile?): String =
         saveAudio(file ?: throw BadRequestException(INVALID_MULTIPART_FILE, INVALID_MULTIPART_FILE.message))
 
+    override fun saveAudioBytes(bytes: ByteArray, extension: String): String {
+        val normalized: String = extension.lowercase()
+        if (normalized !in ALLOWED_AUDIO_EXTENSION) {
+            throw BadRequestException(INVALID_FILE_EXTENSION, INVALID_FILE_EXTENSION.message)
+        }
+        val fileName = "${UuidGenerator.generateFileNameFormat()}.$normalized"
+        val targetPath: Path = Paths.get(fileStorageProperties.path, fileName)
+        Files.createDirectories(targetPath.parent)
+        Files.write(targetPath, bytes)
+
+        return "$FILES_PREFIX$fileName"
+    }
+
     override fun deleteFile(fileUrl: String?) = FileUtil.deleteFile(fileUrl, fileStorageProperties.path)
 
     private fun saveAudio(file: MultipartFile): String {
