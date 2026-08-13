@@ -23,6 +23,9 @@ import com.krince.reminisce.application.port.`in`.speakingsession.usecase.Advanc
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GetResumableSessionsUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GetSpeakingSessionViewUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.StartSpeakingSessionUseCase
+import com.krince.reminisce.application.port.`in`.speakingsession.command.GetSpeakingHintCommand
+import com.krince.reminisce.application.port.`in`.speakingsession.result.SpeakingHintResult
+import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GetSpeakingHintUseCase
 import com.krince.reminisce.application.port.out.file.StoreFilePort
 import com.krince.reminisce.infra.adapter.`in`.dto.message.request.SubmitUtteranceRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.message.response.UtteranceResponse
@@ -36,9 +39,11 @@ import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.retelli
 import com.krince.reminisce.infra.adapter.`in`.dto.report.response.SessionReportResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.report.response.sessionReportResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.request.StartSpeakingSessionRequest
+import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingHintResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionSummaryResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionViewResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.speakingHintResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.speakingSessionResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.speakingSessionSummaryResponses
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.speakingSessionViewResponse
@@ -69,6 +74,7 @@ import org.springframework.web.multipart.MultipartFile
 class SpeakingSessionControllerImpl(
     private val startSpeakingSessionUseCase: StartSpeakingSessionUseCase,
     private val getSpeakingSessionViewUseCase: GetSpeakingSessionViewUseCase,
+    private val getSpeakingHintUseCase: GetSpeakingHintUseCase,
     private val advanceSpeakingSceneUseCase: AdvanceSpeakingSceneUseCase,
     private val submitUtteranceUseCase: SubmitUtteranceUseCase,
     private val getResumableSessionsUseCase: GetResumableSessionsUseCase,
@@ -106,6 +112,19 @@ class SpeakingSessionControllerImpl(
         val result: SpeakingSessionViewResult = getSpeakingSessionViewUseCase.execute(command)
 
         return viewResponseEntity(result)
+    }
+
+    @GetMapping("/{sessionId}/hint")
+    override fun getSpeakingHint(
+        @PathVariable sessionId: String,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<SuccessResponse<SpeakingHintResponse>> {
+        val command = GetSpeakingHintCommand(sessionId = sessionId, guardianId = userDetails.getId())
+        val result: SpeakingHintResult = getSpeakingHintUseCase.execute(command)
+        val responseBody: SuccessResponse<SpeakingHintResponse> =
+            successResponse(responseCode = OK, data = speakingHintResponse(result))
+
+        return ResponseEntity.status(responseBody.code).body(responseBody)
     }
 
     @PostMapping("/{sessionId}/advance")

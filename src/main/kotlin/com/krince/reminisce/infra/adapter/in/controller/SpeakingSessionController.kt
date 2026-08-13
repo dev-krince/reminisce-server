@@ -8,6 +8,7 @@ import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.CardOrd
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.RetellingResultResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.report.response.SessionReportResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.request.StartSpeakingSessionRequest
+import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingHintResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionSummaryResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingSessionViewResponse
@@ -83,6 +84,25 @@ interface SpeakingSessionController {
         @Parameter(description = "말하기 세션 고유 식별자", required = true) @PathVariable sessionId: String,
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<SpeakingSessionViewResponse>>
+
+    @Operation(
+        summary = "말하기 힌트 조회",
+        description = "현재 대화 장면의 미션 예시를 힌트로 반환합니다. 아이가 '도움이 필요해요'를 누를 때 사용합니다. 미션이 없으면 빈 목록을 반환합니다.",
+    )
+    @SwaggerSuccessResponse(responseCode = OK, description = "힌트 조회 성공")
+    @SwaggerExceptionResponse(
+        examples = [
+            ExceptionExample(code = EMPTY_TOKEN, name = "토큰 없음", message = "토큰이 없습니다.", description = "인증 토큰이 제공되지 않은 경우"),
+            ExceptionExample(code = INVALID_TOKEN, name = "유효하지 않은 토큰", message = "유효하지 않은 토큰입니다.", description = "토큰이 유효하지 않거나 서명이 잘못된 경우"),
+            ExceptionExample(code = EXPIRED_TOKEN, name = "만료된 토큰", message = "만료된 토큰입니다.", description = "토큰의 유효기간이 만료된 경우"),
+            ExceptionExample(code = NOT_FOUND, name = "세션 없음", message = "리소스가 존재하지 않습니다.", description = "세션이 없거나 다른 보호자의 아이 세션인 경우"),
+            ExceptionExample(code = INTERNAL_SERVER_ERROR, name = "서버 오류", message = "서버 에러입니다. 개발자에게 문의해주세요.", description = "예상치 못한 서버 오류가 발생한 경우"),
+        ]
+    )
+    fun getSpeakingHint(
+        @Parameter(description = "말하기 세션 고유 식별자", required = true) @PathVariable sessionId: String,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<SuccessResponse<SpeakingHintResponse>>
 
     @Operation(
         summary = "말하기 세션 첫 장면 진입",
