@@ -12,7 +12,7 @@ class TtsStubAdapter : TtsPort {
         private const val STUB_AUDIO_PREFIX = "stub://tts/"
     }
 
-    override fun synthesize(text: String): String? {
+    override fun synthesize(text: String, voiceProfile: String?): String? {
         val trimmed: String = text.trim()
         if (trimmed.isBlank()) {
             return null

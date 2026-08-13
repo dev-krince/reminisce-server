@@ -74,8 +74,8 @@ class AdvanceSpeakingSceneApplicationService(
     private fun transitionTo(session: SpeakingSession, scene: Scene): SpeakingSessionViewResult {
         val transitioned: SpeakingSession = session.transitionToScene(scene.sceneId.value, LocalDateTime.now(clock))
         commandSpeakingSessionPort.save(transitioned)
-        val openingAudio: String? = scene.characterOpening?.let { ttsPort.synthesize(it) }
-        val closingAudio: String? = scene.characterClosing?.let { ttsPort.synthesize(it) }
+        val openingAudio: String? = scene.characterOpening?.let { ttsPort.synthesize(it, scene.characterVoice?.voiceProfile) }
+        val closingAudio: String? = scene.characterClosing?.let { ttsPort.synthesize(it, scene.characterVoice?.voiceProfile) }
 
         return SpeakingSessionViewResult.scene(scene, openingAudio, closingAudio)
     }

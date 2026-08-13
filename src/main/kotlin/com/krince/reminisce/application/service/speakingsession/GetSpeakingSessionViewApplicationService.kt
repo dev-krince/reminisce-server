@@ -59,8 +59,8 @@ class GetSpeakingSessionViewApplicationService(
     private fun sceneView(storyId: StoryId, sceneId: String): SpeakingSessionViewResult {
         val scene: Scene = storyAccessPort.findScene(storyId, sceneId)
             ?: throw NotFoundException(NOT_FOUND, NOT_FOUND.message)
-        val openingAudio: String? = scene.characterOpening?.let { ttsPort.synthesize(it) }
-        val closingAudio: String? = scene.characterClosing?.let { ttsPort.synthesize(it) }
+        val openingAudio: String? = scene.characterOpening?.let { ttsPort.synthesize(it, scene.characterVoice?.voiceProfile) }
+        val closingAudio: String? = scene.characterClosing?.let { ttsPort.synthesize(it, scene.characterVoice?.voiceProfile) }
 
         return SpeakingSessionViewResult.scene(scene, openingAudio, closingAudio)
     }

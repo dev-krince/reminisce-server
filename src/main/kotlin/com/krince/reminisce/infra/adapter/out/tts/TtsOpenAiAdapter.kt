@@ -24,11 +24,12 @@ class TtsOpenAiAdapter(
 
     private val restClient: RestClient = restClientBuilder.build()
 
-    override fun synthesize(text: String): String? {
+    override fun synthesize(text: String, voiceProfile: String?): String? {
         val trimmed: String = text.trim()
         if (trimmed.isBlank()) {
             return null
         }
+        val selectedVoice: String = mapOpenAiVoice(voiceProfile, voice)
 
         return runCatching {
             val audio: ByteArray? = restClient.post()
@@ -39,7 +40,7 @@ class TtsOpenAiAdapter(
                     mapOf(
                         "model" to model,
                         "input" to trimmed,
-                        "voice" to voice,
+                        "voice" to selectedVoice,
                         "response_format" to AUDIO_FORMAT,
                     ),
                 )
@@ -58,5 +59,23 @@ class TtsOpenAiAdapter(
         private const val AUTHORIZATION_HEADER = "Authorization"
         private const val BEARER_PREFIX = "Bearer "
         private const val AUDIO_FORMAT = "mp3"
+    }
+}
+
+private val EXACT_VOICE_MAP: Map<String, String> = mapOf(
+    "young_woman_gentle" to "nova",
+    "elderly_man_stern" to "onyx",
+    "elderly_man_warm" to "echo",
+)
+
+internal fun mapOpenAiVoice(voiceProfile: String?, default: String): String {
+    val profile: String = voiceProfile?.trim()?.lowercase()?.takeIf { it.isNotBlank() } ?: return default
+    EXACT_VOICE_MAP[profile]?.let { return it }
+
+    return when {
+        profile.contains("woman") || profile.contains("female") || profile.contains("girl") -> "nova"
+        profile.contains("man") || profile.contains("male") || profile.contains("boy") -> "onyx"
+        profile.contains("child") || profile.contains("kid") -> "fable"
+        else -> default
     }
 }

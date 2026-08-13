@@ -68,7 +68,7 @@ class SubmitUtteranceApplicationService(
         val progressedSession: SpeakingSession = progressAndSave(session, analysis, dialogueScene)
         val missingElements: List<ThinkingElement> = missingElements(dialogueScene, progressedSession)
         val characterMessage: Message = saveCharacterReply(message, dialogueScene, progressedSession)
-        val characterReplyAudio: String? = ttsPort.synthesize(characterMessage.text)
+        val characterReplyAudio: String? = ttsPort.synthesize(characterMessage.text, dialogueScene.characterVoice?.voiceProfile)
 
         return UtteranceResult.from(message, analysis, progressedSession, missingElements, characterMessage, characterReplyAudio)
     }
