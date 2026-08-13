@@ -1,5 +1,6 @@
 package com.krince.reminisce.infra.adapter.out.persistence.postactivityresult.entity
 
+import com.krince.reminisce.infra.adapter.out.persistence.postactivityresult.converter.RetellingSegmentsConverter
 import com.krince.reminisce.infra.adapter.out.persistence.postactivityresult.converter.SubmittedOrderConverter
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
@@ -42,6 +43,11 @@ class PostActivityResultOrmEntity(
     @Column(name = "retelling_text", columnDefinition = "text", nullable = true)
     @Comment("재구성 발화 텍스트")
     val retellingText: String? = null,
+
+    @Column(name = "retelling_segments", columnDefinition = "text", nullable = true)
+    @Convert(converter = RetellingSegmentsConverter::class)
+    @Comment("재구성 발화 장면별 세그먼트 (JSON)")
+    val retellingSegments: List<String>? = null,
 
     @Column(name = "retelling_audio_url", columnDefinition = "text", nullable = true)
     @Comment("재구성 녹음 음성 파일 URL")

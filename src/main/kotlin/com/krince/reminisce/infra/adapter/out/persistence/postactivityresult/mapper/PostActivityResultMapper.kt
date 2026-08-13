@@ -13,6 +13,7 @@ object PostActivityResultMapper {
         isOrderCorrect = ormEntity.isOrderCorrect,
         attemptCount = ormEntity.attemptCount,
         retellingText = ormEntity.retellingText,
+        retellingSegments = ormEntity.retellingSegments,
         retellingAudioUrl = ormEntity.retellingAudioUrl,
         completedAt = ormEntity.completedAt,
         createdDate = ormEntity.createdDate,
@@ -26,6 +27,7 @@ object PostActivityResultMapper {
         isOrderCorrect = domain.isOrderCorrect,
         attemptCount = domain.attemptCount,
         retellingText = domain.retellingText,
+        retellingSegments = domain.retellingSegments,
         retellingAudioUrl = domain.retellingAudioUrl,
         completedAt = domain.completedAt,
     ).apply {

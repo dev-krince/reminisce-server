@@ -12,6 +12,7 @@ data class PostActivityResult(
     val isOrderCorrect: Boolean?,
     val attemptCount: Int,
     val retellingText: String? = null,
+    val retellingSegments: List<String>? = null,
     val retellingAudioUrl: String? = null,
     val completedAt: LocalDateTime? = null,
     val createdDate: LocalDateTime? = null,
@@ -24,8 +25,18 @@ data class PostActivityResult(
             attemptCount = attemptCount + 1,
         )
 
-    fun completeWith(retellingText: String, retellingAudioUrl: String?, at: LocalDateTime): PostActivityResult =
-        copy(retellingText = retellingText, retellingAudioUrl = retellingAudioUrl, completedAt = at)
+    fun completeWith(
+        retellingText: String,
+        retellingAudioUrl: String?,
+        at: LocalDateTime,
+        retellingSegments: List<String>? = null,
+    ): PostActivityResult =
+        copy(
+            retellingText = retellingText,
+            retellingSegments = retellingSegments,
+            retellingAudioUrl = retellingAudioUrl,
+            completedAt = at,
+        )
 
     companion object {
         fun firstSubmission(

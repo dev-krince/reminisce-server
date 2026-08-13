@@ -17,6 +17,9 @@ data class RetellingResultResponse(
 
     @field:Schema(description = "세션 상태", required = true)
     val status: String,
+
+    @field:Schema(description = "장면 순서대로 분절한 재구성 텍스트. 없으면 null", required = false)
+    val retellingSegments: List<String>?,
 )
 
 fun retellingResultResponse(result: RetellingResult): RetellingResultResponse = RetellingResultResponse(
@@ -24,4 +27,5 @@ fun retellingResultResponse(result: RetellingResult): RetellingResultResponse = 
     retellingAudioUrl = result.retellingAudioUrl,
     completedAt = result.completedAt,
     status = result.status.name,
+    retellingSegments = result.retellingSegments,
 )

@@ -48,7 +48,9 @@ class SubmitRetellingApplicationService(
         val transcript: String = command.text.trim()
 
         val now: LocalDateTime = LocalDateTime.now(clock)
-        commandPostActivityResultPort.save(existing.completeWith(transcript, command.retellingAudioUrl, now))
+        commandPostActivityResultPort.save(
+            existing.completeWith(transcript, command.retellingAudioUrl, now, command.sceneSegments),
+        )
         commandSpeakingSessionPort.save(session.complete(now))
 
         return RetellingResult(
@@ -56,6 +58,7 @@ class SubmitRetellingApplicationService(
             retellingAudioUrl = command.retellingAudioUrl,
             completedAt = now,
             status = SessionStatus.COMPLETED,
+            retellingSegments = command.sceneSegments,
         )
     }
 

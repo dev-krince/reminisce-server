@@ -203,6 +203,7 @@ class SpeakingSessionControllerImpl(
             sessionId = sessionId,
             guardianId = userDetails.getId(),
             text = request.text,
+            sceneSegments = request.sceneSegments,
             retellingAudioUrl = retellingAudioUrl,
         )
         val result: RetellingResult = try {

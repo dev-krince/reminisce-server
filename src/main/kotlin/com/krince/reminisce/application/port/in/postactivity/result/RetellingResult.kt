@@ -8,4 +8,5 @@ data class RetellingResult(
     val retellingAudioUrl: String?,
     val completedAt: LocalDateTime,
     val status: SessionStatus,
+    val retellingSegments: List<String>? = null,
 )
