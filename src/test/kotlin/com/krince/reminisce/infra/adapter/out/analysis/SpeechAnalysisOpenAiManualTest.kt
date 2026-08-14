@@ -18,7 +18,7 @@ class SpeechAnalysisOpenAiManualTest : FunSpec({
             .openAiApi(OpenAiApi.builder().apiKey(key).build())
             .defaultOptions(OpenAiChatOptions.builder().model(model).build())
             .build()
-        val adapter = SpeechAnalysisOpenAiAdapter(ChatClient.builder(chatModel))
+        val adapter = SpeechAnalysisOpenAiAdapter(ChatClient.builder(chatModel), model, 0.2)
 
         val utterances = listOf(
             "며느리가 방귀 뀌어서 쫓겨나면 너무 불쌍해요. 그러니까 우리가 도와줘야 해요.",

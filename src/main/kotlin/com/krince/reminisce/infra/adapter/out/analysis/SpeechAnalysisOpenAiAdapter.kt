@@ -7,6 +7,8 @@ import com.krince.reminisce.domain.model.utteranceanalysis.vo.ChildIntent
 import com.krince.reminisce.domain.model.utteranceanalysis.vo.UtteranceValidity
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.ai.chat.client.ChatClient
+import org.springframework.ai.openai.OpenAiChatOptions
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 
@@ -16,15 +18,22 @@ private val logger = KotlinLogging.logger {}
 @ConditionalOnProperty(name = ["analysis.engine"], havingValue = "openai")
 class SpeechAnalysisOpenAiAdapter(
     chatClientBuilder: ChatClient.Builder,
+    @Value("\${analysis.openai.model}") model: String,
+    @Value("\${analysis.openai.temperature}") temperature: Double,
 ) : SpeechAnalysisPort {
 
     private val chatClient: ChatClient = chatClientBuilder.build()
+    private val options: OpenAiChatOptions = OpenAiChatOptions.builder()
+        .model(model)
+        .temperature(temperature)
+        .build()
 
     override fun analyze(text: String, recentTurns: List<ConversationTurn>): RawUtteranceAnalysis {
         return runCatching {
             chatClient.prompt()
                 .system(SYSTEM_PROMPT)
                 .user(userPrompt(text, recentTurns))
+                .options(options)
                 .call()
                 .entity(AnalysisLlmResult::class.java)
                 ?.toRawUtteranceAnalysis()

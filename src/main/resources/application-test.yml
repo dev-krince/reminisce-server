@@ -9,6 +9,9 @@ server:
 
 analysis:
   engine: ${ANALYSIS_ENGINE}
+  openai:
+    model: ${ANALYSIS_OPENAI_MODEL}
+    temperature: ${ANALYSIS_OPENAI_TEMPERATURE}
 
 spring:
   jackson:
