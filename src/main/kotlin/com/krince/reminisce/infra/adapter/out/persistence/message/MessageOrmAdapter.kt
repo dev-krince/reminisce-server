@@ -8,6 +8,7 @@ import com.krince.reminisce.domain.model.message.vo.SpeakerType
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
 import com.krince.reminisce.infra.adapter.out.persistence.message.entity.MessageOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.message.mapper.MessageMapper
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Component
 
 @Component
@@ -30,6 +31,16 @@ class MessageOrmAdapter(
             repository.findAllBySessionIdAndSpeakerType(sessionId.value, SpeakerType.CHILD.name)
 
         return entities.map { MessageId(it.id) }
+    }
+
+    override fun findRecentMessagesBySession(sessionId: SpeakingSessionId, limit: Int): List<Message> {
+        if (limit <= 0) {
+            return emptyList()
+        }
+        val entities: List<MessageOrmEntity> =
+            repository.findBySessionIdOrderByTurnOrderDesc(sessionId.value, PageRequest.of(0, limit))
+
+        return entities.asReversed().map { MessageMapper.toDomain(it) }
     }
 
     override fun findMessageIdsBySessionIds(sessionIds: List<String>): List<String> {

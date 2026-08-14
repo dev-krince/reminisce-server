@@ -83,6 +83,8 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
     beforeEach {
         clearAllMocks()
         every { ttsPort.synthesize(any()) } returns "stub://tts/0"
+        every { childAccessPort.findChildName(any()) } returns "지우"
+        every { loadMessagePort.findRecentMessagesBySession(any(), any()) } returns emptyList()
     }
 
     val sessionIdStr = "session-uuid-1"

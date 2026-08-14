@@ -10,11 +10,13 @@ import com.krince.reminisce.application.port.out.message.CommandMessagePort
 import com.krince.reminisce.application.port.out.message.LoadMessagePort
 import com.krince.reminisce.application.port.out.reply.CharacterReplyContext
 import com.krince.reminisce.application.port.out.reply.CharacterReplyPort
+import com.krince.reminisce.application.port.out.reply.CharacterReplyTurn
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
 import com.krince.reminisce.application.port.out.tts.TtsPort
 import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
 import com.krince.reminisce.domain.model.message.Message
+import com.krince.reminisce.domain.model.message.vo.SpeakerType
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.ResponseMode
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
@@ -52,6 +54,7 @@ class SubmitUtteranceApplicationService(
 
     private val firstTurnOffset: Long = 1L
     private val nextTurnOffset: Long = 1L
+    private val recentTurnLimit: Int = 6
 
     @Transactional
     override fun execute(command: SubmitUtteranceCommand): UtteranceResult {
@@ -62,12 +65,13 @@ class SubmitUtteranceApplicationService(
         if (session.sceneEndReason != null) {
             throw BusinessRuleViolationException(BUSINESS_RULE_VIOLATION, BUSINESS_RULE_VIOLATION.message)
         }
-        val dialogueScene: Scene = requireDialogueScene(session)
+        val childName: String? = childAccessPort.findChildName(session.childId)
+        val dialogueScene: Scene = requireDialogueScene(session).personalizedFor(childName)
         val message: Message = saveChildUtterance(session, dialogueScene, command.text, command.sttRawText)
         val analysis: UtteranceAnalysis = analyzeAndSave(message)
         val progressedSession: SpeakingSession = progressAndSave(session, analysis, dialogueScene)
         val missingElements: List<ThinkingElement> = missingElements(dialogueScene, progressedSession)
-        val characterMessage: Message = saveCharacterReply(message, dialogueScene, progressedSession)
+        val characterMessage: Message = saveCharacterReply(message, dialogueScene, progressedSession, childName)
         val characterReplyAudio: String? = ttsPort.synthesize(characterMessage.text, dialogueScene.characterVoice?.voiceProfile)
 
         return UtteranceResult.from(message, analysis, progressedSession, missingElements, characterMessage, characterReplyAudio)
@@ -77,8 +81,9 @@ class SubmitUtteranceApplicationService(
         childMessage: Message,
         scene: Scene,
         session: SpeakingSession,
+        childName: String?,
     ): Message {
-        val replyText: String = characterReplyText(childMessage, scene, session)
+        val replyText: String = characterReplyText(childMessage, scene, session, childName)
         val characterMessage: Message = Message.characterReply(
             sessionId = session.sessionId,
             sceneId = SceneId(scene.sceneId.value),
@@ -90,7 +95,12 @@ class SubmitUtteranceApplicationService(
         return commandMessagePort.save(characterMessage)
     }
 
-    private fun characterReplyText(childMessage: Message, scene: Scene, session: SpeakingSession): String {
+    private fun characterReplyText(
+        childMessage: Message,
+        scene: Scene,
+        session: SpeakingSession,
+        childName: String?,
+    ): String {
         val mode: ResponseMode = requireNotNull(session.lastResponseMode)
         if (mode == ResponseMode.CLOSING) {
             return checkNotNull(scene.characterClosing)
@@ -105,9 +115,16 @@ class SubmitUtteranceApplicationService(
                 characterOpening = scene.characterOpening,
                 conflict = scene.conflict,
                 sceneGoal = scene.sceneGoal,
+                childName = childName,
+                recentTurns = recentReplyTurns(session, childMessage),
             ),
         )
     }
+
+    private fun recentReplyTurns(session: SpeakingSession, currentChildMessage: Message): List<CharacterReplyTurn> =
+        loadMessagePort.findRecentMessagesBySession(session.sessionId, recentTurnLimit)
+            .filter { it.messageId != currentChildMessage.messageId }
+            .map { CharacterReplyTurn(isChild = it.speakerType == SpeakerType.CHILD, text = it.text) }
 
     private fun analyzeAndSave(message: Message): UtteranceAnalysis {
         val raw: RawUtteranceAnalysis = speechAnalysisPort.analyze(message.text)
