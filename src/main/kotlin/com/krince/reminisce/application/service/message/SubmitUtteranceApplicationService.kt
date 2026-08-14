@@ -118,6 +118,7 @@ class SubmitUtteranceApplicationService(
                 characterOpening = scene.characterOpening,
                 conflict = scene.conflict,
                 sceneGoal = scene.sceneGoal,
+                characterName = scene.characterName,
                 childName = childName,
                 recentTurns = recentTurns,
             ),

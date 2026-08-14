@@ -38,10 +38,16 @@ class CharacterReplyOpenAiAdapter(
     private fun fallback(): String = "응, 잘 들었어. 조금만 더 이야기해 줄래?"
 
     private fun systemPrompt(context: CharacterReplyContext): String {
+        val examples: List<String> = CharacterVoiceExamples.forCharacter(context.characterName)
+        val exampleBlock: String? = examples
+            .takeIf { it.isNotEmpty() }
+            ?.let { "이 캐릭터의 말투 예시(참고용, 그대로 베끼지 말 것):\n" + it.joinToString("\n") { line -> "- $line" } }
+
         val persona: String = listOfNotNull(
             context.characterOpening?.let { "당신의 첫 대사(성격 참고): $it" },
             context.conflict?.let { "당신이 처한 상황·걱정: $it" },
             context.sceneGoal?.let { "이 장면의 목표: $it" },
+            exampleBlock,
             context.childName?.let { "지금 함께 이야기하는 아이의 이름은 '$it'입니다. 가끔 이름을 불러 주면 친근해요(매번은 아니고요)." },
         ).joinToString("\n")
 

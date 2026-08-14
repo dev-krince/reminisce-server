@@ -12,6 +12,7 @@ class CharacterReplyContext(
     val characterOpening: String? = null,
     val conflict: String? = null,
     val sceneGoal: String? = null,
+    val characterName: String? = null,
     val childName: String? = null,
     val recentTurns: List<ConversationTurn> = emptyList(),
 )
