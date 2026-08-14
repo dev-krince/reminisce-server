@@ -30,6 +30,31 @@ class Scene(
         }
     }
 
+    fun personalizedFor(childName: String?): Scene {
+        if (characterOpening == null && characterClosing == null) {
+            return this
+        }
+
+        return Scene(
+            sceneId = sceneId,
+            storyId = storyId,
+            sceneOrder = sceneOrder,
+            sceneType = sceneType,
+            sceneDescription = sceneDescription,
+            characterName = characterName,
+            characterDisplayName = characterDisplayName,
+            characterOpening = characterOpening?.let { ChildNamePersonalizer.personalize(it, childName) },
+            characterClosing = characterClosing?.let { ChildNamePersonalizer.personalize(it, childName) },
+            conflict = conflict,
+            sceneGoal = sceneGoal,
+            requiredElements = requiredElements,
+            preferredTurns = preferredTurns,
+            maxTurns = maxTurns,
+            mission = mission,
+            characterVoice = characterVoice,
+        )
+    }
+
     private fun requireNoDialogueFields() {
         val dialogueOnlyFields: List<Any?> = listOf(
             characterName,

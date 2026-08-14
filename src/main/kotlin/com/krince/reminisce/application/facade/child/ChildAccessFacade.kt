@@ -13,4 +13,7 @@ class ChildAccessFacade(
 
     override fun findGuardianId(childId: ChildId): UserId? =
         loadChildPort.findById(childId)?.guardianId
+
+    override fun findChildName(childId: ChildId): String? =
+        loadChildPort.findById(childId)?.nickname?.value
 }

@@ -5,4 +5,6 @@ import com.krince.reminisce.domain.model.user.vo.UserId
 
 interface ChildAccessPort {
     fun findGuardianId(childId: ChildId): UserId?
+
+    fun findChildName(childId: ChildId): String?
 }
