@@ -8,7 +8,7 @@ server:
     key-alias: ${SSL_KEY_ALIAS}
 
 analysis:
-  engine: ${ANALYSIS_ENGINE:stub}
+  engine: ${ANALYSIS_ENGINE}
 
 spring:
   jackson:
@@ -16,10 +16,10 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
   ai:
     openai:
-      api-key: ${OPENAI_API_KEY:sk-noop}
+      api-key: ${OPENAI_API_KEY}
       chat:
         options:
-          model: ${OPENAI_CHAT_MODEL:gpt-5-mini}
+          model: ${OPENAI_CHAT_MODEL}
   application:
     name: reminisce
   datasource:

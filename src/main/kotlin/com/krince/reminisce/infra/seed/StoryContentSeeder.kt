@@ -7,6 +7,7 @@ import com.krince.reminisce.domain.model.story.Story
 import com.krince.reminisce.domain.model.story.VoiceAgeGroup
 import com.krince.reminisce.domain.model.story.VoiceGender
 import com.krince.reminisce.domain.model.story.vo.Difficulty
+import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.SceneId
 import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryGenre
@@ -69,6 +70,16 @@ class StoryContentSeeder(
         postActivityConfig = source.postActivityConfig,
     )
 
+    private fun bangguiPostActivityConfig(): PostActivityConfig = PostActivityConfig(
+        cards = listOf(
+            PostActivityConfig.Card(id = "card_banggui_1", text = "며느리가 방귀를 꾹 참는 모습", correctOrder = 1),
+            PostActivityConfig.Card(id = "card_banggui_2", text = "며느리의 방귀로 시아버지의 갓이 날아가는 모습", correctOrder = 2),
+            PostActivityConfig.Card(id = "card_banggui_3", text = "마을 사람들이 높은 배나무 때문에 고민하는 모습", correctOrder = 3),
+            PostActivityConfig.Card(id = "card_banggui_4", text = "며느리가 방귀로 배를 떨어뜨려 사람들을 돕는 모습", correctOrder = 4),
+        ),
+        retellingKeywords = listOf("며느리", "방귀", "시아버지", "배나무", "특별한 힘"),
+    )
+
     private fun bangguiStory(): Story = Story(
         storyId = StoryId(BANGGUI_STORY_ID),
         title = "방귀 뀌는 며느리",
@@ -80,7 +91,7 @@ class StoryContentSeeder(
         estimatedMinutes = 20,
         representativeImageUrl = null,
         status = StoryStatus.PUBLISHED,
-        postActivityConfig = null,
+        postActivityConfig = bangguiPostActivityConfig(),
         topics = listOf("다름", "자기이해", "장점 발견"),
         genre = StoryGenre.FOLKTALE,
         scenes = bangguiScenes(),
