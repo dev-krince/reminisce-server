@@ -6,10 +6,12 @@ import com.krince.reminisce.application.port.`in`.speakingsession.command.GetSpe
 import com.krince.reminisce.application.port.`in`.speakingsession.result.SpeakingSessionViewResult
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GetSpeakingSessionViewUseCase
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
+import com.krince.reminisce.application.port.out.tts.NARRATOR_VOICE_PROFILE
 import com.krince.reminisce.application.port.out.tts.TtsPort
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
 import com.krince.reminisce.domain.model.story.Scene
+import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryId
 import com.krince.reminisce.domain.model.user.vo.UserId
 import com.krince.reminisce.shared.exception.NotFoundException
@@ -31,7 +33,7 @@ class GetSpeakingSessionViewApplicationService(
         val storyId: StoryId = session.storyId
         val currentSceneId: String = session.currentSceneId ?: return introView(storyId)
 
-        return sceneView(storyId, currentSceneId)
+        return sceneView(session, currentSceneId)
     }
 
     private fun loadOwnedSession(sessionId: String, guardianId: String): SpeakingSession {
@@ -52,16 +54,26 @@ class GetSpeakingSessionViewApplicationService(
     private fun introView(storyId: StoryId): SpeakingSessionViewResult {
         val intro: String = storyAccessPort.findIntro(storyId)
             ?: throw NotFoundException(NOT_FOUND, NOT_FOUND.message)
+        val introAudio: String? = ttsPort.synthesize(intro, NARRATOR_VOICE_PROFILE)
 
-        return SpeakingSessionViewResult.intro(intro)
+        return SpeakingSessionViewResult.intro(intro, introAudio)
     }
 
-    private fun sceneView(storyId: StoryId, sceneId: String): SpeakingSessionViewResult {
-        val scene: Scene = storyAccessPort.findScene(storyId, sceneId)
+    private fun sceneView(session: SpeakingSession, sceneId: String): SpeakingSessionViewResult {
+        val scene: Scene = storyAccessPort.findScene(session.storyId, sceneId)
+            ?.personalizedFor(childAccessPort.findChildName(session.childId))
             ?: throw NotFoundException(NOT_FOUND, NOT_FOUND.message)
         val openingAudio: String? = scene.characterOpening?.let { ttsPort.synthesize(it, scene.characterVoice?.voiceProfile) }
         val closingAudio: String? = scene.characterClosing?.let { ttsPort.synthesize(it, scene.characterVoice?.voiceProfile) }
+        val narrationAudio: String? = narrationAudio(scene)
 
-        return SpeakingSessionViewResult.scene(scene, openingAudio, closingAudio)
+        return SpeakingSessionViewResult.scene(scene, openingAudio, closingAudio, narrationAudio)
     }
+
+    private fun narrationAudio(scene: Scene): String? =
+        if (scene.sceneType == SceneType.NARRATION) {
+            ttsPort.synthesize(scene.sceneDescription, NARRATOR_VOICE_PROFILE)
+        } else {
+            null
+        }
 }

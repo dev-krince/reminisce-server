@@ -7,6 +7,7 @@ import com.krince.reminisce.application.port.`in`.speakingsession.result.Speakin
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.AdvanceSpeakingSceneUseCase
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
+import com.krince.reminisce.application.port.out.tts.NARRATOR_VOICE_PROFILE
 import com.krince.reminisce.application.port.out.tts.TtsPort
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
@@ -74,11 +75,22 @@ class AdvanceSpeakingSceneApplicationService(
     private fun transitionTo(session: SpeakingSession, scene: Scene): SpeakingSessionViewResult {
         val transitioned: SpeakingSession = session.transitionToScene(scene.sceneId.value, LocalDateTime.now(clock))
         commandSpeakingSessionPort.save(transitioned)
-        val openingAudio: String? = scene.characterOpening?.let { ttsPort.synthesize(it, scene.characterVoice?.voiceProfile) }
-        val closingAudio: String? = scene.characterClosing?.let { ttsPort.synthesize(it, scene.characterVoice?.voiceProfile) }
+        val personalized: Scene = scene.personalizedFor(childAccessPort.findChildName(session.childId))
+        val openingAudio: String? =
+            personalized.characterOpening?.let { ttsPort.synthesize(it, personalized.characterVoice?.voiceProfile) }
+        val closingAudio: String? =
+            personalized.characterClosing?.let { ttsPort.synthesize(it, personalized.characterVoice?.voiceProfile) }
+        val narrationAudio: String? = narrationAudio(personalized)
 
-        return SpeakingSessionViewResult.scene(scene, openingAudio, closingAudio)
+        return SpeakingSessionViewResult.scene(personalized, openingAudio, closingAudio, narrationAudio)
     }
+
+    private fun narrationAudio(scene: Scene): String? =
+        if (scene.sceneType == SceneType.NARRATION) {
+            ttsPort.synthesize(scene.sceneDescription, NARRATOR_VOICE_PROFILE)
+        } else {
+            null
+        }
 
     private fun verifyLeavable(session: SpeakingSession, currentScene: Scene) {
         if (currentScene.sceneType != SceneType.DIALOGUE) {

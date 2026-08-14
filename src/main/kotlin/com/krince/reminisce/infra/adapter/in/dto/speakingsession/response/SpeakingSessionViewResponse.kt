@@ -13,6 +13,9 @@ class SpeakingSessionViewResponse(
     @field:Schema(description = "도입 뷰일 때 이야기 도입 텍스트", example = "옛날 어느 마을에 방귀를 크게 뀌는 며느리가 살았습니다.", required = false)
     val intro: String?,
 
+    @field:Schema(description = "도입 뷰일 때 도입 텍스트 내레이션 음성 참조", required = false)
+    val introAudio: String?,
+
     @field:Schema(description = "장면 뷰일 때 현재 장면 콘텐츠", required = false)
     val scene: SceneResponse?,
 )
@@ -21,5 +24,6 @@ fun speakingSessionViewResponse(result: SpeakingSessionViewResult): SpeakingSess
     SpeakingSessionViewResponse(
         viewType = result.viewType.name,
         intro = result.intro,
+        introAudio = result.introAudio,
         scene = result.scene?.let { sceneResponse(it) },
     )

@@ -17,6 +17,7 @@ class SceneResult(
     val characterClosing: String?,
     val characterOpeningAudio: String?,
     val characterClosingAudio: String?,
+    val narrationAudio: String?,
     val conflict: String?,
     val sceneGoal: String?,
     val requiredElements: List<ThinkingElement>?,
@@ -26,12 +27,13 @@ class SceneResult(
     val characterVoice: CharacterVoice?,
 ) {
     companion object {
-        fun from(scene: Scene): SceneResult = from(scene, null, null)
+        fun from(scene: Scene): SceneResult = from(scene, null, null, null)
 
         fun from(
             scene: Scene,
             characterOpeningAudio: String?,
             characterClosingAudio: String?,
+            narrationAudio: String?,
         ): SceneResult = SceneResult(
             sceneId = scene.sceneId.value,
             sceneOrder = scene.sceneOrder,
@@ -43,6 +45,7 @@ class SceneResult(
             characterClosing = scene.characterClosing,
             characterOpeningAudio = characterOpeningAudio,
             characterClosingAudio = characterClosingAudio,
+            narrationAudio = narrationAudio,
             conflict = scene.conflict,
             sceneGoal = scene.sceneGoal,
             requiredElements = scene.requiredElements,

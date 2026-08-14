@@ -46,7 +46,8 @@ class GetSpeakingSessionViewApplicationServiceTest : FunSpec({
 
     beforeEach {
         clearAllMocks()
-        every { ttsPort.synthesize(any()) } returns "stub://tts/0"
+        every { ttsPort.synthesize(any(), any()) } returns "stub://tts/0"
+        every { childAccessPort.findChildName(any()) } returns "지우"
     }
 
     val sessionIdStr = "session-uuid-1"
@@ -94,6 +95,21 @@ class GetSpeakingSessionViewApplicationServiceTest : FunSpec({
         sceneDescription = "전개 설명",
     )
 
+    fun placeholderScene(): Scene = Scene(
+        sceneId = SceneId(firstSceneIdStr),
+        storyId = storyId,
+        sceneOrder = 1,
+        sceneType = SceneType.DIALOGUE,
+        sceneDescription = "대화 설명",
+        characterName = "ch_x",
+        characterDisplayName = "표시명",
+        characterOpening = "ㅇㅇ아, 안녕?",
+        characterClosing = "ㅇㅇ이 덕분에 좋았어.",
+        sceneGoal = "목표",
+        requiredElements = listOf(ThinkingElement.PERSPECTIVE),
+        maxTurns = 4,
+    )
+
     context("게이트 실패") {
         test("세션이 없으면 NOT_FOUND를 던진다") {
             every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns null
@@ -123,6 +139,7 @@ class GetSpeakingSessionViewApplicationServiceTest : FunSpec({
 
             result.viewType shouldBe SpeakingSessionViewType.INTRO
             result.intro shouldBe introText
+            result.introAudio shouldNotBe null
             result.scene shouldBe null
         }
 
@@ -150,6 +167,19 @@ class GetSpeakingSessionViewApplicationServiceTest : FunSpec({
 
             result.scene?.characterOpeningAudio shouldNotBe null
             result.scene?.characterClosingAudio shouldNotBe null
+            result.scene?.narrationAudio shouldBe null
+        }
+
+        test("장면 대사의 ㅇㅇ 자리표시자를 아이 이름과 조사로 치환한다") {
+            every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(firstSceneIdStr)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { childAccessPort.findChildName(childId) } returns "지우"
+            every { storyAccessPort.findScene(storyId, firstSceneIdStr) } returns placeholderScene()
+
+            val result = service.execute(command())
+
+            result.scene?.characterOpening shouldBe "지우야, 안녕?"
+            result.scene?.characterClosing shouldBe "지우 덕분에 좋았어."
         }
 
         test("NARRATION 장면이면 characterOpeningAudio·characterClosingAudio가 null이다") {
@@ -161,6 +191,7 @@ class GetSpeakingSessionViewApplicationServiceTest : FunSpec({
 
             result.scene?.characterOpeningAudio shouldBe null
             result.scene?.characterClosingAudio shouldBe null
+            result.scene?.narrationAudio shouldNotBe null
         }
     }
 })

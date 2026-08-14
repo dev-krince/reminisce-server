@@ -27,6 +27,7 @@ import io.kotest.core.annotation.DisplayName
 import io.kotest.core.annotation.Tags
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
@@ -59,7 +60,8 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
 
     beforeEach {
         clearAllMocks()
-        every { ttsPort.synthesize(any()) } returns "stub://tts/0"
+        every { ttsPort.synthesize(any(), any()) } returns "stub://tts/0"
+        every { childAccessPort.findChildName(any()) } returns "지우"
     }
 
     val sessionIdStr = "session-uuid-1"
@@ -135,6 +137,21 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
         sceneOrder = 3,
         sceneType = SceneType.NARRATION,
         sceneDescription = "다음 전개 설명",
+    )
+
+    fun placeholderScene(): Scene = Scene(
+        sceneId = SceneId(firstSceneIdStr),
+        storyId = storyId,
+        sceneOrder = 1,
+        sceneType = SceneType.DIALOGUE,
+        sceneDescription = "대화 설명",
+        characterName = "ch_x",
+        characterDisplayName = "표시명",
+        characterOpening = "ㅇㅇ아, 안녕?",
+        characterClosing = "ㅇㅇ이 덕분에 좋았어.",
+        sceneGoal = "목표",
+        requiredElements = listOf(ThinkingElement.PERSPECTIVE),
+        maxTurns = 4,
     )
 
     context("게이트 실패") {
@@ -218,6 +235,21 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
             verify(exactly = 1) { commandSpeakingSessionPort.save(any()) }
         }
 
+        test("이동한 장면 대사의 ㅇㅇ 자리표시자를 아이 이름과 조사로 치환한다") {
+            every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(null)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { childAccessPort.findChildName(childId) } returns "지우"
+            every { storyAccessPort.findFirstSceneId(storyId) } returns firstSceneIdStr
+            every { storyAccessPort.findScene(storyId, firstSceneIdStr) } returns placeholderScene()
+            val savedSlot = slot<SpeakingSession>()
+            every { commandSpeakingSessionPort.save(capture(savedSlot)) } answers { savedSlot.captured }
+
+            val result = service.execute(command())
+
+            result.scene?.characterOpening shouldBe "지우야, 안녕?"
+            result.scene?.characterClosing shouldBe "지우 덕분에 좋았어."
+        }
+
         test("NARRATION 장면 세션이면 종료 여부와 무관하게 다음 장면으로 이동해 SCENE 뷰를 반환한다") {
             every {
                 loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr))
@@ -232,6 +264,7 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
 
             result.viewType shouldBe SpeakingSessionViewType.SCENE
             result.scene?.sceneId shouldBe nextSceneIdStr
+            result.scene?.narrationAudio shouldNotBe null
             savedSlot.captured.currentSceneId shouldBe nextSceneIdStr
             savedSlot.captured.status shouldBe SessionStatus.IN_PROGRESS
             verify(exactly = 1) { commandSpeakingSessionPort.save(any()) }
