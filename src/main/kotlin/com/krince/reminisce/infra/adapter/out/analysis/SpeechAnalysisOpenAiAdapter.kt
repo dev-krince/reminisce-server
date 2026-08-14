@@ -1,6 +1,7 @@
 package com.krince.reminisce.infra.adapter.out.analysis
 
 import com.krince.reminisce.application.port.out.analysis.SpeechAnalysisPort
+import com.krince.reminisce.application.port.out.conversation.ConversationTurn
 import com.krince.reminisce.domain.model.utteranceanalysis.RawUtteranceAnalysis
 import com.krince.reminisce.domain.model.utteranceanalysis.vo.ChildIntent
 import com.krince.reminisce.domain.model.utteranceanalysis.vo.UtteranceValidity
@@ -19,11 +20,11 @@ class SpeechAnalysisOpenAiAdapter(
 
     private val chatClient: ChatClient = chatClientBuilder.build()
 
-    override fun analyze(text: String): RawUtteranceAnalysis {
+    override fun analyze(text: String, recentTurns: List<ConversationTurn>): RawUtteranceAnalysis {
         return runCatching {
             chatClient.prompt()
                 .system(SYSTEM_PROMPT)
-                .user(text)
+                .user(userPrompt(text, recentTurns))
                 .call()
                 .entity(AnalysisLlmResult::class.java)
                 ?.toRawUtteranceAnalysis()
@@ -32,6 +33,24 @@ class SpeechAnalysisOpenAiAdapter(
             logger.warn(cause) { "발화 분석 LLM 호출 실패 — UNCLEAR로 폴백" }
             unclear()
         }
+    }
+
+    private fun userPrompt(text: String, recentTurns: List<ConversationTurn>): String {
+        if (recentTurns.isEmpty()) {
+            return text
+        }
+        val history: String = recentTurns.joinToString("\n") { turn ->
+            val speaker: String = if (turn.isChild) "아이" else "캐릭터"
+            "$speaker: ${turn.text}"
+        }
+
+        return """
+            [직전 대화]
+            $history
+
+            [분석할 아이 발화]
+            $text
+        """.trimIndent()
     }
 
     private fun unclear(): RawUtteranceAnalysis =
@@ -58,6 +77,9 @@ class SpeechAnalysisOpenAiAdapter(
             없는 요소는 넣지 않습니다.
 
             validity — 발화 유효성. 다음 중 하나만: VALID, SHORT, UNCLEAR, OFF_TOPIC, PLAYFUL
+
+            직전 대화가 함께 주어지면 짧거나 생략된 발화(예: "응", "그거", "몰라")를 그 맥락으로 해석하세요.
+            단 detectedElements의 evidence는 반드시 '분석할 아이 발화' 원문에 실제로 등장한 표현이어야 합니다. 직전 대화의 표현을 evidence로 쓰지 마세요.
         """.trimIndent()
     }
 }

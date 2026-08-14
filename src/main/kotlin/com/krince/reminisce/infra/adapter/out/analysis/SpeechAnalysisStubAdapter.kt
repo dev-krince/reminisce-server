@@ -1,6 +1,7 @@
 package com.krince.reminisce.infra.adapter.out.analysis
 
 import com.krince.reminisce.application.port.out.analysis.SpeechAnalysisPort
+import com.krince.reminisce.application.port.out.conversation.ConversationTurn
 import com.krince.reminisce.domain.model.story.vo.ThinkingElement
 import com.krince.reminisce.domain.model.utteranceanalysis.DetectedElement
 import com.krince.reminisce.domain.model.utteranceanalysis.RawUtteranceAnalysis
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Component
 @ConditionalOnProperty(name = ["analysis.engine"], havingValue = "stub", matchIfMissing = true)
 class SpeechAnalysisStubAdapter : SpeechAnalysisPort {
 
-    override fun analyze(text: String): RawUtteranceAnalysis {
+    override fun analyze(text: String, recentTurns: List<ConversationTurn>): RawUtteranceAnalysis {
         val detectedElements: List<DetectedElement> = detectElements(text)
 
         return RawUtteranceAnalysis(

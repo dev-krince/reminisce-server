@@ -28,7 +28,7 @@ class SpeechAnalysisOpenAiManualTest : FunSpec({
 
         val report = StringBuilder("model=$model\n\n")
         utterances.forEach { utterance ->
-            val result = adapter.analyze(utterance)
+            val result = adapter.analyze(utterance, emptyList())
             report.appendLine("발화: $utterance")
             report.appendLine("  의도=${result.childIntent}  유효성=${result.validity}")
             report.appendLine("  핵심=${result.mainPoint}")
