@@ -92,7 +92,7 @@ class StoryContentSeeder(
         representativeImageUrl = BANGGUI_COVER_IMAGE_URL,
         status = StoryStatus.PUBLISHED,
         postActivityConfig = bangguiPostActivityConfig(),
-        topics = listOf("다름", "자기이해", "장점 발견"),
+        topics = listOf("감정", "관계"),
         genre = StoryGenre.FOLKTALE,
         scenes = bangguiScenes(),
     )
@@ -107,15 +107,15 @@ class StoryContentSeeder(
             sceneId = "sc_banggui_02",
             sceneOrder = 2,
             sceneDescription = "그래서 며느리는 방귀가 나오려고 할 때마다 꾹꾹 참았습니다. " +
-                "오래 참다 보니 배는 점점 빵빵하게 부풀어 올랐고 얼굴은 노랗게 변했습니다. " +
-                "몸도 마음도 힘들었지만 가족들에게 솔직하게 말하지 못했습니다.",
+                "하루도 참고, 이틀도 참고, 그렇게 오래 참다 보니 배는 점점 빵빵하게 부풀어 올랐고 얼굴은 노랗게 변했습니다. " +
+                "몸도 마음도 너무 힘들었지만, 며느리는 차마 가족들에게 솔직하게 말하지 못했습니다.",
         ),
         dialogueScene(
             sceneId = "sc_banggui_03",
             sceneOrder = 3,
-            sceneDescription = "'내 방귀가 너무 크다는 걸 알면 나를 이상하게 생각하지 않을까?' 며느리는 걱정이 많았습니다. " +
-                "방귀는 누구에게나 자연스러운 일이지만 며느리에게는 큰 비밀처럼 느껴졌습니다. " +
-                "한 번 나오면 지붕이 흔들릴 만큼 우렁찼기 때문에 더욱 부끄러웠습니다.",
+            sceneDescription = "며느리는 걱정이 많았습니다. 사실 방귀는 누구에게나 나오는 자연스러운 일이지만, " +
+                "며느리에게는 그것이 큰 비밀처럼 느껴졌습니다. " +
+                "특히 자신의 방귀는 한 번 나오면 지붕이 흔들릴 만큼 우렁찼기 때문에 더욱 부끄러웠습니다.",
             characterName = "ch_banggui_daughter_in_law",
             characterDisplayName = "방귀쟁이 며느리",
             characterOpening = "ㅇㅇ아, 내 방귀가 너무 크다는 걸 알면 가족들이 나를 이상하게 생각하지 않을까?",
@@ -133,17 +133,21 @@ class StoryContentSeeder(
         narrationScene(
             sceneId = "sc_banggui_04",
             sceneOrder = 4,
-            sceneDescription = "더 이상 참을 수 없어 조심스럽게 살짝만 뀌려 했지만, 오래 참은 탓에 훨씬 크게 터져 나왔습니다. " +
-                "마당 먼지가 날아가고 기왓장이 달그락거리고 시아버지의 갓까지 휙 날아가 버렸습니다.",
+            sceneDescription = "그러던 어느 날, 며느리는 더 이상 참을 수 없었습니다. 배가 너무 아프고 숨 쉬기도 힘들었습니다. " +
+                "며느리는 조심스럽게 가족들에게 말했습니다. \"저… 사실은 방귀를 너무 오래 참아서 배가 아파요. 조금만 뀌어도 될까요?\" " +
+                "며느리는 아주 살짝만 뀌려고 했습니다. 하지만 그동안 너무 오래 참았던 탓에 방귀는 생각보다 훨씬 크게 터져 나왔습니다. " +
+                "마당의 먼지가 휘리릭 날아가고, 기왓장이 달그락거리고, 시아버지의 갓까지 휙 날아가 버렸습니다.",
         ),
         dialogueScene(
             sceneId = "sc_banggui_05",
             sceneOrder = 5,
-            sceneDescription = "시아버지는 깜짝 놀라 화를 냈습니다. \"우리 집안이 다 흔들리는구나!\" 며느리는 고개를 숙였습니다. " +
-                "시아버지는 이런 며느리와는 함께 살 수 없다며 친정에 데려다주러 길을 나섰습니다.",
+            sceneDescription = "시아버지는 깜짝 놀라 화를 냈습니다. 며느리는 고개를 푹 숙였습니다. " +
+                "일부러 그런 것이 아니었지만, 모두가 놀란 모습을 보니 마음이 더 작아졌습니다. " +
+                "시아버지는 며느리의 방귀가 너무 별나다며, 이런 며느리와는 함께 살 수 없다고 말했습니다. " +
+                "며느리는 슬펐습니다. 자신이 가족에게 피해만 주는 사람처럼 느껴졌기 때문입니다.",
             characterName = "ch_banggui_father_in_law",
             characterDisplayName = "시아버지",
-            characterOpening = "아이고 이게 무슨 일이냐! 우리 집안이 다 흔들리는구나! 이렇게 창피한 며느리와 함께 못살겠다! 그렇지 않니?",
+            characterOpening = "아이고, 이게 무슨 일이냐! 우리 집안이 다 흔들리는구나! 이렇게 창피한 며느리와 함께 못 살겠다! ㅇㅇ도 그렇게 생각하지 않니?",
             characterClosing = "흥, 그래도 도저히 이런 며느리와는 함께 살 수 없으니 친정으로 데려다줘야겠다.",
             sceneGoal = "시아버지가 놀란 마음을 이해하면서도, 며느리가 일부러 그런 것이 아니라 오래 참아 힘들었음을 말하고 따뜻하게 이해해 달라 설득한다",
             requiredElements = listOf(
@@ -158,18 +162,22 @@ class StoryContentSeeder(
         narrationScene(
             sceneId = "sc_banggui_06",
             sceneOrder = 6,
-            sceneDescription = "길가에 아주 높은 배나무가 서 있었습니다. " +
-                "노랗고 탐스러운 배가 주렁주렁 매달렸지만 너무 높아 아무도 딸 수 없었습니다.",
+            sceneDescription = "그런데 한참 걷다 보니 길가에 아주 높은 배나무가 한 그루 서 있었습니다. " +
+                "나무 꼭대기에는 노랗고 탐스러운 배들이 주렁주렁 매달려 있었습니다. " +
+                "시아버지는 배를 보자 군침이 돌았습니다. \"참 맛있어 보이는 배로구나. 그런데 너무 높아서 딸 수가 없겠네.\" " +
+                "마을 사람들도 그 배를 먹고 싶어 했지만, 나무가 너무 높아 아무도 딸 수 없었습니다. " +
+                "긴 장대를 가져와도 닿지 않았고, 나무에 올라가려 해도 가지가 너무 높았습니다.",
         ),
         dialogueScene(
             sceneId = "sc_banggui_07",
             sceneOrder = 7,
-            sceneDescription = "며느리는 '내 방귀가 지붕도 흔들 만큼 세다면 저 높은 배를 떨어뜨릴 수도 있지 않을까?' 생각했습니다. " +
-                "사람들을 피하게 하고 나무를 향해 힘을 모아 크게 방귀를 뀌자 배들이 우수수 떨어졌습니다. " +
-                "시끄럽고 별나다 여겼던 방귀가 모두를 도울 특별한 힘이었던 것입니다.",
+            sceneDescription = "며느리는 고민에 빠졌습니다. \"내 방귀가 지붕도 흔들 만큼 힘이 세다면, 높은 배도 떨어뜨릴 수 있겠어.\" " +
+                "며느리는 사람들이 다치지 않도록 모두 떨어지게 한 뒤, 배나무 위쪽을 향해 힘을 모아 크게 방귀를 뀌었습니다. " +
+                "천둥 같은 방귀 소리와 함께 높은 나무에 매달려 있던 배들이 우수수 떨어졌습니다. " +
+                "아무도 따지 못했던 배가 마당 가득 떨어졌고, 시끄럽고 별나다 여겼던 며느리의 방귀가 알고 보니 모두를 도울 수 있는 특별한 힘이었던 것입니다.",
             characterName = "ch_banggui_village_chief",
             characterDisplayName = "마을 이장",
-            characterOpening = "이 배나무는 해마다 탐스러운 배가 열리지만, 너무 높아서 아무도 딸 수가 없었소. 무슨 뾰족한 방법이 없겠는가?",
+            characterOpening = "이 배나무는 해마다 탐스러운 배가 열리지만, 너무 높아서 아무도 딸 수가 없단다. 무슨 뾰족한 방법이 없겠는가?",
             characterClosing = "아이고, 방귀 뀌는 며느리 덕분에 온 마을이 배 잔치를 할 수 있겠구려, 고맙소!",
             sceneGoal = "높은 배나무의 배를 떨어뜨릴 방법을 생각하고, 며느리의 큰 방귀를 안전하게 사용할 해결책을 제안한다",
             requiredElements = listOf(
@@ -188,19 +196,21 @@ class StoryContentSeeder(
         narrationScene(
             sceneId = "sc_banggui_08",
             sceneOrder = 8,
-            sceneDescription = "\"남들과 다르다고 해서 부끄러운 것이 아닌데, 내가 너무 성급하게 생각했다.\"",
+            sceneDescription = "시아버지는 며느리에게 미안한 마음이 들었습니다. " +
+                "\"내가 네 모습을 제대로 보지 못했구나. 남들과 다르다고 해서 부끄러운 것이 아닌데, 내가 너무 성급하게 생각했다.\"",
         ),
         dialogueScene(
             sceneId = "sc_banggui_09",
             sceneOrder = 9,
-            sceneDescription = "며느리는 자신이 숨기고 싶어 했던 특징이 누군가에게 도움이 될 수도 있음을 알게 되었습니다. " +
-                "이후 무조건 참지 않고, 힘들 때는 솔직히 말하고 미리 알려 주었습니다. " +
-                "마을 사람들도 며느리에게 도움을 부탁했습니다.",
+            sceneDescription = "며느리는 그 말을 듣고 마음이 조금씩 편안해졌습니다. " +
+                "자신이 숨기고 싶어 했던 특징이 누군가에게 도움이 될 수도 있다는 것을 알게 되었기 때문입니다. " +
+                "그 뒤로 며느리는 힘들 때는 솔직하게 말하고, 사람들이 놀라지 않도록 미리 알려 주었습니다. " +
+                "마을 사람들도 며느리를 놀리지 않고, 높은 나무의 열매를 딸 때나 큰 바람이 필요할 때 도움을 부탁했습니다.",
             characterName = "ch_banggui_daughter_in_law",
             characterDisplayName = "방귀쟁이 며느리",
             characterOpening = "ㅇㅇ이 덕분에 내 방귀가 누군가에게 도움이 될 수 있다는 걸 처음 알았어. " +
                 "이제는 방귀 소리가 큰 걸 부끄러워하지 않아도 될까?",
-            characterClosing = "이제는 부끄러워하며 숨기지 않고, 조심해서 좋은 일에 써 볼게",
+            characterClosing = "이제는 부끄러워하며 숨기지 않고, 조심해서 좋은 일에 써 볼게.",
             sceneGoal = "다름을 인정하고, 자신의 특징을 긍정적으로 받아들이는 태도를 말한다",
             requiredElements = listOf(
                 ThinkingElement.EMOTION,
