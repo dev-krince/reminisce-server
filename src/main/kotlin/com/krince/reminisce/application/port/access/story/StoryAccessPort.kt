@@ -15,5 +15,7 @@ interface StoryAccessPort {
 
     fun findNextScene(storyId: StoryId, currentSceneId: String): Scene?
 
+    fun findPreviousScene(storyId: StoryId, currentSceneId: String): Scene?
+
     fun findPostActivityConfig(storyId: StoryId): PostActivityConfig?
 }

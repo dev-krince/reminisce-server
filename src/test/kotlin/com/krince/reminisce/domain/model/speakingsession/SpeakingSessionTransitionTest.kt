@@ -82,4 +82,15 @@ class SpeakingSessionTransitionTest : FunSpec({
         entered.lastActivityAt shouldBe transitionAt
         entered.currentSceneId shouldBe original.currentSceneId
     }
+
+    test("stop은 status를 STOPPED로 바꾸고 lastActivityAt을 갱신하며 진행 필드를 보존한다") {
+        val original = advancedSceneSession()
+
+        val stopped = original.stop(transitionAt)
+
+        stopped.status shouldBe SessionStatus.STOPPED
+        stopped.lastActivityAt shouldBe transitionAt
+        stopped.currentSceneId shouldBe original.currentSceneId
+        stopped.currentChildTurnCount shouldBe original.currentChildTurnCount
+    }
 })

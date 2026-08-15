@@ -15,14 +15,18 @@ import com.krince.reminisce.application.port.`in`.report.usecase.GetSessionRepor
 import com.krince.reminisce.application.port.`in`.speakingsession.command.AdvanceSpeakingSceneCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.command.GetResumableSessionsCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.command.GetSpeakingSessionViewCommand
+import com.krince.reminisce.application.port.`in`.speakingsession.command.GoBackSpeakingSceneCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.command.StartSpeakingSessionCommand
+import com.krince.reminisce.application.port.`in`.speakingsession.command.StopSpeakingSessionCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.result.SpeakingSessionResult
 import com.krince.reminisce.application.port.`in`.speakingsession.result.SpeakingSessionSummaryResult
 import com.krince.reminisce.application.port.`in`.speakingsession.result.SpeakingSessionViewResult
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.AdvanceSpeakingSceneUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GetResumableSessionsUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GetSpeakingSessionViewUseCase
+import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GoBackSpeakingSceneUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.StartSpeakingSessionUseCase
+import com.krince.reminisce.application.port.`in`.speakingsession.usecase.StopSpeakingSessionUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.command.GetSpeakingHintCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.result.SpeakingHintResult
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GetSpeakingHintUseCase
@@ -76,6 +80,8 @@ class SpeakingSessionControllerImpl(
     private val getSpeakingSessionViewUseCase: GetSpeakingSessionViewUseCase,
     private val getSpeakingHintUseCase: GetSpeakingHintUseCase,
     private val advanceSpeakingSceneUseCase: AdvanceSpeakingSceneUseCase,
+    private val goBackSpeakingSceneUseCase: GoBackSpeakingSceneUseCase,
+    private val stopSpeakingSessionUseCase: StopSpeakingSessionUseCase,
     private val submitUtteranceUseCase: SubmitUtteranceUseCase,
     private val getResumableSessionsUseCase: GetResumableSessionsUseCase,
     private val submitCardOrderUseCase: SubmitCardOrderUseCase,
@@ -136,6 +142,31 @@ class SpeakingSessionControllerImpl(
         val result: SpeakingSessionViewResult = advanceSpeakingSceneUseCase.execute(command)
 
         return viewResponseEntity(result)
+    }
+
+    @PostMapping("/{sessionId}/back")
+    override fun goBackSpeakingScene(
+        @PathVariable sessionId: String,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<SuccessResponse<SpeakingSessionViewResponse>> {
+        val command = GoBackSpeakingSceneCommand(sessionId = sessionId, guardianId = userDetails.getId())
+        val result: SpeakingSessionViewResult = goBackSpeakingSceneUseCase.execute(command)
+
+        return viewResponseEntity(result)
+    }
+
+    @PostMapping("/{sessionId}/stop")
+    override fun stopSpeakingSession(
+        @PathVariable sessionId: String,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<SuccessResponse<SpeakingSessionResponse>> {
+        val command = StopSpeakingSessionCommand(sessionId = sessionId, guardianId = userDetails.getId())
+        val result: SpeakingSessionResult = stopSpeakingSessionUseCase.execute(command)
+        val response: SpeakingSessionResponse = speakingSessionResponse(result = result)
+        val responseBody: SuccessResponse<SpeakingSessionResponse> =
+            successResponse(responseCode = OK, data = response)
+
+        return ResponseEntity.status(responseBody.code).body(responseBody)
     }
 
     @PostMapping("/{sessionId}/utterances")

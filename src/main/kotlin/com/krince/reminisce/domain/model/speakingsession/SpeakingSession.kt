@@ -50,6 +50,9 @@ data class SpeakingSession(
     fun complete(at: LocalDateTime): SpeakingSession =
         copy(status = SessionStatus.COMPLETED, lastActivityAt = at)
 
+    fun stop(at: LocalDateTime): SpeakingSession =
+        copy(status = SessionStatus.STOPPED, lastActivityAt = at)
+
     fun accumulate(newTypes: List<ThinkingElement>, at: LocalDateTime): SpeakingSession =
         copy(accumulatedElements = (accumulatedElements + newTypes).distinct(), lastActivityAt = at)
 
