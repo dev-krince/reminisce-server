@@ -3,9 +3,11 @@ package com.krince.reminisce.infra.adapter.out.persistence.story
 import com.krince.reminisce.domain.model.story.vo.StoryGenre
 import com.krince.reminisce.domain.model.story.vo.StorySort
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
+import com.krince.reminisce.infra.adapter.out.persistence.speakingsession.entity.QSpeakingSessionOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.entity.QStoryOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.entity.QStoryTopicOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.entity.StoryOrmEntity
+import com.querydsl.core.types.Order
 import com.querydsl.core.types.OrderSpecifier
 import com.querydsl.core.types.dsl.BooleanExpression
 import com.querydsl.jpa.JPAExpressions
@@ -17,6 +19,7 @@ class StoryQueryRepositoryImpl(private val queryFactory: JPAQueryFactory) : Stor
 
     private val story = QStoryOrmEntity.storyOrmEntity
     private val storyTopic = QStoryTopicOrmEntity.storyTopicOrmEntity
+    private val speakingSession = QSpeakingSessionOrmEntity.speakingSessionOrmEntity
 
     override fun findPublished(
         genre: StoryGenre?,
@@ -31,7 +34,7 @@ class StoryQueryRepositoryImpl(private val queryFactory: JPAQueryFactory) : Stor
             titleContains(titleKeyword),
             topicIn(topic),
         )
-        .orderBy(orderBy(sort))
+        .orderBy(*orderBy(sort))
         .fetch()
 
     private fun genreEq(genre: StoryGenre?): BooleanExpression? = genre?.let { story.storyGenre.eq(it.name) }
@@ -57,9 +60,18 @@ class StoryQueryRepositoryImpl(private val queryFactory: JPAQueryFactory) : Stor
         )
     }
 
-    private fun orderBy(sort: StorySort): OrderSpecifier<*> = when (sort) {
-        StorySort.RECOMMENDED -> story.createdDate.asc()
-        StorySort.DIFFICULTY -> story.difficulty.asc()
-        StorySort.LATEST -> story.createdDate.desc()
+    private fun orderBy(sort: StorySort): Array<OrderSpecifier<*>> = when (sort) {
+        StorySort.RECOMMENDED -> arrayOf(story.createdDate.asc())
+        StorySort.DIFFICULTY -> arrayOf(story.difficulty.asc())
+        StorySort.LATEST -> arrayOf(story.createdDate.desc())
+        StorySort.POPULAR -> arrayOf(
+            OrderSpecifier(Order.DESC, sessionCount()),
+            story.createdDate.desc(),
+        )
     }
+
+    private fun sessionCount() = JPAExpressions
+        .select(speakingSession.count())
+        .from(speakingSession)
+        .where(speakingSession.storyId.eq(story.storyId))
 }

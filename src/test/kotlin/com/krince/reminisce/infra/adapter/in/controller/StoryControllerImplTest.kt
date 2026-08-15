@@ -427,6 +427,65 @@ class StoryControllerImplTest(
                     .body("data.storyId", contains(firstId, secondId))
             }
 
+            test("sort=POPULAR로 조회하면 세션 시작 수가 많은 이야기부터 정렬되고 세션 없는 이야기는 뒤로 간다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+                val childId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+
+                val twoSessionsId = "popular-two-${uniqueSuffix()}"
+                val oneSessionId = "popular-one-${uniqueSuffix()}"
+                val noSessionId = "popular-none-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(twoSessionsId))
+                testStoryFixture.saveStory(storyEntity(oneSessionId))
+                testStoryFixture.saveStory(storyEntity(noSessionId))
+                testSpeakingSessionFixture.save(sessionEntity("session-${uniqueSuffix()}", childId, twoSessionsId))
+                testSpeakingSessionFixture.save(sessionEntity("session-${uniqueSuffix()}", childId, twoSessionsId))
+                testSpeakingSessionFixture.save(sessionEntity("session-${uniqueSuffix()}", childId, oneSessionId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("sort", "POPULAR")
+                    .`when`()
+                    .get("/stories")
+                    .then()
+                    .statusCode(200)
+                    .body("data", hasSize<Any>(3))
+                    .body("data.storyId", contains(twoSessionsId, oneSessionId, noSessionId))
+            }
+
+            test("sort=POPULAR에서 세션 수가 동률이면 createdDate 최신순으로 tie-break 된다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+                val childId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+
+                val olderTiedId = "tie-older-${uniqueSuffix()}"
+                val newerTiedId = "tie-newer-${uniqueSuffix()}"
+                val noSessionId = "tie-none-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(olderTiedId))
+                Thread.sleep(10)
+                testStoryFixture.saveStory(storyEntity(newerTiedId))
+                Thread.sleep(10)
+                testStoryFixture.saveStory(storyEntity(noSessionId))
+                testSpeakingSessionFixture.save(sessionEntity("session-${uniqueSuffix()}", childId, olderTiedId))
+                testSpeakingSessionFixture.save(sessionEntity("session-${uniqueSuffix()}", childId, newerTiedId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("sort", "POPULAR")
+                    .`when`()
+                    .get("/stories")
+                    .then()
+                    .statusCode(200)
+                    .body("data", hasSize<Any>(3))
+                    .body("data.storyId", contains(newerTiedId, olderTiedId, noSessionId))
+            }
+
             test("genre·q·topic을 함께 주면 모두 만족하는 공개 이야기만 반환한다") {
                 val token = authorizedToken()
                 val targetId = "combo-target-${uniqueSuffix()}"
