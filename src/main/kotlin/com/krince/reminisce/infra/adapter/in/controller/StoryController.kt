@@ -38,6 +38,7 @@ interface StoryController {
             ExceptionExample(code = EMPTY_TOKEN, name = "토큰 없음", message = "토큰이 없습니다.", description = "인증 토큰이 제공되지 않은 경우"),
             ExceptionExample(code = INVALID_TOKEN, name = "유효하지 않은 토큰", message = "유효하지 않은 토큰입니다.", description = "토큰이 유효하지 않거나 서명이 잘못된 경우"),
             ExceptionExample(code = EXPIRED_TOKEN, name = "만료된 토큰", message = "만료된 토큰입니다.", description = "토큰의 유효기간이 만료된 경우"),
+            ExceptionExample(code = NOT_FOUND, name = "아이 없음", message = "리소스가 존재하지 않습니다.", description = "childId가 존재하지 않거나 다른 보호자의 아이인 경우"),
             ExceptionExample(code = INTERNAL_SERVER_ERROR, name = "서버 오류", message = "서버 에러입니다. 개발자에게 문의해주세요.", description = "예상치 못한 서버 오류가 발생한 경우"),
         ]
     )
@@ -54,6 +55,10 @@ interface StoryController {
         @Parameter(description = "정렬 기준 (미지정 시 RECOMMENDED)", example = "RECOMMENDED", required = false)
         @RequestParam(required = false)
         sort: StorySort?,
+        @Parameter(description = "찜 여부 기준 아이 식별자 (미지정 시 isBookmarked 모두 false)", required = false)
+        @RequestParam(required = false)
+        childId: String?,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<List<StorySummaryResponse>>>
 
     @Operation(summary = "이야기 상세 조회", description = "공개된 이야기의 상세 정보와 순서대로 정렬된 장면 목록을 조회합니다.")

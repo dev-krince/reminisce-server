@@ -1,8 +1,11 @@
 package com.krince.reminisce.application.service.story
 
+import com.krince.reminisce.application.port.access.child.ChildAccessPort
+import com.krince.reminisce.application.port.access.savedstory.SavedStoryAccessPort
 import com.krince.reminisce.application.port.`in`.story.command.GetStoriesCommand
 import com.krince.reminisce.application.port.`in`.story.command.GetStoryCommand
 import com.krince.reminisce.application.port.out.story.LoadStoryPort
+import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.story.Scene
 import com.krince.reminisce.domain.model.story.Story
 import com.krince.reminisce.domain.model.story.vo.Difficulty
@@ -14,7 +17,9 @@ import com.krince.reminisce.domain.model.story.vo.StoryId
 import com.krince.reminisce.domain.model.story.vo.StorySort
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
 import com.krince.reminisce.domain.model.story.vo.ThinkingElement
+import com.krince.reminisce.domain.model.user.vo.UserId
 import com.krince.reminisce.shared.exception.NotFoundException
+import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND
 import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND_STORY
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.annotation.DisplayName
@@ -34,7 +39,9 @@ import io.mockk.verify
 class StoryQueryServiceTest : FunSpec({
 
     val loadStoryPort = mockk<LoadStoryPort>()
-    val service = StoryQueryService(loadStoryPort)
+    val savedStoryAccessPort = mockk<SavedStoryAccessPort>()
+    val childAccessPort = mockk<ChildAccessPort>()
+    val service = StoryQueryService(loadStoryPort, savedStoryAccessPort, childAccessPort)
 
     beforeEach { clearAllMocks() }
 
@@ -103,7 +110,9 @@ class StoryQueryServiceTest : FunSpec({
                 results.first().topics shouldContainExactly listOf("다름", "자기이해")
                 results.first().genre shouldBe "전래동화"
                 results.first().difficulty shouldBe "보통"
+                results.first().isBookmarked shouldBe false
                 verify(exactly = 1) { loadStoryPort.findPublished(null, null, null, StorySort.RECOMMENDED) }
+                verify(exactly = 0) { savedStoryAccessPort.findBookmarkedStoryIds(any()) }
             }
 
             test("genre만 지정하면 genre 인자로 findPublished에 위임한다") {
@@ -182,6 +191,87 @@ class StoryQueryServiceTest : FunSpec({
                 )
 
                 results shouldHaveSize 0
+            }
+        }
+
+        context("찜 여부(isBookmarked)") {
+            val childIdStr = "child-uuid-1"
+            val guardianIdStr = "guardian-uuid-1"
+
+            fun storyWithId(id: String): Story = Story(
+                storyId = StoryId(id),
+                title = "제목-$id",
+                summary = "이야기 요약",
+                intro = "이야기 도입",
+                situation = "이야기 상황",
+                childRole = "아이 역할",
+                difficulty = Difficulty("보통"),
+                estimatedMinutes = 20,
+                representativeImageUrl = "/files/$id.png",
+                status = StoryStatus.PUBLISHED,
+                postActivityConfig = postActivityConfig,
+                topics = listOf("다름"),
+                genre = StoryGenre.FOLKTALE,
+                scenes = emptyList(),
+            )
+
+            test("childId가 없으면 소유권·찜 조회 없이 모든 항목 isBookmarked=false") {
+                every {
+                    loadStoryPort.findPublished(null, null, null, StorySort.RECOMMENDED)
+                } returns listOf(storyWithId("s_a"), storyWithId("s_b"))
+
+                val results = service.execute(
+                    GetStoriesCommand(topic = null, genre = null, titleKeyword = null, sort = StorySort.RECOMMENDED),
+                )
+
+                results.map { it.isBookmarked } shouldContainExactly listOf(false, false)
+                verify(exactly = 0) { childAccessPort.findGuardianId(any()) }
+                verify(exactly = 0) { savedStoryAccessPort.findBookmarkedStoryIds(any()) }
+            }
+
+            test("childId를 주면 그 아이가 찜한 이야기만 isBookmarked=true로 표시한다") {
+                every {
+                    loadStoryPort.findPublished(null, null, null, StorySort.RECOMMENDED)
+                } returns listOf(storyWithId("s_a"), storyWithId("s_b"))
+                every { childAccessPort.findGuardianId(ChildId(childIdStr)) } returns UserId(guardianIdStr)
+                every { savedStoryAccessPort.findBookmarkedStoryIds(ChildId(childIdStr)) } returns setOf("s_b")
+
+                val results = service.execute(
+                    GetStoriesCommand(
+                        topic = null,
+                        genre = null,
+                        titleKeyword = null,
+                        sort = StorySort.RECOMMENDED,
+                        childId = childIdStr,
+                        guardianId = guardianIdStr,
+                    ),
+                )
+
+                results.single { it.storyId == "s_a" }.isBookmarked shouldBe false
+                results.single { it.storyId == "s_b" }.isBookmarked shouldBe true
+            }
+
+            test("childId가 남의 아이면 NotFoundException(NOT_FOUND)을 던지고 찜 조회를 하지 않는다") {
+                every {
+                    loadStoryPort.findPublished(null, null, null, StorySort.RECOMMENDED)
+                } returns listOf(storyWithId("s_a"))
+                every { childAccessPort.findGuardianId(ChildId(childIdStr)) } returns UserId("guardian-uuid-2")
+
+                val exception = shouldThrow<NotFoundException> {
+                    service.execute(
+                        GetStoriesCommand(
+                            topic = null,
+                            genre = null,
+                            titleKeyword = null,
+                            sort = StorySort.RECOMMENDED,
+                            childId = childIdStr,
+                            guardianId = guardianIdStr,
+                        ),
+                    )
+                }
+
+                exception.exceptionResponseCode shouldBe NOT_FOUND
+                verify(exactly = 0) { savedStoryAccessPort.findBookmarkedStoryIds(any()) }
             }
         }
     }

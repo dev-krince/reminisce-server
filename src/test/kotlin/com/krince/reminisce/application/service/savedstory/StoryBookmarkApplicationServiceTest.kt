@@ -1,6 +1,7 @@
 package com.krince.reminisce.application.service.savedstory
 
 import com.krince.reminisce.application.port.access.child.ChildAccessPort
+import com.krince.reminisce.application.port.access.story.StoryAccessPort
 import com.krince.reminisce.application.port.`in`.savedstory.command.AddStoryBookmarkCommand
 import com.krince.reminisce.application.port.`in`.savedstory.command.GetBookmarkedStoriesCommand
 import com.krince.reminisce.application.port.`in`.savedstory.command.RemoveStoryBookmarkCommand
@@ -13,6 +14,7 @@ import com.krince.reminisce.domain.model.story.vo.StoryId
 import com.krince.reminisce.domain.model.user.vo.UserId
 import com.krince.reminisce.shared.exception.NotFoundException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND
+import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND_STORY
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.annotation.DisplayName
 import io.kotest.core.annotation.Tags
@@ -33,10 +35,12 @@ class StoryBookmarkApplicationServiceTest : FunSpec({
     val loadSavedStoryPort = mockk<LoadSavedStoryPort>()
     val commandSavedStoryPort = mockk<CommandSavedStoryPort>()
     val childAccessPort = mockk<ChildAccessPort>()
+    val storyAccessPort = mockk<StoryAccessPort>()
     val service = StoryBookmarkApplicationService(
         loadSavedStoryPort = loadSavedStoryPort,
         commandSavedStoryPort = commandSavedStoryPort,
         childAccessPort = childAccessPort,
+        storyAccessPort = storyAccessPort,
     )
 
     beforeEach { clearAllMocks() }
@@ -74,6 +78,7 @@ class StoryBookmarkApplicationServiceTest : FunSpec({
             exception.exceptionResponseCode shouldBe NOT_FOUND
             verify(exactly = 0) { commandSavedStoryPort.saveIfAbsent(any()) }
             verify(exactly = 0) { loadSavedStoryPort.findByChildIdAndStoryId(any(), any()) }
+            verify(exactly = 0) { storyAccessPort.existsPublished(any()) }
         }
 
         test("찜 추가 시 findGuardianId가 다른 보호자면 NotFoundException(NOT_FOUND)을 던지고 저장하지 않는다") {
@@ -83,6 +88,7 @@ class StoryBookmarkApplicationServiceTest : FunSpec({
 
             exception.exceptionResponseCode shouldBe NOT_FOUND
             verify(exactly = 0) { commandSavedStoryPort.saveIfAbsent(any()) }
+            verify(exactly = 0) { storyAccessPort.existsPublished(any()) }
         }
 
         test("찜 해제 시 findGuardianId가 다른 보호자면 NotFoundException(NOT_FOUND)을 던지고 삭제하지 않는다") {
@@ -109,6 +115,7 @@ class StoryBookmarkApplicationServiceTest : FunSpec({
             val persisted = savedStory("saved-story-1", storyIdStr)
             val commandSlot = slot<SavedStory>()
             every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.existsPublished(storyId) } returns true
             every { loadSavedStoryPort.findByChildIdAndStoryId(childId, storyId) } returns null
             every { commandSavedStoryPort.saveIfAbsent(capture(commandSlot)) } returns persisted
 
@@ -123,12 +130,24 @@ class StoryBookmarkApplicationServiceTest : FunSpec({
         test("이미 찜한 이야기를 다시 찜하면 저장하지 않고 기존 찜을 반환한다") {
             val existing = savedStory("saved-story-1", storyIdStr)
             every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.existsPublished(storyId) } returns true
             every { loadSavedStoryPort.findByChildIdAndStoryId(childId, storyId) } returns existing
 
             val result = service.execute(addCommand())
 
             result.savedStoryId shouldBe "saved-story-1"
             result.storyId shouldBe storyIdStr
+            verify(exactly = 0) { commandSavedStoryPort.saveIfAbsent(any()) }
+        }
+
+        test("공개되지 않았거나 없는 storyId면 NotFoundException(NOT_FOUND_STORY)을 던지고 저장하지 않는다") {
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.existsPublished(storyId) } returns false
+
+            val exception = shouldThrow<NotFoundException> { service.execute(addCommand()) }
+
+            exception.exceptionResponseCode shouldBe NOT_FOUND_STORY
+            verify(exactly = 0) { loadSavedStoryPort.findByChildIdAndStoryId(any(), any()) }
             verify(exactly = 0) { commandSavedStoryPort.saveIfAbsent(any()) }
         }
     }

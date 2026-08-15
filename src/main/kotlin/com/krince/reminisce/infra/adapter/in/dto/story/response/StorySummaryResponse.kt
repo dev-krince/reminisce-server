@@ -25,6 +25,9 @@ class StorySummaryResponse(
 
     @field:Schema(description = "이야기 난이도", example = "보통", required = true)
     val difficulty: String,
+
+    @field:Schema(description = "요청 아이의 찜 여부(childId 미지정 시 false)", example = "false", required = true)
+    val isBookmarked: Boolean,
 )
 
 fun storySummaryResponse(result: StorySummaryResult): StorySummaryResponse = StorySummaryResponse(
@@ -35,4 +38,5 @@ fun storySummaryResponse(result: StorySummaryResult): StorySummaryResponse = Sto
     topics = result.topics,
     genre = result.genre,
     difficulty = result.difficulty,
+    isBookmarked = result.isBookmarked,
 )

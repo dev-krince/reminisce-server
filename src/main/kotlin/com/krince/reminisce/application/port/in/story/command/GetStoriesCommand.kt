@@ -8,4 +8,6 @@ class GetStoriesCommand(
     val genre: StoryGenre?,
     val titleKeyword: String?,
     val sort: StorySort,
+    val childId: String? = null,
+    val guardianId: String? = null,
 )

@@ -42,12 +42,16 @@ class StoryControllerImpl(
         @RequestParam(required = false) genre: StoryGenre?,
         @RequestParam(required = false) q: String?,
         @RequestParam(required = false) sort: StorySort?,
+        @RequestParam(required = false) childId: String?,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<List<StorySummaryResponse>>> {
         val command = GetStoriesCommand(
             topic = topic,
             genre = genre,
             titleKeyword = q,
             sort = sort ?: StorySort.RECOMMENDED,
+            childId = childId,
+            guardianId = userDetails.getId(),
         )
         val results: List<StorySummaryResult> = getStoriesUseCase.execute(command)
         val response: List<StorySummaryResponse> = results.map { storySummaryResponse(result = it) }

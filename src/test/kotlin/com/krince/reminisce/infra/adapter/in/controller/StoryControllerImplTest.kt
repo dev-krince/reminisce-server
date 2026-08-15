@@ -10,6 +10,7 @@ import com.krince.reminisce.domain.model.story.vo.StoryGenre
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
 import com.krince.reminisce.domain.model.story.vo.ThinkingElement
 import com.krince.reminisce.infra.adapter.out.persistence.child.entity.ChildOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.savedstory.entity.SavedStoryOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.speakingsession.entity.SpeakingSessionOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.entity.SceneOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.entity.StoryOrmEntity
@@ -20,6 +21,7 @@ import com.krince.reminisce.shared.response.SuccessResponseCode
 import com.krince.reminisce.testutil.TestConfig
 import com.krince.reminisce.testutil.fixture.TestChildFixture
 import com.krince.reminisce.testutil.fixture.TestJwtTokenFixture
+import com.krince.reminisce.testutil.fixture.TestSavedStoryFixture
 import com.krince.reminisce.testutil.fixture.TestSpeakingSessionFixture
 import com.krince.reminisce.testutil.fixture.TestStoryFixture
 import com.krince.reminisce.testutil.fixture.TestUserFixture
@@ -52,9 +54,16 @@ class StoryControllerImplTest(
     private val testJwtTokenFixture: TestJwtTokenFixture,
     private val testChildFixture: TestChildFixture,
     private val testSpeakingSessionFixture: TestSpeakingSessionFixture,
+    private val testSavedStoryFixture: TestSavedStoryFixture,
 ) : FunSpec({
 
     fun uniqueSuffix(): String = "${System.currentTimeMillis()}-${System.nanoTime()}"
+
+    fun savedStoryEntity(childId: String, storyId: String): SavedStoryOrmEntity = SavedStoryOrmEntity(
+        savedStoryId = "saved-$storyId-$childId",
+        childId = childId,
+        storyId = storyId,
+    )
 
     fun userEntity(userId: String): UserOrmEntity =
         UserOrmEntity(
@@ -213,6 +222,7 @@ class StoryControllerImplTest(
 
     beforeTest {
         testSpeakingSessionFixture.deleteAllBatch()
+        testSavedStoryFixture.deleteAllBatch()
         testStoryFixture.deleteAllBatch()
         testChildFixture.deleteAllBatch()
         testUserFixture.deleteAllBatch()
@@ -246,6 +256,53 @@ class StoryControllerImplTest(
                     .body("data[0].estimatedMinutes", equalTo(20))
                     .body("data[0].topics", containsInAnyOrder("다름", "자기이해"))
                     .body("data[0].difficulty", equalTo("보통"))
+                    .body("data[0].isBookmarked", equalTo(false))
+            }
+
+            test("childId 없이 조회하면 모든 항목 isBookmarked가 false다") {
+                val token = authorizedToken()
+                val publishedId = "no-child-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(publishedId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/stories")
+                    .then()
+                    .statusCode(200)
+                    .body("data", hasSize<Any>(1))
+                    .body("data[0].storyId", equalTo(publishedId))
+                    .body("data[0].isBookmarked", equalTo(false))
+            }
+
+            test("childId를 주면 그 아이가 찜한 이야기만 isBookmarked=true로 응답한다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+                val childId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+
+                val bookmarkedId = "bookmarked-${uniqueSuffix()}"
+                val plainId = "plain-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(bookmarkedId, difficulty = "가"))
+                testStoryFixture.saveStory(storyEntity(plainId, difficulty = "나"))
+                testSavedStoryFixture.save(savedStoryEntity(childId, bookmarkedId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("childId", childId)
+                    .queryParam("sort", "DIFFICULTY")
+                    .`when`()
+                    .get("/stories")
+                    .then()
+                    .statusCode(200)
+                    .body("data", hasSize<Any>(2))
+                    .body("data[0].storyId", equalTo(bookmarkedId))
+                    .body("data[0].isBookmarked", equalTo(true))
+                    .body("data[1].storyId", equalTo(plainId))
+                    .body("data[1].isBookmarked", equalTo(false))
             }
 
             test("topic 파라미터로 필터하면 그 주제를 가진 공개 이야기만 반환한다") {
@@ -520,6 +577,44 @@ class StoryControllerImplTest(
             }
         }
         context("예외케이스") {
+            test("남의 아이 childId로 조회하면 404와 NOT_FOUND를 반환한다") {
+                val token = authorizedToken()
+                val otherGuardianId = "other-guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(otherGuardianId))
+                val otherChildId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(otherChildId, otherGuardianId))
+                testStoryFixture.saveStory(storyEntity("story-${uniqueSuffix()}"))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("childId", otherChildId)
+                    .`when`()
+                    .get("/stories")
+                    .then()
+                    .statusCode(404)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(404))
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+            }
+
+            test("존재하지 않는 childId로 조회하면 404와 NOT_FOUND를 반환한다") {
+                val token = authorizedToken()
+                testStoryFixture.saveStory(storyEntity("story-${uniqueSuffix()}"))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("childId", "nonexistent-child-${uniqueSuffix()}")
+                    .`when`()
+                    .get("/stories")
+                    .then()
+                    .statusCode(404)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(404))
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+            }
+
             test("토큰이 없으면 401과 EMPTY_TOKEN을 반환한다") {
                 RestAssured.given()
                     .contentType(ContentType.JSON)

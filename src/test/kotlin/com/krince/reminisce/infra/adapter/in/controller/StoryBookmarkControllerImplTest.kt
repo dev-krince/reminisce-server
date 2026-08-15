@@ -1,7 +1,9 @@
 package com.krince.reminisce.infra.adapter.`in`.controller
 
+import com.krince.reminisce.domain.model.story.vo.StoryStatus
 import com.krince.reminisce.infra.adapter.out.persistence.child.entity.ChildOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.savedstory.entity.SavedStoryOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.story.entity.StoryOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.user.entity.UserOrmEntity
 import com.krince.reminisce.shared.response.ExceptionResponseCode
 import com.krince.reminisce.shared.response.SuccessResponseCode
@@ -9,6 +11,7 @@ import com.krince.reminisce.testutil.TestConfig
 import com.krince.reminisce.testutil.fixture.TestChildFixture
 import com.krince.reminisce.testutil.fixture.TestJwtTokenFixture
 import com.krince.reminisce.testutil.fixture.TestSavedStoryFixture
+import com.krince.reminisce.testutil.fixture.TestStoryFixture
 import com.krince.reminisce.testutil.fixture.TestUserFixture
 import io.kotest.core.annotation.DisplayName
 import io.kotest.core.spec.style.FunSpec
@@ -41,6 +44,7 @@ class StoryBookmarkControllerImplTest(
     private val testJwtTokenFixture: TestJwtTokenFixture,
     private val testChildFixture: TestChildFixture,
     private val testSavedStoryFixture: TestSavedStoryFixture,
+    private val testStoryFixture: TestStoryFixture,
 ) : FunSpec({
 
     val concurrentRequestCount = 8
@@ -73,6 +77,36 @@ class StoryBookmarkControllerImplTest(
 
     fun addBookmarkRequest(storyId: String): Map<String, String> = mapOf("storyId" to storyId)
 
+    fun publishedStoryEntity(storyId: String): StoryOrmEntity = StoryOrmEntity(
+        storyId = storyId,
+        title = "제목-$storyId",
+        summary = "요약-$storyId",
+        intro = "도입-$storyId",
+        situation = null,
+        childRole = null,
+        difficulty = "보통",
+        estimatedMinutes = 20,
+        representativeImageUrl = "/files/$storyId.png",
+        status = StoryStatus.PUBLISHED.name,
+        storyGenre = null,
+        postActivityConfig = null,
+    )
+
+    fun draftStoryEntity(storyId: String): StoryOrmEntity = StoryOrmEntity(
+        storyId = storyId,
+        title = "제목-$storyId",
+        summary = "요약-$storyId",
+        intro = "도입-$storyId",
+        situation = null,
+        childRole = null,
+        difficulty = "보통",
+        estimatedMinutes = 20,
+        representativeImageUrl = "/files/$storyId.png",
+        status = StoryStatus.DRAFT.name,
+        storyGenre = null,
+        postActivityConfig = null,
+    )
+
     beforeSpec {
         RestAssured.port = port
         RestAssured.basePath = "/api"
@@ -81,6 +115,7 @@ class StoryBookmarkControllerImplTest(
 
     beforeTest {
         testSavedStoryFixture.deleteAllBatch()
+        testStoryFixture.deleteAllBatch()
         testChildFixture.deleteAllBatch()
         testUserFixture.deleteAllBatch()
     }
@@ -91,6 +126,7 @@ class StoryBookmarkControllerImplTest(
                 val (token, guardianId) = authorizedTokenWithGuardian()
                 val childId = "child-${uniqueSuffix()}"
                 testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(publishedStoryEntity("s_story_1"))
 
                 RestAssured.given()
                     .header("Authorization", token)
@@ -116,6 +152,7 @@ class StoryBookmarkControllerImplTest(
                 val (token, guardianId) = authorizedTokenWithGuardian()
                 val childId = "child-${uniqueSuffix()}"
                 testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(publishedStoryEntity("s_story_1"))
 
                 RestAssured.given()
                     .header("Authorization", token)
@@ -143,6 +180,7 @@ class StoryBookmarkControllerImplTest(
                 val (token, guardianId) = authorizedTokenWithGuardian()
                 val childId = "child-${uniqueSuffix()}"
                 testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(publishedStoryEntity("s_story_1"))
 
                 val ready = CountDownLatch(concurrentRequestCount)
                 val start = CountDownLatch(1)
@@ -183,6 +221,7 @@ class StoryBookmarkControllerImplTest(
                 testUserFixture.saveUser(userEntity(otherGuardianId))
                 val otherChildId = "child-${uniqueSuffix()}"
                 testChildFixture.saveChild(childEntity(otherChildId, otherGuardianId))
+                testStoryFixture.saveStory(publishedStoryEntity("s_story_1"))
 
                 RestAssured.given()
                     .header("Authorization", token)
@@ -197,6 +236,49 @@ class StoryBookmarkControllerImplTest(
                     .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
 
                 testSavedStoryFixture.findAllByChildId(otherChildId) shouldHaveSize 0
+            }
+
+            test("존재하지 않는 storyId로 자기 아이가 찜하면 404 NOT_FOUND_STORY를 반환하고 저장되지 않는다") {
+                val (token, guardianId) = authorizedTokenWithGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(addBookmarkRequest("s_missing_${uniqueSuffix()}"))
+                    .`when`()
+                    .post("/children/$childId/bookmarked-stories")
+                    .then()
+                    .statusCode(404)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(404))
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND_STORY.detailCode))
+                    .body("message", equalTo("이야기가 존재하지 않습니다."))
+
+                testSavedStoryFixture.findAllByChildId(childId) shouldHaveSize 0
+            }
+
+            test("DRAFT storyId로 자기 아이가 찜하면 존재하지 않는 id와 같은 404 NOT_FOUND_STORY로 은닉한다") {
+                val (token, guardianId) = authorizedTokenWithGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                val draftId = "s_draft_${uniqueSuffix()}"
+                testStoryFixture.saveStory(draftStoryEntity(draftId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(addBookmarkRequest(draftId))
+                    .`when`()
+                    .post("/children/$childId/bookmarked-stories")
+                    .then()
+                    .statusCode(404)
+                    .body("success", equalTo(false))
+                    .body("code", equalTo(404))
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND_STORY.detailCode))
+
+                testSavedStoryFixture.findAllByChildId(childId) shouldHaveSize 0
             }
 
             test("토큰이 없으면 401과 EMPTY_TOKEN을 반환한다") {
@@ -221,6 +303,8 @@ class StoryBookmarkControllerImplTest(
                 val (token, guardianId) = authorizedTokenWithGuardian()
                 val childId = "child-${uniqueSuffix()}"
                 testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(publishedStoryEntity("s_story_1"))
+                testStoryFixture.saveStory(publishedStoryEntity("s_story_2"))
 
                 RestAssured.given()
                     .header("Authorization", token)
@@ -301,6 +385,7 @@ class StoryBookmarkControllerImplTest(
                 val (token, guardianId) = authorizedTokenWithGuardian()
                 val childId = "child-${uniqueSuffix()}"
                 testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(publishedStoryEntity("s_story_1"))
 
                 RestAssured.given()
                     .header("Authorization", token)
