@@ -101,11 +101,13 @@ class StoryContentSeeder(
         narrationScene(
             sceneId = "sc_banggui_01",
             sceneOrder = 1,
+            chapter = 1,
             sceneDescription = BANGGUI_INTRO,
         ),
         narrationScene(
             sceneId = "sc_banggui_02",
             sceneOrder = 2,
+            chapter = 1,
             sceneDescription = "그래서 며느리는 방귀가 나오려고 할 때마다 꾹꾹 참았습니다. " +
                 "하루도 참고, 이틀도 참고, 그렇게 오래 참다 보니 배는 점점 빵빵하게 부풀어 올랐고 얼굴은 노랗게 변했습니다. " +
                 "몸도 마음도 너무 힘들었지만, 며느리는 차마 가족들에게 솔직하게 말하지 못했습니다.",
@@ -113,6 +115,7 @@ class StoryContentSeeder(
         dialogueScene(
             sceneId = "sc_banggui_03",
             sceneOrder = 3,
+            chapter = 1,
             sceneDescription = "며느리는 걱정이 많았습니다. 사실 방귀는 누구에게나 나오는 자연스러운 일이지만, " +
                 "며느리에게는 그것이 큰 비밀처럼 느껴졌습니다. " +
                 "특히 자신의 방귀는 한 번 나오면 지붕이 흔들릴 만큼 우렁찼기 때문에 더욱 부끄러웠습니다.",
@@ -133,6 +136,7 @@ class StoryContentSeeder(
         narrationScene(
             sceneId = "sc_banggui_04",
             sceneOrder = 4,
+            chapter = 2,
             sceneDescription = "그러던 어느 날, 며느리는 더 이상 참을 수 없었습니다. 배가 너무 아프고 숨 쉬기도 힘들었습니다. " +
                 "며느리는 조심스럽게 가족들에게 말했습니다. \"저… 사실은 방귀를 너무 오래 참아서 배가 아파요. 조금만 뀌어도 될까요?\" " +
                 "며느리는 아주 살짝만 뀌려고 했습니다. 하지만 그동안 너무 오래 참았던 탓에 방귀는 생각보다 훨씬 크게 터져 나왔습니다. " +
@@ -141,6 +145,7 @@ class StoryContentSeeder(
         dialogueScene(
             sceneId = "sc_banggui_05",
             sceneOrder = 5,
+            chapter = 2,
             sceneDescription = "시아버지는 깜짝 놀라 화를 냈습니다. 며느리는 고개를 푹 숙였습니다. " +
                 "일부러 그런 것이 아니었지만, 모두가 놀란 모습을 보니 마음이 더 작아졌습니다. " +
                 "시아버지는 며느리의 방귀가 너무 별나다며, 이런 며느리와는 함께 살 수 없다고 말했습니다. " +
@@ -162,6 +167,7 @@ class StoryContentSeeder(
         narrationScene(
             sceneId = "sc_banggui_06",
             sceneOrder = 6,
+            chapter = 3,
             sceneDescription = "그런데 한참 걷다 보니 길가에 아주 높은 배나무가 한 그루 서 있었습니다. " +
                 "나무 꼭대기에는 노랗고 탐스러운 배들이 주렁주렁 매달려 있었습니다. " +
                 "시아버지는 배를 보자 군침이 돌았습니다. \"참 맛있어 보이는 배로구나. 그런데 너무 높아서 딸 수가 없겠네.\" " +
@@ -171,6 +177,7 @@ class StoryContentSeeder(
         dialogueScene(
             sceneId = "sc_banggui_07",
             sceneOrder = 7,
+            chapter = 3,
             sceneDescription = "며느리는 고민에 빠졌습니다. \"내 방귀가 지붕도 흔들 만큼 힘이 세다면, 높은 배도 떨어뜨릴 수 있겠어.\" " +
                 "며느리는 사람들이 다치지 않도록 모두 떨어지게 한 뒤, 배나무 위쪽을 향해 힘을 모아 크게 방귀를 뀌었습니다. " +
                 "천둥 같은 방귀 소리와 함께 높은 나무에 매달려 있던 배들이 우수수 떨어졌습니다. " +
@@ -196,12 +203,14 @@ class StoryContentSeeder(
         narrationScene(
             sceneId = "sc_banggui_08",
             sceneOrder = 8,
+            chapter = 4,
             sceneDescription = "시아버지는 며느리에게 미안한 마음이 들었습니다. " +
                 "\"내가 네 모습을 제대로 보지 못했구나. 남들과 다르다고 해서 부끄러운 것이 아닌데, 내가 너무 성급하게 생각했다.\"",
         ),
         dialogueScene(
             sceneId = "sc_banggui_09",
             sceneOrder = 9,
+            chapter = 4,
             sceneDescription = "며느리는 그 말을 듣고 마음이 조금씩 편안해졌습니다. " +
                 "자신이 숨기고 싶어 했던 특징이 누군가에게 도움이 될 수도 있다는 것을 알게 되었기 때문입니다. " +
                 "그 뒤로 며느리는 힘들 때는 솔직하게 말하고, 사람들이 놀라지 않도록 미리 알려 주었습니다. " +
@@ -227,10 +236,11 @@ class StoryContentSeeder(
         ),
     )
 
-    private fun narrationScene(sceneId: String, sceneOrder: Int, sceneDescription: String): Scene = Scene(
+    private fun narrationScene(sceneId: String, sceneOrder: Int, chapter: Int, sceneDescription: String): Scene = Scene(
         sceneId = SceneId(sceneId),
         storyId = StoryId(BANGGUI_STORY_ID),
         sceneOrder = sceneOrder,
+        chapter = chapter,
         sceneType = SceneType.NARRATION,
         sceneDescription = sceneDescription,
         imageUrl = sceneImageUrl(sceneOrder),
@@ -239,6 +249,7 @@ class StoryContentSeeder(
     private fun dialogueScene(
         sceneId: String,
         sceneOrder: Int,
+        chapter: Int,
         sceneDescription: String,
         characterName: String,
         characterDisplayName: String,
@@ -253,6 +264,7 @@ class StoryContentSeeder(
         sceneId = SceneId(sceneId),
         storyId = StoryId(BANGGUI_STORY_ID),
         sceneOrder = sceneOrder,
+        chapter = chapter,
         sceneType = SceneType.DIALOGUE,
         sceneDescription = sceneDescription,
         characterName = characterName,

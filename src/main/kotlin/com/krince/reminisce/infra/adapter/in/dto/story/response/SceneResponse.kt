@@ -89,6 +89,9 @@ class SceneResponse(
         required = false,
     )
     val characterImageUrl: String?,
+
+    @field:Schema(description = "나레이션~대화 한 묶음을 나타내는 챕터 번호", example = "1", required = true)
+    val chapter: Int,
 )
 
 fun sceneResponse(result: SceneResult): SceneResponse = SceneResponse(
@@ -114,4 +117,5 @@ fun sceneResponse(result: SceneResult): SceneResponse = SceneResponse(
     },
     imageUrl = result.imageUrl,
     characterImageUrl = result.characterImageUrl,
+    chapter = result.chapter,
 )

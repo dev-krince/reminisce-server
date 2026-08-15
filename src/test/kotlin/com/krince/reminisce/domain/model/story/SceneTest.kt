@@ -16,6 +16,7 @@ import io.kotest.matchers.shouldBe
 class SceneTest : FunSpec({
 
     fun narrationScene(
+        chapter: Int = 1,
         characterName: String? = null,
         characterDisplayName: String? = null,
         characterOpening: String? = null,
@@ -29,6 +30,7 @@ class SceneTest : FunSpec({
         sceneId = SceneId("sc-narration-1"),
         storyId = StoryId("story-1"),
         sceneOrder = 1,
+        chapter = chapter,
         sceneType = SceneType.NARRATION,
         sceneDescription = "전개 장면 설명",
         characterName = characterName,
@@ -43,6 +45,7 @@ class SceneTest : FunSpec({
     )
 
     fun dialogueScene(
+        chapter: Int = 1,
         characterName: String? = "ch_banggui_daughter_in_law",
         characterDisplayName: String? = "방귀쟁이 며느리",
         characterOpening: String? = "고정 첫 대사",
@@ -57,6 +60,7 @@ class SceneTest : FunSpec({
         sceneId = SceneId("sc-dialogue-1"),
         storyId = StoryId("story-1"),
         sceneOrder = 3,
+        chapter = chapter,
         sceneType = SceneType.DIALOGUE,
         sceneDescription = "대화 장면 설명",
         characterName = characterName,
@@ -151,6 +155,16 @@ class SceneTest : FunSpec({
                 ).personalizedFor("지우")
 
                 personalized.characterImageUrl shouldBe "/files/char-ch_banggui_daughter_in_law.png"
+            }
+
+            test("chapter 값이 보존되고 개인화 복사본도 chapter를 그대로 전달한다") {
+                val personalized = dialogueScene(
+                    chapter = 2,
+                    characterOpening = "ㅇㅇ아, 안녕?",
+                ).personalizedFor("지우")
+
+                dialogueScene(chapter = 2).chapter shouldBe 2
+                personalized.chapter shouldBe 2
             }
         }
         context("실패") {

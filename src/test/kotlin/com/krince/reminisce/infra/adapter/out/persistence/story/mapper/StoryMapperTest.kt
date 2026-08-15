@@ -54,10 +54,11 @@ class StoryMapperTest : FunSpec({
         this.modifiedDate = modifiedDate
     }
 
-    fun narrationOrmEntity(sceneId: String, sceneOrder: Short): SceneOrmEntity = SceneOrmEntity(
+    fun narrationOrmEntity(sceneId: String, sceneOrder: Short, chapter: Short = 1): SceneOrmEntity = SceneOrmEntity(
         sceneId = sceneId,
         storyId = storyIdStr,
         sceneOrder = sceneOrder,
+        chapter = chapter,
         sceneType = "NARRATION",
         sceneDescription = "전개 설명 $sceneOrder",
         characterName = null,
@@ -71,10 +72,11 @@ class StoryMapperTest : FunSpec({
         maxTurns = null,
     )
 
-    fun dialogueOrmEntity(sceneId: String, sceneOrder: Short): SceneOrmEntity = SceneOrmEntity(
+    fun dialogueOrmEntity(sceneId: String, sceneOrder: Short, chapter: Short = 1): SceneOrmEntity = SceneOrmEntity(
         sceneId = sceneId,
         storyId = storyIdStr,
         sceneOrder = sceneOrder,
+        chapter = chapter,
         sceneType = "DIALOGUE",
         sceneDescription = "대화 설명 $sceneOrder",
         characterName = "ch_banggui_daughter_in_law",
@@ -92,6 +94,7 @@ class StoryMapperTest : FunSpec({
         sceneId = sceneId,
         storyId = storyIdStr,
         sceneOrder = sceneOrder,
+        chapter = 1,
         sceneType = "DIALOGUE",
         sceneDescription = "대화 설명 $sceneOrder",
         characterName = "ch_banggui_daughter_in_law",
@@ -110,6 +113,7 @@ class StoryMapperTest : FunSpec({
         sceneId = sceneId,
         storyId = storyIdStr,
         sceneOrder = sceneOrder,
+        chapter = 1,
         sceneType = "DIALOGUE",
         sceneDescription = "대화 설명 $sceneOrder",
         characterName = "ch_banggui_daughter_in_law",
@@ -130,9 +134,9 @@ class StoryMapperTest : FunSpec({
                 val aggregateEntity = StoryAggregateEntity(
                     storyOrmEntity = storyOrmEntity(),
                     sceneOrmEntities = listOf(
-                        dialogueOrmEntity("sc-3", 3),
-                        narrationOrmEntity("sc-1", 1),
-                        narrationOrmEntity("sc-2", 2),
+                        dialogueOrmEntity("sc-3", 3, chapter = 2),
+                        narrationOrmEntity("sc-1", 1, chapter = 1),
+                        narrationOrmEntity("sc-2", 2, chapter = 1),
                     ),
                     storyTopicOrmEntities = listOf(
                         StoryTopicOrmEntity(id = "topic-1", storyId = storyIdStr, topic = "다름"),
@@ -158,6 +162,7 @@ class StoryMapperTest : FunSpec({
                 story.modifiedDate shouldBe modifiedDate
                 story.scenes.map { it.sceneId.value } shouldContainExactly listOf("sc-1", "sc-2", "sc-3")
                 story.scenes.map { it.sceneOrder } shouldContainExactly listOf(1, 2, 3)
+                story.scenes.map { it.chapter } shouldContainExactly listOf(1, 1, 2)
             }
 
             test("대화 장면 엔티티의 대화 전용 필드를 전부 도메인으로 옮긴다") {
@@ -192,6 +197,7 @@ class StoryMapperTest : FunSpec({
                     sceneId = "sc-7",
                     storyId = storyIdStr,
                     sceneOrder = 7,
+                    chapter = 3,
                     sceneType = "DIALOGUE",
                     sceneDescription = "대화 설명 7",
                     characterName = "ch_banggui_village_chief",
@@ -270,6 +276,7 @@ class StoryMapperTest : FunSpec({
                             sceneId = SceneId("sc-1"),
                             storyId = StoryId(storyIdStr),
                             sceneOrder = 1,
+                            chapter = 1,
                             sceneType = SceneType.NARRATION,
                             sceneDescription = "전개 설명 1",
                         ),
@@ -277,6 +284,7 @@ class StoryMapperTest : FunSpec({
                             sceneId = SceneId("sc-2"),
                             storyId = StoryId(storyIdStr),
                             sceneOrder = 2,
+                            chapter = 1,
                             sceneType = SceneType.DIALOGUE,
                             sceneDescription = "대화 설명 2",
                             characterName = "ch_banggui_father_in_law",
@@ -309,6 +317,7 @@ class StoryMapperTest : FunSpec({
                 savedScenes.map { it.sceneId } shouldContainExactly listOf("sc-1", "sc-2")
                 savedScenes.map { it.storyId } shouldContainExactly listOf(storyIdStr, storyIdStr)
                 savedScenes.map { it.sceneType } shouldContainExactly listOf("NARRATION", "DIALOGUE")
+                savedScenes.map { it.chapter } shouldContainExactly listOf(1.toShort(), 1.toShort())
                 savedScenes[1].characterName shouldBe "ch_banggui_father_in_law"
                 savedScenes[1].characterDisplayName shouldBe "시아버지"
                 savedScenes[1].characterOpening shouldBe "고정 첫 대사"
@@ -366,6 +375,7 @@ class StoryMapperTest : FunSpec({
                     sceneId = "sc-7",
                     storyId = storyIdStr,
                     sceneOrder = 7,
+                    chapter = 3,
                     sceneType = "DIALOGUE",
                     sceneDescription = "대화 설명 7",
                     characterName = "ch_banggui_village_chief",

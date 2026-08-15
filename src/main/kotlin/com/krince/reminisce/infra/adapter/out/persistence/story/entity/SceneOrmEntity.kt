@@ -41,6 +41,10 @@ class SceneOrmEntity(
     @Comment("이야기 안에서 장면이 진행되는 순서")
     val sceneOrder: Short,
 
+    @Column(name = "chapter", nullable = false)
+    @Comment("나레이션~대화 한 묶음을 나타내는 챕터 번호")
+    val chapter: Short,
+
     @Column(name = "scene_type", nullable = false)
     @Comment("장면 종류 (NARRATION/DIALOGUE)")
     val sceneType: String,

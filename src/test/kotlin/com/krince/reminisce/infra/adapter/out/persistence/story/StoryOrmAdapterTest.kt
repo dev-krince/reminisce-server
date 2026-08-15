@@ -60,10 +60,11 @@ class StoryOrmAdapterTest(
         postActivityConfig = postActivityConfigValue,
     )
 
-    fun narrationEntity(sceneId: String, storyId: String, sceneOrder: Short): SceneOrmEntity = SceneOrmEntity(
+    fun narrationEntity(sceneId: String, storyId: String, sceneOrder: Short, chapter: Short = 1): SceneOrmEntity = SceneOrmEntity(
         sceneId = sceneId,
         storyId = storyId,
         sceneOrder = sceneOrder,
+        chapter = chapter,
         sceneType = SceneType.NARRATION.name,
         sceneDescription = "전개 설명 $sceneOrder",
         characterName = null,
@@ -77,10 +78,11 @@ class StoryOrmAdapterTest(
         maxTurns = null,
     )
 
-    fun dialogueEntity(sceneId: String, storyId: String, sceneOrder: Short): SceneOrmEntity = SceneOrmEntity(
+    fun dialogueEntity(sceneId: String, storyId: String, sceneOrder: Short, chapter: Short = 1): SceneOrmEntity = SceneOrmEntity(
         sceneId = sceneId,
         storyId = storyId,
         sceneOrder = sceneOrder,
+        chapter = chapter,
         sceneType = SceneType.DIALOGUE.name,
         sceneDescription = "대화 설명 $sceneOrder",
         characterName = "ch_banggui_daughter_in_law",
@@ -165,9 +167,9 @@ class StoryOrmAdapterTest(
             test("장면을 순서대로 조립하고 requiredElements와 postActivityConfig를 왕복 보존한다") {
                 val storyId = "detail-${uniqueSuffix()}"
                 testStoryFixture.saveStory(storyEntity(storyId, postActivityConfigValue = postActivityConfig))
-                testStoryFixture.saveScene(dialogueEntity("sc-3-$storyId", storyId, 3))
-                testStoryFixture.saveScene(narrationEntity("sc-1-$storyId", storyId, 1))
-                testStoryFixture.saveScene(narrationEntity("sc-2-$storyId", storyId, 2))
+                testStoryFixture.saveScene(dialogueEntity("sc-3-$storyId", storyId, 3, chapter = 2))
+                testStoryFixture.saveScene(narrationEntity("sc-1-$storyId", storyId, 1, chapter = 1))
+                testStoryFixture.saveScene(narrationEntity("sc-2-$storyId", storyId, 2, chapter = 1))
                 testStoryFixture.saveTopic(topicEntity(storyId, "다름"))
 
                 val result = storyOrmAdapter.findByIdWithScenesPublished(StoryId(storyId))
@@ -179,6 +181,7 @@ class StoryOrmAdapterTest(
                 result.postActivityConfig shouldBe postActivityConfig
                 result.topics shouldContainExactly listOf("다름")
                 result.scenes.map { it.sceneOrder } shouldContainExactly listOf(1, 2, 3)
+                result.scenes.map { it.chapter } shouldContainExactly listOf(1, 1, 2)
 
                 val dialogue = result.scenes[2]
                 dialogue.sceneType shouldBe SceneType.DIALOGUE

@@ -42,13 +42,16 @@ class StoryAccessFacade(
         return orderedScenes.firstOrNull { it.sceneOrder > currentScene.sceneOrder }
     }
 
-    override fun findPreviousScene(storyId: StoryId, currentSceneId: String): Scene? {
+    override fun findPreviousChapterFirstScene(storyId: StoryId, currentSceneId: String): Scene? {
         val story: Story = loadStoryPort.findByIdWithScenesPublished(storyId) ?: return null
-        val orderedScenes: List<Scene> = story.scenes.sortedBy { it.sceneOrder }
-        val currentScene: Scene = orderedScenes.firstOrNull { it.sceneId.value == currentSceneId } ?: return null
+        val currentScene: Scene = story.scenes.firstOrNull { it.sceneId.value == currentSceneId } ?: return null
 
-        return orderedScenes.lastOrNull { it.sceneOrder < currentScene.sceneOrder }
+        return firstSceneOfChapter(story, currentScene.chapter - 1)
     }
+
+    private fun firstSceneOfChapter(story: Story, chapter: Int): Scene? = story.scenes
+        .filter { it.chapter == chapter }
+        .minByOrNull { it.sceneOrder }
 
     override fun findPostActivityConfig(storyId: StoryId): PostActivityConfig? {
         val story: Story = loadStoryPort.findByIdWithScenesPublished(storyId) ?: return null

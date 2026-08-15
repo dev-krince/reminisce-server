@@ -9,6 +9,7 @@ class Scene(
     val sceneId: SceneId,
     val storyId: StoryId,
     val sceneOrder: Int,
+    val chapter: Int = FIRST_CHAPTER,
     val sceneType: SceneType,
     val sceneDescription: String,
     val characterName: String? = null,
@@ -41,6 +42,7 @@ class Scene(
             sceneId = sceneId,
             storyId = storyId,
             sceneOrder = sceneOrder,
+            chapter = chapter,
             sceneType = sceneType,
             sceneDescription = sceneDescription,
             characterName = characterName,
@@ -85,5 +87,9 @@ class Scene(
         require(sceneGoal != null) { "DIALOGUE 장면은 sceneGoal이 필요합니다" }
         require(!requiredElements.isNullOrEmpty()) { "DIALOGUE 장면은 비어있지 않은 requiredElements가 필요합니다" }
         require(maxTurns != null) { "DIALOGUE 장면은 maxTurns가 필요합니다" }
+    }
+
+    companion object {
+        const val FIRST_CHAPTER: Int = 1
     }
 }

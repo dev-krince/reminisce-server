@@ -128,10 +128,11 @@ class SpeakingSessionControllerImplTest(
 
     fun sceneImageUrl(storyId: String, sceneOrder: Short): String = "/files/$storyId-scene-$sceneOrder.png"
 
-    fun narrationEntity(storyId: String, sceneOrder: Short): SceneOrmEntity = SceneOrmEntity(
+    fun narrationEntity(storyId: String, sceneOrder: Short, chapter: Short = 1): SceneOrmEntity = SceneOrmEntity(
         sceneId = "sc-$sceneOrder-$storyId",
         storyId = storyId,
         sceneOrder = sceneOrder,
+        chapter = chapter,
         sceneType = SceneType.NARRATION.name,
         sceneDescription = "전개 설명 $sceneOrder",
         characterName = null,
@@ -146,10 +147,11 @@ class SpeakingSessionControllerImplTest(
         imageUrl = sceneImageUrl(storyId, sceneOrder),
     )
 
-    fun dialogueEntity(storyId: String, sceneOrder: Short): SceneOrmEntity = SceneOrmEntity(
+    fun dialogueEntity(storyId: String, sceneOrder: Short, chapter: Short = 1): SceneOrmEntity = SceneOrmEntity(
         sceneId = "sc-$sceneOrder-$storyId",
         storyId = storyId,
         sceneOrder = sceneOrder,
+        chapter = chapter,
         sceneType = SceneType.DIALOGUE.name,
         sceneDescription = "대화 설명 $sceneOrder",
         characterName = "ch_banggui_daughter_in_law",
@@ -2078,17 +2080,19 @@ class SpeakingSessionControllerImplTest(
 
     context("goBackSpeakingScene") {
         context("성공") {
-            test("두 번째 장면 세션 back은 200과 이전 장면 SCENE 뷰를 반환하고 진행 상태를 0으로 초기화한다") {
+            test("두 번째 챕터 끝 장면 세션 back은 200과 이전 챕터 첫 장면 SCENE 뷰를 반환하고 진행 상태를 0으로 초기화한다") {
                 val (guardianId, token) = authorizedGuardian()
                 val childId = "child-${uniqueSuffix()}"
                 val storyId = "story-${uniqueSuffix()}"
                 val sessionId = "session-${uniqueSuffix()}"
                 testChildFixture.saveChild(childEntity(childId, guardianId))
                 testStoryFixture.saveStory(storyEntity(storyId))
-                testStoryFixture.saveScene(narrationEntity(storyId, 1))
-                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
-                val previousSceneId = "sc-1-$storyId"
-                val currentSceneId = "sc-3-$storyId"
+                testStoryFixture.saveScene(narrationEntity(storyId, 1, chapter = 1))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 2, chapter = 1))
+                testStoryFixture.saveScene(narrationEntity(storyId, 3, chapter = 2))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 4, chapter = 2))
+                val previousChapterFirstSceneId = "sc-1-$storyId"
+                val currentSceneId = "sc-4-$storyId"
                 testSpeakingSessionFixture.save(
                     sessionEntity(
                         sessionId,
@@ -2113,12 +2117,13 @@ class SpeakingSessionControllerImplTest(
                     .body("code", equalTo(200))
                     .body("data.viewType", equalTo("SCENE"))
                     .body("data.intro", nullValue())
-                    .body("data.scene.sceneId", equalTo(previousSceneId))
+                    .body("data.scene.sceneId", equalTo(previousChapterFirstSceneId))
                     .body("data.scene.sceneOrder", equalTo(1))
+                    .body("data.scene.chapter", equalTo(1))
                     .body("data.scene.sceneType", equalTo(SceneType.NARRATION.name))
 
                 val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
-                storedSession?.currentSceneId shouldBe previousSceneId
+                storedSession?.currentSceneId shouldBe previousChapterFirstSceneId
                 storedSession?.accumulatedElements shouldBe emptyList()
                 storedSession?.currentChildTurnCount shouldBe 0
                 storedSession?.turnsWithoutNewElement shouldBe 0
@@ -2128,15 +2133,15 @@ class SpeakingSessionControllerImplTest(
         }
 
         context("예외케이스") {
-            test("첫 장면 세션 back은 422와 BUSINESS_RULE_VIOLATION을 반환하고 status가 불변이다") {
+            test("첫 챕터 장면 세션 back은 422와 BUSINESS_RULE_VIOLATION을 반환하고 status가 불변이다") {
                 val (guardianId, token) = authorizedGuardian()
                 val childId = "child-${uniqueSuffix()}"
                 val storyId = "story-${uniqueSuffix()}"
                 val sessionId = "session-${uniqueSuffix()}"
                 testChildFixture.saveChild(childEntity(childId, guardianId))
                 testStoryFixture.saveStory(storyEntity(storyId))
-                testStoryFixture.saveScene(narrationEntity(storyId, 1))
-                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1, chapter = 1))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3, chapter = 1))
                 val firstSceneId = "sc-1-$storyId"
                 testSpeakingSessionFixture.save(
                     sessionEntity(sessionId, childId, storyId, currentSceneId = firstSceneId),

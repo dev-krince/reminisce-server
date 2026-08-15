@@ -125,10 +125,11 @@ class StoryControllerImplTest(
 
     fun sceneImageUrl(storyId: String, sceneOrder: Short): String = "/files/$storyId-scene-$sceneOrder.png"
 
-    fun narrationEntity(storyId: String, sceneOrder: Short): SceneOrmEntity = SceneOrmEntity(
+    fun narrationEntity(storyId: String, sceneOrder: Short, chapter: Short = 1): SceneOrmEntity = SceneOrmEntity(
         sceneId = "sc-$sceneOrder-$storyId",
         storyId = storyId,
         sceneOrder = sceneOrder,
+        chapter = chapter,
         sceneType = SceneType.NARRATION.name,
         sceneDescription = "전개 설명 $sceneOrder",
         characterName = null,
@@ -143,10 +144,11 @@ class StoryControllerImplTest(
         imageUrl = sceneImageUrl(storyId, sceneOrder),
     )
 
-    fun dialogueEntity(storyId: String, sceneOrder: Short): SceneOrmEntity = SceneOrmEntity(
+    fun dialogueEntity(storyId: String, sceneOrder: Short, chapter: Short = 1): SceneOrmEntity = SceneOrmEntity(
         sceneId = "sc-$sceneOrder-$storyId",
         storyId = storyId,
         sceneOrder = sceneOrder,
+        chapter = chapter,
         sceneType = SceneType.DIALOGUE.name,
         sceneDescription = "대화 설명 $sceneOrder",
         characterName = "ch_banggui_daughter_in_law",
@@ -171,6 +173,7 @@ class StoryControllerImplTest(
         sceneId = "sc-$sceneOrder-$storyId",
         storyId = storyId,
         sceneOrder = sceneOrder,
+        chapter = 1,
         sceneType = SceneType.DIALOGUE.name,
         sceneDescription = "대화 설명 $sceneOrder",
         characterName = "ch_banggui_village_chief",
@@ -195,6 +198,7 @@ class StoryControllerImplTest(
         sceneId = "sc-$sceneOrder-$storyId",
         storyId = storyId,
         sceneOrder = sceneOrder,
+        chapter = 1,
         sceneType = SceneType.DIALOGUE.name,
         sceneDescription = "대화 설명 $sceneOrder",
         characterName = characterName,
@@ -651,9 +655,9 @@ class StoryControllerImplTest(
                         postActivityConfig = postActivityConfig,
                     ),
                 )
-                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
-                testStoryFixture.saveScene(narrationEntity(storyId, 1))
-                testStoryFixture.saveScene(narrationEntity(storyId, 2))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3, chapter = 2))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1, chapter = 1))
+                testStoryFixture.saveScene(narrationEntity(storyId, 2, chapter = 1))
                 testStoryFixture.saveTopic(topicEntity(storyId, "다름"))
 
                 RestAssured.given()
@@ -679,6 +683,9 @@ class StoryControllerImplTest(
                     .body("data.postActivity.retellingKeywords", contains("며느리", "방귀", "배나무"))
                     .body("data.scenes", hasSize<Any>(3))
                     .body("data.scenes.sceneOrder", contains(1, 2, 3))
+                    .body("data.scenes.chapter", contains(1, 1, 2))
+                    .body("data.scenes[0].chapter", equalTo(1))
+                    .body("data.scenes[2].chapter", equalTo(2))
                     .body("data.scenes[0].sceneType", equalTo(SceneType.NARRATION.name))
                     .body("data.scenes[0].sceneDescription", equalTo("전개 설명 1"))
                     .body("data.scenes[0].characterName", nullValue())

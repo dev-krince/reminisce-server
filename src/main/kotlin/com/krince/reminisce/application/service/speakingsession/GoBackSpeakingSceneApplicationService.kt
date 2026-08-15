@@ -42,10 +42,11 @@ class GoBackSpeakingSceneApplicationService(
         }
         val currentSceneId: String = session.currentSceneId
             ?: throw BusinessRuleViolationException(BUSINESS_RULE_VIOLATION, BUSINESS_RULE_VIOLATION.message)
-        val previousScene: Scene = storyAccessPort.findPreviousScene(session.storyId, currentSceneId)
-            ?: throw BusinessRuleViolationException(BUSINESS_RULE_VIOLATION, BUSINESS_RULE_VIOLATION.message)
+        val previousChapterFirstScene: Scene =
+            storyAccessPort.findPreviousChapterFirstScene(session.storyId, currentSceneId)
+                ?: throw BusinessRuleViolationException(BUSINESS_RULE_VIOLATION, BUSINESS_RULE_VIOLATION.message)
 
-        return transitionTo(session, previousScene)
+        return transitionTo(session, previousChapterFirstScene)
     }
 
     private fun transitionTo(session: SpeakingSession, scene: Scene): SpeakingSessionViewResult {

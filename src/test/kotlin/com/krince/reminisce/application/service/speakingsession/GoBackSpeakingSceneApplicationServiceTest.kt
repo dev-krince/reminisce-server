@@ -93,10 +93,11 @@ class GoBackSpeakingSceneApplicationServiceTest : FunSpec({
         sceneEndReason = SceneEndReason.MAX_TURNS,
     )
 
-    fun previousScene(): Scene = Scene(
+    fun previousChapterFirstScene(): Scene = Scene(
         sceneId = SceneId(previousSceneIdStr),
         storyId = storyId,
         sceneOrder = 1,
+        chapter = 1,
         sceneType = SceneType.DIALOGUE,
         sceneDescription = "대화 설명",
         characterName = "ch_x",
@@ -110,12 +111,14 @@ class GoBackSpeakingSceneApplicationServiceTest : FunSpec({
     )
 
     context("성공") {
-        test("장면 위 세션이면 앞 장면으로 이동해 진행 상태를 초기화하고 SCENE 뷰를 반환한다") {
+        test("챕터 중간·끝 신 세션이면 이전 챕터 첫 신으로 이동해 진행 상태를 초기화하고 SCENE 뷰를 반환한다") {
             every {
                 loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr))
             } returns session(currentSceneIdStr)
             every { childAccessPort.findGuardianId(childId) } returns guardianId
-            every { storyAccessPort.findPreviousScene(storyId, currentSceneIdStr) } returns previousScene()
+            every {
+                storyAccessPort.findPreviousChapterFirstScene(storyId, currentSceneIdStr)
+            } returns previousChapterFirstScene()
             val savedSlot = slot<SpeakingSession>()
             every { commandSpeakingSessionPort.save(capture(savedSlot)) } answers { savedSlot.captured }
 
@@ -136,12 +139,12 @@ class GoBackSpeakingSceneApplicationServiceTest : FunSpec({
     }
 
     context("게이트 실패") {
-        test("첫 장면(앞 장면 없음)이면 BUSINESS_RULE_VIOLATION을 던지고 저장하지 않는다") {
+        test("첫 챕터(이전 챕터 없음)면 BUSINESS_RULE_VIOLATION을 던지고 저장하지 않는다") {
             every {
                 loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr))
             } returns session(currentSceneIdStr)
             every { childAccessPort.findGuardianId(childId) } returns guardianId
-            every { storyAccessPort.findPreviousScene(storyId, currentSceneIdStr) } returns null
+            every { storyAccessPort.findPreviousChapterFirstScene(storyId, currentSceneIdStr) } returns null
 
             val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command()) }
 
@@ -157,7 +160,7 @@ class GoBackSpeakingSceneApplicationServiceTest : FunSpec({
 
             exception.exceptionResponseCode shouldBe BUSINESS_RULE_VIOLATION
             verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
-            verify(exactly = 0) { storyAccessPort.findPreviousScene(any(), any()) }
+            verify(exactly = 0) { storyAccessPort.findPreviousChapterFirstScene(any(), any()) }
         }
 
         test("IN_PROGRESS가 아닌 세션이면 BUSINESS_RULE_VIOLATION을 던지고 저장하지 않는다") {
@@ -170,7 +173,7 @@ class GoBackSpeakingSceneApplicationServiceTest : FunSpec({
 
             exception.exceptionResponseCode shouldBe BUSINESS_RULE_VIOLATION
             verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
-            verify(exactly = 0) { storyAccessPort.findPreviousScene(any(), any()) }
+            verify(exactly = 0) { storyAccessPort.findPreviousChapterFirstScene(any(), any()) }
         }
 
         test("세션이 없으면 NOT_FOUND를 던지고 저장하지 않는다") {
