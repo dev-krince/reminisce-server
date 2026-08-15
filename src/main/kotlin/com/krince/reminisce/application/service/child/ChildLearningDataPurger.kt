@@ -5,6 +5,7 @@ import com.krince.reminisce.application.port.out.message.LoadMessagePort
 import com.krince.reminisce.application.port.out.postactivityresult.CommandPostActivityResultPort
 import com.krince.reminisce.application.port.out.postactivityresult.LoadPostActivityResultPort
 import com.krince.reminisce.application.port.out.report.CommandReportPort
+import com.krince.reminisce.application.port.out.savedstory.CommandSavedStoryPort
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
 import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
@@ -23,6 +24,7 @@ class ChildLearningDataPurger(
     private val commandPostActivityResultPort: CommandPostActivityResultPort,
     private val commandUtteranceAnalysisPort: CommandUtteranceAnalysisPort,
     private val commandSavedWordPort: CommandSavedWordPort,
+    private val commandSavedStoryPort: CommandSavedStoryPort,
 ) {
 
     fun purge(childIds: List<ChildId>): List<String> {
@@ -31,6 +33,7 @@ class ChildLearningDataPurger(
         }
         val retellingAudioUrls: List<String> = purgeSessionData(childIds)
         commandSavedWordPort.deleteAllByChildIds(childIds)
+        commandSavedStoryPort.deleteAllByChildIds(childIds)
 
         return retellingAudioUrls
     }

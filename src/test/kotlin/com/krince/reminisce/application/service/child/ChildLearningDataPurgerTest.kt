@@ -5,6 +5,7 @@ import com.krince.reminisce.application.port.out.message.LoadMessagePort
 import com.krince.reminisce.application.port.out.postactivityresult.CommandPostActivityResultPort
 import com.krince.reminisce.application.port.out.postactivityresult.LoadPostActivityResultPort
 import com.krince.reminisce.application.port.out.report.CommandReportPort
+import com.krince.reminisce.application.port.out.savedstory.CommandSavedStoryPort
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
 import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
@@ -33,6 +34,7 @@ class ChildLearningDataPurgerTest : FunSpec({
     val commandPostActivityResultPort = mockk<CommandPostActivityResultPort>()
     val commandUtteranceAnalysisPort = mockk<CommandUtteranceAnalysisPort>()
     val commandSavedWordPort = mockk<CommandSavedWordPort>()
+    val commandSavedStoryPort = mockk<CommandSavedStoryPort>()
     val purger = ChildLearningDataPurger(
         loadSpeakingSessionPort = loadSpeakingSessionPort,
         loadMessagePort = loadMessagePort,
@@ -43,6 +45,7 @@ class ChildLearningDataPurgerTest : FunSpec({
         commandPostActivityResultPort = commandPostActivityResultPort,
         commandUtteranceAnalysisPort = commandUtteranceAnalysisPort,
         commandSavedWordPort = commandSavedWordPort,
+        commandSavedStoryPort = commandSavedStoryPort,
     )
 
     beforeEach { clearAllMocks() }
@@ -53,7 +56,7 @@ class ChildLearningDataPurgerTest : FunSpec({
     val audioUrls = listOf("/files/retelling-1.m4a", "/files/retelling-2.webm")
 
     context("세션 계열·단어장 파기") {
-        test("발화분석→메시지→리포트→후속활동→세션→단어 순으로 leaf→root 파기하고 재구성 음성 URL을 반환한다") {
+        test("발화분석→메시지→리포트→후속활동→세션→단어→찜 순으로 leaf→root 파기하고 재구성 음성 URL을 반환한다") {
             every { loadSpeakingSessionPort.findSessionIdsByChildIds(childIds) } returns sessionIds
             every { loadPostActivityResultPort.findRetellingAudioUrlsBySessionIds(sessionIds) } returns audioUrls
             every { loadMessagePort.findMessageIdsBySessionIds(sessionIds) } returns messageIds
@@ -63,6 +66,7 @@ class ChildLearningDataPurgerTest : FunSpec({
             every { commandPostActivityResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
             every { commandSpeakingSessionPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
+            every { commandSavedStoryPort.deleteAllByChildIds(childIds) } returns Unit
 
             val result = purger.purge(childIds)
 
@@ -74,12 +78,14 @@ class ChildLearningDataPurgerTest : FunSpec({
                 commandPostActivityResultPort.deleteAllBySessionIds(sessionIds)
                 commandSpeakingSessionPort.deleteAllByChildIds(childIds)
                 commandSavedWordPort.deleteAllByChildIds(childIds)
+                commandSavedStoryPort.deleteAllByChildIds(childIds)
             }
         }
 
-        test("세션이 없으면 세션 계열 삭제를 전혀 호출하지 않고 메시지 조회도 하지 않으며 단어만 삭제한다") {
+        test("세션이 없으면 세션 계열 삭제를 전혀 호출하지 않고 단어·찜만 삭제한다") {
             every { loadSpeakingSessionPort.findSessionIdsByChildIds(childIds) } returns emptyList()
             every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
+            every { commandSavedStoryPort.deleteAllByChildIds(childIds) } returns Unit
 
             val result = purger.purge(childIds)
 
@@ -91,6 +97,7 @@ class ChildLearningDataPurgerTest : FunSpec({
             verify(exactly = 0) { commandPostActivityResultPort.deleteAllBySessionIds(any()) }
             verify(exactly = 0) { commandSpeakingSessionPort.deleteAllByChildIds(any()) }
             verify(exactly = 1) { commandSavedWordPort.deleteAllByChildIds(childIds) }
+            verify(exactly = 1) { commandSavedStoryPort.deleteAllByChildIds(childIds) }
         }
 
         test("메시지가 없으면 발화분석 삭제는 건너뛰고 나머지 세션 계열은 삭제한다") {
@@ -102,20 +109,23 @@ class ChildLearningDataPurgerTest : FunSpec({
             every { commandPostActivityResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
             every { commandSpeakingSessionPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
+            every { commandSavedStoryPort.deleteAllByChildIds(childIds) } returns Unit
 
             purger.purge(childIds)
 
             verify(exactly = 0) { commandUtteranceAnalysisPort.deleteAllByMessageIds(any()) }
             verify(exactly = 1) { commandMessagePort.deleteAllBySessionIds(sessionIds) }
             verify(exactly = 1) { commandSpeakingSessionPort.deleteAllByChildIds(childIds) }
+            verify(exactly = 1) { commandSavedStoryPort.deleteAllByChildIds(childIds) }
         }
 
-        test("아이 목록이 비면 세션 조회조차 하지 않고 단어 삭제도 하지 않으며 빈 목록을 반환한다") {
+        test("아이 목록이 비면 세션 조회조차 하지 않고 단어·찜 삭제도 하지 않으며 빈 목록을 반환한다") {
             val result = purger.purge(emptyList())
 
             result shouldBe emptyList()
             verify(exactly = 0) { loadSpeakingSessionPort.findSessionIdsByChildIds(any()) }
             verify(exactly = 0) { commandSavedWordPort.deleteAllByChildIds(any()) }
+            verify(exactly = 0) { commandSavedStoryPort.deleteAllByChildIds(any()) }
         }
     }
 })
