@@ -245,6 +245,7 @@ class StoryControllerImplTest(
                     .body("data[0].representativeImageUrl", equalTo("/files/$publishedId.png"))
                     .body("data[0].estimatedMinutes", equalTo(20))
                     .body("data[0].topics", containsInAnyOrder("다름", "자기이해"))
+                    .body("data[0].difficulty", equalTo("보통"))
             }
 
             test("topic 파라미터로 필터하면 그 주제를 가진 공개 이야기만 반환한다") {
@@ -574,6 +575,8 @@ class StoryControllerImplTest(
                     .body("data.intro", equalTo("도입-$storyId"))
                     .body("data.situation", equalTo("상황-$storyId"))
                     .body("data.childRole", equalTo("역할-$storyId"))
+                    .body("data.difficulty", equalTo("보통"))
+                    .body("data.topics", contains("다름"))
                     .body("data.postActivity.cards.id", contains("card_1", "card_2"))
                     .body("data.postActivity.cards.correctOrder", contains(1, 2))
                     .body("data.postActivity.retellingKeywords", contains("며느리", "방귀", "배나무"))

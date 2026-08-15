@@ -9,6 +9,7 @@ class StorySummaryResult(
     val estimatedMinutes: Int?,
     val topics: List<String>,
     val genre: String?,
+    val difficulty: String,
 ) {
     companion object {
         fun from(story: Story): StorySummaryResult = StorySummaryResult(
@@ -18,6 +19,7 @@ class StorySummaryResult(
             estimatedMinutes = story.estimatedMinutes,
             topics = story.topics,
             genre = story.genre?.label,
+            difficulty = story.difficulty.value,
         )
     }
 }

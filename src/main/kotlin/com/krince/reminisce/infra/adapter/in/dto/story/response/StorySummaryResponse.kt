@@ -17,11 +17,14 @@ class StorySummaryResponse(
     @field:Schema(description = "예상 활동 시간(분)", example = "20", required = false)
     val estimatedMinutes: Int?,
 
-    @field:Schema(description = "이야기의 주요 주제", example = "[\"다름\", \"자기이해\"]", required = true)
+    @field:Schema(description = "이야기의 주요 주제", example = "[\"관계\", \"감정\"]", required = true)
     val topics: List<String>,
 
     @field:Schema(description = "이야기 장르", example = "전래동화", required = false)
     val genre: String?,
+
+    @field:Schema(description = "이야기 난이도", example = "보통", required = true)
+    val difficulty: String,
 )
 
 fun storySummaryResponse(result: StorySummaryResult): StorySummaryResponse = StorySummaryResponse(
@@ -31,4 +34,5 @@ fun storySummaryResponse(result: StorySummaryResult): StorySummaryResponse = Sto
     estimatedMinutes = result.estimatedMinutes,
     topics = result.topics,
     genre = result.genre,
+    difficulty = result.difficulty,
 )

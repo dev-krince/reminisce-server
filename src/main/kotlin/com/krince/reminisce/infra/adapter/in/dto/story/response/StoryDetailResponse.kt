@@ -28,6 +28,12 @@ class StoryDetailResponse(
 
     @field:Schema(description = "순서대로 정렬된 장면 목록", required = true)
     val scenes: List<SceneResponse>,
+
+    @field:Schema(description = "이야기 난이도", example = "보통", required = true)
+    val difficulty: String,
+
+    @field:Schema(description = "이야기의 주요 주제", example = "[\"관계\", \"감정\"]", required = true)
+    val topics: List<String>,
 )
 
 fun storyDetailResponse(result: StoryDetailResult): StoryDetailResponse = StoryDetailResponse(
@@ -39,4 +45,6 @@ fun storyDetailResponse(result: StoryDetailResult): StoryDetailResponse = StoryD
     genre = result.genre,
     postActivity = result.postActivity?.let { postActivityResponse(result = it) },
     scenes = result.scenes.map { sceneResponse(result = it) },
+    difficulty = result.difficulty,
+    topics = result.topics,
 )

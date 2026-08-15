@@ -102,6 +102,7 @@ class StoryQueryServiceTest : FunSpec({
                 results.first().estimatedMinutes shouldBe 20
                 results.first().topics shouldContainExactly listOf("다름", "자기이해")
                 results.first().genre shouldBe "전래동화"
+                results.first().difficulty shouldBe "보통"
                 verify(exactly = 1) { loadStoryPort.findPublished(null, null, null, StorySort.RECOMMENDED) }
             }
 
@@ -202,6 +203,8 @@ class StoryQueryServiceTest : FunSpec({
                 result.intro shouldBe "이야기 도입"
                 result.situation shouldBe "이야기 상황"
                 result.childRole shouldBe "아이 역할"
+                result.difficulty shouldBe "보통"
+                result.topics shouldContainExactly listOf("다름", "자기이해")
                 val postActivity = result.postActivity.shouldNotBeNull()
                 postActivity.cards.map { it.id } shouldContainExactly listOf("card_1")
                 postActivity.retellingKeywords shouldContainExactly listOf("며느리", "방귀")

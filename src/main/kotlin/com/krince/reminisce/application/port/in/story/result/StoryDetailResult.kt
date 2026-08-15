@@ -11,6 +11,8 @@ class StoryDetailResult(
     val genre: String?,
     val postActivity: PostActivityConfigResult?,
     val scenes: List<SceneResult>,
+    val difficulty: String,
+    val topics: List<String>,
 ) {
     companion object {
         fun from(story: Story): StoryDetailResult = StoryDetailResult(
@@ -22,6 +24,8 @@ class StoryDetailResult(
             genre = story.genre?.label,
             postActivity = story.postActivityConfig?.let { PostActivityConfigResult.from(it) },
             scenes = story.scenes.map { SceneResult.from(it) },
+            difficulty = story.difficulty.value,
+            topics = story.topics,
         )
     }
 }
