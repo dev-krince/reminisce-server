@@ -36,6 +36,16 @@ class PostActivityConfigTest : FunSpec({
                 config.cards.shouldBeEmpty()
                 config.retellingKeywords.shouldBeEmpty()
             }
+
+            test("카드 imageUrl 기본값은 null이고 값을 주면 보존된다") {
+                PostActivityConfig.Card(id = "card_1", text = "카드", correctOrder = 1).imageUrl shouldBe null
+                PostActivityConfig.Card(
+                    id = "card_1",
+                    text = "카드",
+                    correctOrder = 1,
+                    imageUrl = "/files/banggui-card-1.png",
+                ).imageUrl shouldBe "/files/banggui-card-1.png"
+            }
         }
     }
 })

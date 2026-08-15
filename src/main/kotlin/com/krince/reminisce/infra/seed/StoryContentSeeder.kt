@@ -72,10 +72,10 @@ class StoryContentSeeder(
 
     private fun bangguiPostActivityConfig(): PostActivityConfig = PostActivityConfig(
         cards = listOf(
-            PostActivityConfig.Card(id = "card_banggui_1", text = "며느리가 방귀를 꾹 참는 모습", correctOrder = 1),
-            PostActivityConfig.Card(id = "card_banggui_2", text = "며느리의 방귀로 시아버지의 갓이 날아가는 모습", correctOrder = 2),
-            PostActivityConfig.Card(id = "card_banggui_3", text = "마을 사람들이 높은 배나무 때문에 고민하는 모습", correctOrder = 3),
-            PostActivityConfig.Card(id = "card_banggui_4", text = "며느리가 방귀로 배를 떨어뜨려 사람들을 돕는 모습", correctOrder = 4),
+            PostActivityConfig.Card(id = "card_banggui_1", text = "며느리가 방귀를 꾹 참는 모습", correctOrder = 1, imageUrl = cardImageUrl(1)),
+            PostActivityConfig.Card(id = "card_banggui_2", text = "며느리의 방귀로 시아버지의 갓이 날아가는 모습", correctOrder = 2, imageUrl = cardImageUrl(2)),
+            PostActivityConfig.Card(id = "card_banggui_3", text = "마을 사람들이 높은 배나무 때문에 고민하는 모습", correctOrder = 3, imageUrl = cardImageUrl(3)),
+            PostActivityConfig.Card(id = "card_banggui_4", text = "며느리가 방귀로 배를 떨어뜨려 사람들을 돕는 모습", correctOrder = 4, imageUrl = cardImageUrl(4)),
         ),
         retellingKeywords = listOf("며느리", "방귀", "시아버지", "배나무", "특별한 힘"),
     )
@@ -267,10 +267,17 @@ class StoryContentSeeder(
         mission = mission,
         characterVoice = characterVoice,
         imageUrl = sceneImageUrl(sceneOrder),
+        characterImageUrl = characterAvatarUrl(characterName),
     )
 
     private fun sceneImageUrl(sceneOrder: Int): String =
         SCENE_IMAGE_URL_PREFIX + sceneOrder.toString().padStart(SCENE_ORDER_PAD_WIDTH, '0') + SCENE_IMAGE_URL_SUFFIX
+
+    private fun characterAvatarUrl(characterName: String): String =
+        CHARACTER_AVATAR_URL_PREFIX + characterName + SCENE_IMAGE_URL_SUFFIX
+
+    private fun cardImageUrl(correctOrder: Int): String =
+        CARD_IMAGE_URL_PREFIX + correctOrder.toString() + SCENE_IMAGE_URL_SUFFIX
 
     private companion object {
         const val BANGGUI_STORY_ID = "s_banggui_daughter_in_law_001"
@@ -279,6 +286,8 @@ class StoryContentSeeder(
         const val SCENE_IMAGE_URL_PREFIX = "/files/banggui-scene-"
         const val SCENE_IMAGE_URL_SUFFIX = ".png"
         const val SCENE_ORDER_PAD_WIDTH = 2
+        const val CHARACTER_AVATAR_URL_PREFIX = "/files/char-"
+        const val CARD_IMAGE_URL_PREFIX = "/files/banggui-card-"
 
         const val VOICE_PROFILE_YOUNG_WOMAN_GENTLE = "young_woman_gentle"
         const val VOICE_PROFILE_ELDERLY_MAN_STERN = "elderly_man_stern"

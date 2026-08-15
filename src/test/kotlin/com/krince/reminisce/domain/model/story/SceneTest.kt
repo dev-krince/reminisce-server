@@ -52,6 +52,7 @@ class SceneTest : FunSpec({
         requiredElements: List<ThinkingElement>? = listOf(ThinkingElement.PERSPECTIVE, ThinkingElement.EMOTION),
         preferredTurns: Int? = null,
         maxTurns: Int? = 4,
+        characterImageUrl: String? = null,
     ): Scene = Scene(
         sceneId = SceneId("sc-dialogue-1"),
         storyId = StoryId("story-1"),
@@ -67,6 +68,7 @@ class SceneTest : FunSpec({
         requiredElements = requiredElements,
         preferredTurns = preferredTurns,
         maxTurns = maxTurns,
+        characterImageUrl = characterImageUrl,
     )
 
     context("NARRATION 생성") {
@@ -79,6 +81,7 @@ class SceneTest : FunSpec({
                 scene.characterName shouldBe null
                 scene.requiredElements shouldBe null
                 scene.maxTurns shouldBe null
+                scene.characterImageUrl shouldBe null
             }
         }
         context("실패") {
@@ -132,6 +135,22 @@ class SceneTest : FunSpec({
 
                 scene.conflict shouldBe "갈등 요약"
                 scene.preferredTurns shouldBe 3
+            }
+
+            test("characterImageUrl 기본값은 null이고 값을 주면 보존된다") {
+                dialogueScene().characterImageUrl shouldBe null
+                dialogueScene(
+                    characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
+                ).characterImageUrl shouldBe "/files/char-ch_banggui_daughter_in_law.png"
+            }
+
+            test("개인화 복사본도 characterImageUrl을 그대로 전달한다") {
+                val personalized = dialogueScene(
+                    characterOpening = "ㅇㅇ아, 안녕?",
+                    characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
+                ).personalizedFor("지우")
+
+                personalized.characterImageUrl shouldBe "/files/char-ch_banggui_daughter_in_law.png"
             }
         }
         context("실패") {

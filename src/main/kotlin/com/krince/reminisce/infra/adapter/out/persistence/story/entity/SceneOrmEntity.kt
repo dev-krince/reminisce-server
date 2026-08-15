@@ -99,6 +99,10 @@ class SceneOrmEntity(
     @Column(name = "image_url")
     @Comment("장면 이미지 URL (NARRATION·DIALOGUE 공통 선택)")
     val imageUrl: String? = null,
+
+    @Column(name = "character_image_url")
+    @Comment("대화 캐릭터 아바타 이미지 URL (DIALOGUE 전용 선택)")
+    val characterImageUrl: String? = null,
 ) {
     @Column(name = "created_date", nullable = false, updatable = false)
     @CreatedDate

@@ -26,6 +26,7 @@ class SceneResult(
     val mission: Mission?,
     val characterVoice: CharacterVoice?,
     val imageUrl: String?,
+    val characterImageUrl: String?,
 ) {
     companion object {
         fun from(scene: Scene): SceneResult = from(scene, null, null, null)
@@ -55,6 +56,7 @@ class SceneResult(
             mission = scene.mission,
             characterVoice = scene.characterVoice,
             imageUrl = scene.imageUrl,
+            characterImageUrl = scene.characterImageUrl,
         )
     }
 }

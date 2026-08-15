@@ -10,11 +10,14 @@ class PostActivityConfigResult(
         val id: String,
         val text: String,
         val correctOrder: Int,
+        val imageUrl: String?,
     )
 
     companion object {
         fun from(postActivityConfig: PostActivityConfig): PostActivityConfigResult = PostActivityConfigResult(
-            cards = postActivityConfig.cards.map { CardResult(id = it.id, text = it.text, correctOrder = it.correctOrder) },
+            cards = postActivityConfig.cards.map {
+                CardResult(id = it.id, text = it.text, correctOrder = it.correctOrder, imageUrl = it.imageUrl)
+            },
             retellingKeywords = postActivityConfig.retellingKeywords,
         )
     }

@@ -106,6 +106,24 @@ class StoryMapperTest : FunSpec({
         characterVoice = characterVoice,
     )
 
+    fun dialogueEntityWithCharacterImage(sceneId: String, sceneOrder: Short, characterImageUrl: String): SceneOrmEntity = SceneOrmEntity(
+        sceneId = sceneId,
+        storyId = storyIdStr,
+        sceneOrder = sceneOrder,
+        sceneType = "DIALOGUE",
+        sceneDescription = "대화 설명 $sceneOrder",
+        characterName = "ch_banggui_daughter_in_law",
+        characterDisplayName = "방귀쟁이 며느리",
+        characterOpening = "고정 첫 대사",
+        characterClosing = "고정 마지막 대사",
+        conflict = null,
+        sceneGoal = "장면 발화 목표",
+        requiredElements = listOf(ThinkingElement.PERSPECTIVE, ThinkingElement.EMOTION),
+        preferredTurns = null,
+        maxTurns = 4,
+        characterImageUrl = characterImageUrl,
+    )
+
     context("toDomain") {
         context("성공") {
             test("뒤섞인 장면 엔티티를 sceneOrder 오름차순 도메인으로 조립하고 전 필드를 보존한다") {
@@ -213,6 +231,20 @@ class StoryMapperTest : FunSpec({
                 val dialogue = StoryMapper.toDomain(aggregateEntity).scenes.first()
 
                 dialogue.characterVoice shouldBe voice
+            }
+
+            test("아바타 이미지가 있는 대화 장면 엔티티의 characterImageUrl을 도메인으로 옮긴다") {
+                val aggregateEntity = StoryAggregateEntity(
+                    storyOrmEntity = storyOrmEntity(),
+                    sceneOrmEntities = listOf(
+                        dialogueEntityWithCharacterImage("sc-3", 3, "/files/char-ch_banggui_daughter_in_law.png"),
+                    ),
+                    storyTopicOrmEntities = emptyList(),
+                )
+
+                val dialogue = StoryMapper.toDomain(aggregateEntity).scenes.first()
+
+                dialogue.characterImageUrl shouldBe "/files/char-ch_banggui_daughter_in_law.png"
             }
         }
     }
@@ -373,6 +405,20 @@ class StoryMapperTest : FunSpec({
                 val restored = StoryMapper.toEntity(StoryMapper.toDomain(aggregateEntity))
 
                 restored.sceneOrmEntities.first().characterVoice shouldBe voice
+            }
+
+            test("아바타 이미지가 있는 대화 장면도 toDomain 후 toEntity 하면 characterImageUrl이 보존된다") {
+                val aggregateEntity = StoryAggregateEntity(
+                    storyOrmEntity = storyOrmEntity(),
+                    sceneOrmEntities = listOf(
+                        dialogueEntityWithCharacterImage("sc-3", 3, "/files/char-ch_banggui_daughter_in_law.png"),
+                    ),
+                    storyTopicOrmEntities = emptyList(),
+                )
+
+                val restored = StoryMapper.toEntity(StoryMapper.toDomain(aggregateEntity))
+
+                restored.sceneOrmEntities.first().characterImageUrl shouldBe "/files/char-ch_banggui_daughter_in_law.png"
             }
         }
     }

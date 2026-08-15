@@ -75,6 +75,7 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
     val dialogueSceneIdStr = "scene-uuid-dialogue"
     val nextSceneIdStr = "scene-uuid-next"
     val firstSceneImageUrl = "/files/first-scene.png"
+    val firstSceneCharacterImageUrl = "/files/char-ch_x.png"
     val nextSceneImageUrl = "/files/next-scene.png"
 
     fun command(): AdvanceSpeakingSceneCommand =
@@ -109,6 +110,7 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
         requiredElements = listOf(ThinkingElement.PERSPECTIVE),
         maxTurns = 4,
         imageUrl = firstSceneImageUrl,
+        characterImageUrl = firstSceneCharacterImageUrl,
     )
 
     fun narrationScene(): Scene = Scene(
@@ -234,6 +236,7 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
             result.viewType shouldBe SpeakingSessionViewType.SCENE
             result.scene?.sceneId shouldBe firstSceneIdStr
             result.scene?.imageUrl shouldBe firstSceneImageUrl
+            result.scene?.characterImageUrl shouldBe firstSceneCharacterImageUrl
             savedSlot.captured.currentSceneId shouldBe firstSceneIdStr
             savedSlot.captured.status shouldBe SessionStatus.IN_PROGRESS
             savedSlot.captured.lastActivityAt shouldBe LocalDateTime.now(fixedClock)

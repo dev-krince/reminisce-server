@@ -62,6 +62,7 @@ object StoryMapper {
         mission = ormEntity.mission,
         characterVoice = ormEntity.characterVoice,
         imageUrl = ormEntity.imageUrl,
+        characterImageUrl = ormEntity.characterImageUrl,
     )
 
     private fun toStoryOrmEntity(story: Story): StoryOrmEntity = StoryOrmEntity(
@@ -100,6 +101,7 @@ object StoryMapper {
         mission = scene.mission,
         characterVoice = scene.characterVoice,
         imageUrl = scene.imageUrl,
+        characterImageUrl = scene.characterImageUrl,
     )
 
     private fun toStoryTopicOrmEntity(storyId: StoryId, topic: String): StoryTopicOrmEntity = StoryTopicOrmEntity(

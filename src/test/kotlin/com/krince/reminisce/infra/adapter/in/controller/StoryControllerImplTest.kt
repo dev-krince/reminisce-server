@@ -164,6 +164,7 @@ class StoryControllerImplTest(
         preferredTurns = null,
         maxTurns = 4,
         imageUrl = sceneImageUrl(storyId, sceneOrder),
+        characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
     )
 
     fun dialogueEntityWithMission(storyId: String, sceneOrder: Short, mission: Mission): SceneOrmEntity = SceneOrmEntity(
@@ -637,8 +638,8 @@ class StoryControllerImplTest(
                 val storyId = "detail-${uniqueSuffix()}"
                 val postActivityConfig = PostActivityConfig(
                     cards = listOf(
-                        PostActivityConfig.Card(id = "card_1", text = "며느리가 방귀를 참았어요.", correctOrder = 1),
-                        PostActivityConfig.Card(id = "card_2", text = "방귀가 크게 터졌어요.", correctOrder = 2),
+                        PostActivityConfig.Card(id = "card_1", text = "며느리가 방귀를 참았어요.", correctOrder = 1, imageUrl = "/files/banggui-card-1.png"),
+                        PostActivityConfig.Card(id = "card_2", text = "방귀가 크게 터졌어요.", correctOrder = 2, imageUrl = "/files/banggui-card-2.png"),
                     ),
                     retellingKeywords = listOf("며느리", "방귀", "배나무"),
                 )
@@ -674,6 +675,7 @@ class StoryControllerImplTest(
                     .body("data.topics", contains("다름"))
                     .body("data.postActivity.cards.id", contains("card_1", "card_2"))
                     .body("data.postActivity.cards.correctOrder", contains(1, 2))
+                    .body("data.postActivity.cards.imageUrl", contains("/files/banggui-card-1.png", "/files/banggui-card-2.png"))
                     .body("data.postActivity.retellingKeywords", contains("며느리", "방귀", "배나무"))
                     .body("data.scenes", hasSize<Any>(3))
                     .body("data.scenes.sceneOrder", contains(1, 2, 3))
@@ -682,7 +684,9 @@ class StoryControllerImplTest(
                     .body("data.scenes[0].characterName", nullValue())
                     .body("data.scenes[0].requiredElements", nullValue())
                     .body("data.scenes[0].imageUrl", equalTo("/files/$storyId-scene-1.png"))
+                    .body("data.scenes[0].characterImageUrl", nullValue())
                     .body("data.scenes[2].imageUrl", equalTo("/files/$storyId-scene-3.png"))
+                    .body("data.scenes[2].characterImageUrl", equalTo("/files/char-ch_banggui_daughter_in_law.png"))
                     .body("data.scenes[2].sceneType", equalTo(SceneType.DIALOGUE.name))
                     .body("data.scenes[2].characterName", equalTo("ch_banggui_daughter_in_law"))
                     .body("data.scenes[2].characterDisplayName", equalTo("방귀쟁이 며느리"))

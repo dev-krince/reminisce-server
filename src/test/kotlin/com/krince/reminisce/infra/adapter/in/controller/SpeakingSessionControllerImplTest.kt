@@ -162,6 +162,7 @@ class SpeakingSessionControllerImplTest(
         preferredTurns = null,
         maxTurns = 4,
         imageUrl = sceneImageUrl(storyId, sceneOrder),
+        characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
     )
 
     fun sessionEntity(
@@ -514,6 +515,7 @@ class SpeakingSessionControllerImplTest(
                     .body("data.scene.characterOpeningAudio", not(nullValue()))
                     .body("data.scene.characterClosingAudio", not(nullValue()))
                     .body("data.scene.imageUrl", equalTo("/files/$storyId-scene-3.png"))
+                    .body("data.scene.characterImageUrl", equalTo("/files/char-ch_banggui_daughter_in_law.png"))
             }
 
             test("전개(NARRATION) 장면 세션 advance는 200과 다음 장면 SCENE 뷰를 반환한다") {

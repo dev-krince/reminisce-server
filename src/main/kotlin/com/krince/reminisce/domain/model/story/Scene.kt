@@ -23,6 +23,7 @@ class Scene(
     val mission: Mission? = null,
     val characterVoice: CharacterVoice? = null,
     val imageUrl: String? = null,
+    val characterImageUrl: String? = null,
 ) {
     init {
         when (sceneType) {
@@ -54,6 +55,7 @@ class Scene(
             mission = mission,
             characterVoice = characterVoice,
             imageUrl = imageUrl,
+            characterImageUrl = characterImageUrl,
         )
     }
 

@@ -22,9 +22,14 @@ class PostActivityCardResponse(
 
     @field:Schema(description = "카드 정답 순서", example = "1", required = true)
     val correctOrder: Int,
+
+    @field:Schema(description = "카드 이미지 URL", example = "/files/banggui-card-1.png", required = false)
+    val imageUrl: String?,
 )
 
 fun postActivityResponse(result: PostActivityConfigResult): PostActivityResponse = PostActivityResponse(
-    cards = result.cards.map { PostActivityCardResponse(id = it.id, text = it.text, correctOrder = it.correctOrder) },
+    cards = result.cards.map {
+        PostActivityCardResponse(id = it.id, text = it.text, correctOrder = it.correctOrder, imageUrl = it.imageUrl)
+    },
     retellingKeywords = result.retellingKeywords,
 )

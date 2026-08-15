@@ -82,6 +82,13 @@ class SceneResponse(
 
     @field:Schema(description = "장면 이미지 URL", example = "/files/banggui-scene-01.png", required = false)
     val imageUrl: String?,
+
+    @field:Schema(
+        description = "대화 캐릭터 아바타 이미지 URL (DIALOGUE 전용 선택)",
+        example = "/files/char-ch_banggui_daughter_in_law.png",
+        required = false,
+    )
+    val characterImageUrl: String?,
 )
 
 fun sceneResponse(result: SceneResult): SceneResponse = SceneResponse(
@@ -106,4 +113,5 @@ fun sceneResponse(result: SceneResult): SceneResponse = SceneResponse(
         CharacterVoiceResponse(gender = it.gender.name, ageGroup = it.ageGroup.name, voiceProfile = it.voiceProfile)
     },
     imageUrl = result.imageUrl,
+    characterImageUrl = result.characterImageUrl,
 )

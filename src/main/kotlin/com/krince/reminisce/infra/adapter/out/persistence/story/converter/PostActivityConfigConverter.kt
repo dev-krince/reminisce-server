@@ -23,6 +23,7 @@ class PostActivityConfigConverter : AttributeConverter<PostActivityConfig?, Stri
             cardNode.put(CARD_ID_FIELD, card.id)
             cardNode.put(CARD_TEXT_FIELD, card.text)
             cardNode.put(CARD_CORRECT_ORDER_FIELD, card.correctOrder)
+            card.imageUrl?.let { cardNode.put(CARD_IMAGE_URL_FIELD, it) }
         }
         val retellingKeywordsNode = rootNode.putArray(RETELLING_KEYWORDS_FIELD)
         attribute.retellingKeywords.forEach { retellingKeywordsNode.add(it) }
@@ -46,13 +47,24 @@ class PostActivityConfigConverter : AttributeConverter<PostActivityConfig?, Stri
         id = cardNode.path(CARD_ID_FIELD).asText(),
         text = cardNode.path(CARD_TEXT_FIELD).asText(),
         correctOrder = cardNode.path(CARD_CORRECT_ORDER_FIELD).asInt(),
+        imageUrl = readImageUrl(cardNode),
     )
+
+    private fun readImageUrl(cardNode: JsonNode): String? {
+        val imageUrlNode: JsonNode = cardNode.path(CARD_IMAGE_URL_FIELD)
+        if (imageUrlNode.isMissingNode || imageUrlNode.isNull) {
+            return null
+        }
+
+        return imageUrlNode.asText()
+    }
 
     private companion object {
         const val CARDS_FIELD = "cards"
         const val CARD_ID_FIELD = "id"
         const val CARD_TEXT_FIELD = "text"
         const val CARD_CORRECT_ORDER_FIELD = "correct_order"
+        const val CARD_IMAGE_URL_FIELD = "image_url"
         const val RETELLING_KEYWORDS_FIELD = "retelling_keywords"
     }
 }

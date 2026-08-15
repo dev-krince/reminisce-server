@@ -8,5 +8,6 @@ data class PostActivityConfig(
         val id: String,
         val text: String,
         val correctOrder: Int,
+        val imageUrl: String? = null,
     )
 }
