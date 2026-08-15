@@ -44,19 +44,14 @@ class CharacterReplyOpenAiAdapter(
             ?.let { "이 캐릭터의 말투 예시(참고용, 그대로 베끼지 말 것):\n" + it.joinToString("\n") { line -> "- $line" } }
 
         val persona: String = listOfNotNull(
-            context.characterOpening?.let { "당신의 첫 대사(성격 참고): $it" },
+            context.precedingCharacterLine?.let { "당신이 이 장면 직전에 아이에게 건넨 말(말투·상황 참고): $it" },
             context.conflict?.let { "당신이 처한 상황·걱정: $it" },
             context.sceneGoal?.let { "이 장면의 목표: $it" },
             exampleBlock,
             context.childName?.let { "지금 함께 이야기하는 아이의 이름은 '$it'입니다. 가끔 이름을 불러 주면 친근해요(매번은 아니고요)." },
         ).joinToString("\n")
 
-        val guidance: String = if (context.mode == ResponseMode.GUIDED && context.guidanceTarget != null) {
-            "지금은 아이가 '${elementHint(context.guidanceTarget)}'에 대해 더 이야기하도록 이끌어 주세요. " +
-                "시험 문제처럼 직접 묻지 말고, 캐릭터가 궁금해하거나 걱정하는 말투로 슬쩍 물어보세요."
-        } else {
-            "아이의 말을 따뜻하게 받아주고, 이야기를 자연스럽게 이어가세요."
-        }
+        val guidance: String = guidance(context)
 
         return """
             당신은 아이와 이야기 말하기 세션을 하는 동화 속 캐릭터 '${context.characterDisplayName}'입니다.
@@ -72,6 +67,20 @@ class CharacterReplyOpenAiAdapter(
             - $guidance
             - 대사만 출력합니다. 따옴표·이름표·설명 없이 캐릭터가 하는 말 그대로.
         """.trimIndent()
+    }
+
+    private fun guidance(context: CharacterReplyContext): String {
+        if (context.mode == ResponseMode.CLOSING) {
+            return "지금은 이 장면의 대화를 마무리할 차례예요. 아이가 해 준 이야기를 짧게 되짚어 고마움을 전하고, " +
+                "따뜻하게 끝맺으세요. 새로운 질문은 하지 마세요."
+        }
+        val guidanceTarget: ThinkingElement? = context.guidanceTarget
+        if (context.mode == ResponseMode.GUIDED && guidanceTarget != null) {
+            return "지금은 아이가 '${elementHint(guidanceTarget)}'에 대해 더 이야기하도록 이끌어 주세요. " +
+                "시험 문제처럼 직접 묻지 말고, 캐릭터가 궁금해하거나 걱정하는 말투로 슬쩍 물어보세요."
+        }
+
+        return "아이의 말을 따뜻하게 받아주고, 이야기를 자연스럽게 이어가세요."
     }
 
     private fun userPrompt(context: CharacterReplyContext): String {

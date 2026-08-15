@@ -8,8 +8,11 @@ import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
+import com.krince.reminisce.domain.model.story.CharacterVoice
 import com.krince.reminisce.domain.model.story.Mission
 import com.krince.reminisce.domain.model.story.Scene
+import com.krince.reminisce.domain.model.story.VoiceAgeGroup
+import com.krince.reminisce.domain.model.story.VoiceGender
 import com.krince.reminisce.domain.model.story.vo.SceneId
 import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryId
@@ -65,12 +68,16 @@ class GetSpeakingHintApplicationServiceTest : FunSpec({
         sceneDescription = "설명",
         characterName = "ch",
         characterDisplayName = "며느리",
-        characterOpening = "여는 대사",
-        characterClosing = "닫는 대사",
         sceneGoal = "목표",
         requiredElements = listOf(ThinkingElement.PERSPECTIVE),
         maxTurns = 4,
         mission = mission,
+        characterVoice = CharacterVoice(
+            gender = VoiceGender.FEMALE,
+            ageGroup = VoiceAgeGroup.ADULT,
+            voiceProfile = "young_woman_gentle",
+        ),
+        characterImageUrl = "/files/char-ch.png",
     )
 
     test("소유한 세션의 현재 장면 미션 예시를 힌트로 반환한다") {

@@ -85,9 +85,10 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
 
     beforeEach {
         clearAllMocks()
-        every { ttsPort.synthesize(any()) } returns "stub://tts/0"
+        every { ttsPort.synthesize(any(), any()) } returns "stub://tts/0"
         every { childAccessPort.findChildName(any()) } returns "지우"
         every { loadMessagePort.findRecentMessagesBySession(any(), any()) } returns emptyList()
+        every { storyAccessPort.findPrecedingCharacterLine(any(), any()) } returns null
     }
 
     val sessionIdStr = "session-uuid-1"
@@ -124,7 +125,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
         sceneEndReason = sceneEndReason,
     )
 
-    fun dialogueScene(): Scene = Scene(
+    fun dialogueScene(characterClosing: String? = null): Scene = Scene(
         sceneId = SceneId(dialogueSceneIdStr),
         storyId = storyId,
         sceneOrder = 3,
@@ -132,11 +133,16 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
         sceneDescription = "대화 설명",
         characterName = "ch_x",
         characterDisplayName = "표시명",
-        characterOpening = "여는 대사",
-        characterClosing = "닫는 대사",
+        characterClosing = characterClosing,
         sceneGoal = "목표",
         requiredElements = listOf(ThinkingElement.PERSPECTIVE),
         maxTurns = 4,
+        characterVoice = CharacterVoice(
+            gender = VoiceGender.FEMALE,
+            ageGroup = VoiceAgeGroup.ADULT,
+            voiceProfile = "young_woman_gentle",
+        ),
+        characterImageUrl = "/files/char-ch_x.png",
     )
 
     fun narrationScene(): Scene = Scene(
@@ -147,7 +153,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
         sceneDescription = "전개 설명",
     )
 
-    fun characterLineScene(): Scene = Scene(
+    fun characterLineScene(characterOpening: String = "한 줄 대사"): Scene = Scene(
         sceneId = SceneId(characterLineSceneIdStr),
         storyId = storyId,
         sceneOrder = 2,
@@ -155,7 +161,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
         sceneDescription = "캐릭터 대사 설명",
         characterName = "ch_x",
         characterDisplayName = "표시명",
-        characterOpening = "한 줄 대사",
+        characterOpening = characterOpening,
         characterVoice = CharacterVoice(
             gender = VoiceGender.FEMALE,
             ageGroup = VoiceAgeGroup.ADULT,
@@ -455,13 +461,15 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             verify(exactly = 1) { characterReplyPort.generate(any()) }
         }
 
-        test("mode=CLOSING이면 포트를 호출하지 않고 characterClosing을 character 메시지 text로 저장한다") {
+        test("mode=CLOSING이고 레거시 characterClosing이 있으면 포트를 호출하지 않고 그 대사를 저장한다") {
             val existingCount = 3L
             val transcript = "며느리가 참 힘들었겠어요"
+            val legacyClosing = "닫는 대사"
             val closingSession = session(dialogueSceneIdStr).copy(currentChildTurnCount = 3)
             every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns closingSession
             every { childAccessPort.findGuardianId(childId) } returns guardianId
-            every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
+            every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns
+                dialogueScene(characterClosing = legacyClosing)
             every { loadMessagePort.countBySession(SpeakingSessionId(sessionIdStr)) } returns existingCount
             val savedSlot = mutableListOf<Message>()
             every { commandMessagePort.save(capture(savedSlot)) } answers { savedSlot.last() }
@@ -477,9 +485,58 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             val characterMessage = savedSlot.last()
             characterMessage.speakerType shouldBe SpeakerType.CHARACTER
             characterMessage.turnOrder shouldBe childMessage.turnOrder + 1
-            characterMessage.text shouldBe dialogueScene().characterClosing
-            result.characterReply.text shouldBe dialogueScene().characterClosing
+            characterMessage.text shouldBe legacyClosing
+            result.characterReply.text shouldBe legacyClosing
             verify(exactly = 0) { characterReplyPort.generate(any()) }
+        }
+
+        test("mode=CLOSING이고 characterClosing이 없으면 CLOSING 모드로 포트를 호출해 마무리 대사를 생성한다") {
+            val existingCount = 3L
+            val transcript = "며느리가 참 힘들었겠어요"
+            val generatedClosing = "표시명: 생성된 마무리 대사"
+            val closingSession = session(dialogueSceneIdStr).copy(currentChildTurnCount = 3)
+            every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns closingSession
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
+            every { loadMessagePort.countBySession(SpeakingSessionId(sessionIdStr)) } returns existingCount
+            val savedSlot = mutableListOf<Message>()
+            every { commandMessagePort.save(capture(savedSlot)) } answers { savedSlot.last() }
+            every { speechAnalysisPort.analyze(transcript) } returns
+                rawAnalysis(listOf(DetectedElement(ThinkingElement.EMOTION, "힘들")))
+            every { commandUtteranceAnalysisPort.save(any()) } answers { firstArg() }
+            every { commandSpeakingSessionPort.save(any()) } answers { firstArg() }
+            val contextSlot = slot<CharacterReplyContext>()
+            every { characterReplyPort.generate(capture(contextSlot)) } returns generatedClosing
+
+            val result = service.execute(command(text = transcript))
+
+            result.mode shouldBe ResponseMode.CLOSING.name
+            contextSlot.captured.mode shouldBe ResponseMode.CLOSING
+            contextSlot.captured.precedingCharacterLine shouldBe null
+            savedSlot.last().text shouldBe generatedClosing
+            result.characterReply.text shouldBe generatedClosing
+            verify(exactly = 1) { characterReplyPort.generate(any()) }
+        }
+
+        test("직전 CHARACTER_LINE이 있으면 아이 이름으로 개인화한 대사를 컨텍스트에 전달한다") {
+            val transcript = "며느리가 참 힘들었겠어요"
+            every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(dialogueSceneIdStr)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
+            every { storyAccessPort.findPrecedingCharacterLine(storyId, dialogueSceneIdStr) } returns
+                characterLineScene(characterOpening = "ㅇㅇ아, 내 이야기를 들어 줄래?")
+            every { loadMessagePort.countBySession(SpeakingSessionId(sessionIdStr)) } returns 0L
+            every { commandMessagePort.save(any()) } answers { firstArg() }
+            every { speechAnalysisPort.analyze(transcript) } returns rawAnalysis(emptyList())
+            every { commandUtteranceAnalysisPort.save(any()) } answers { firstArg() }
+            every { commandSpeakingSessionPort.save(any()) } answers { firstArg() }
+            val contextSlot = slot<CharacterReplyContext>()
+            every { characterReplyPort.generate(capture(contextSlot)) } returns "표시명: 스텁 대사"
+
+            service.execute(command(text = transcript))
+
+            contextSlot.captured.precedingCharacterLine shouldBe "지우야, 내 이야기를 들어 줄래?"
+            contextSlot.captured.characterDisplayName shouldBe "표시명"
         }
     }
 })

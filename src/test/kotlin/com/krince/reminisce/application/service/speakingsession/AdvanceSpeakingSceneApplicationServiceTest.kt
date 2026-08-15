@@ -12,7 +12,10 @@ import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.SceneEndReason
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
+import com.krince.reminisce.domain.model.story.CharacterVoice
 import com.krince.reminisce.domain.model.story.Scene
+import com.krince.reminisce.domain.model.story.VoiceAgeGroup
+import com.krince.reminisce.domain.model.story.VoiceGender
 import com.krince.reminisce.domain.model.story.vo.SceneId
 import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryId
@@ -77,6 +80,11 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
     val firstSceneImageUrl = "/files/first-scene.png"
     val firstSceneCharacterImageUrl = "/files/char-ch_x.png"
     val nextSceneImageUrl = "/files/next-scene.png"
+    val characterVoice = CharacterVoice(
+        gender = VoiceGender.FEMALE,
+        ageGroup = VoiceAgeGroup.ADULT,
+        voiceProfile = "young_woman_gentle",
+    )
 
     fun command(): AdvanceSpeakingSceneCommand =
         AdvanceSpeakingSceneCommand(sessionId = sessionIdStr, guardianId = guardianIdStr)
@@ -109,6 +117,7 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
         sceneGoal = "목표",
         requiredElements = listOf(ThinkingElement.PERSPECTIVE),
         maxTurns = 4,
+        characterVoice = characterVoice,
         imageUrl = firstSceneImageUrl,
         characterImageUrl = firstSceneCharacterImageUrl,
     )
@@ -134,6 +143,8 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
         sceneGoal = "목표",
         requiredElements = listOf(ThinkingElement.PERSPECTIVE),
         maxTurns = 4,
+        characterVoice = characterVoice,
+        characterImageUrl = firstSceneCharacterImageUrl,
     )
 
     fun nextScene(): Scene = Scene(
@@ -158,6 +169,8 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
         sceneGoal = "목표",
         requiredElements = listOf(ThinkingElement.PERSPECTIVE),
         maxTurns = 4,
+        characterVoice = characterVoice,
+        characterImageUrl = firstSceneCharacterImageUrl,
     )
 
     context("게이트 실패") {

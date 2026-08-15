@@ -17,5 +17,7 @@ interface StoryAccessPort {
 
     fun findPreviousChapterFirstScene(storyId: StoryId, currentSceneId: String): Scene?
 
+    fun findPrecedingCharacterLine(storyId: StoryId, currentSceneId: String): Scene?
+
     fun findPostActivityConfig(storyId: StoryId): PostActivityConfig?
 }

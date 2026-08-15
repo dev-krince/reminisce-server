@@ -2,6 +2,9 @@ package com.krince.reminisce.infra.adapter.`in`.controller
 
 import com.krince.reminisce.domain.model.speakingsession.vo.SceneEndReason
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
+import com.krince.reminisce.domain.model.story.CharacterVoice
+import com.krince.reminisce.domain.model.story.VoiceAgeGroup
+import com.krince.reminisce.domain.model.story.VoiceGender
 import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
@@ -156,13 +159,48 @@ class SpeakingSessionControllerImplTest(
         sceneDescription = "대화 설명 $sceneOrder",
         characterName = "ch_banggui_daughter_in_law",
         characterDisplayName = "방귀쟁이 며느리",
-        characterOpening = "ㅇㅇ아, 내 방귀가 너무 크다는 걸 알면 가족들이 나를 이상하게 생각하지 않을까?",
-        characterClosing = "그래도 아직은 못 말하겠어. 조금만 더 참아 볼게.",
+        characterOpening = null,
+        characterClosing = null,
         conflict = null,
         sceneGoal = "며느리의 입장을 이해하고 공감해준다",
         requiredElements = listOf(ThinkingElement.PERSPECTIVE, ThinkingElement.EMOTION),
         preferredTurns = null,
         maxTurns = 4,
+        characterVoice = CharacterVoice(
+            gender = VoiceGender.FEMALE,
+            ageGroup = VoiceAgeGroup.ADULT,
+            voiceProfile = "young_woman_gentle",
+        ),
+        imageUrl = sceneImageUrl(storyId, sceneOrder),
+        characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
+    )
+
+    fun characterLineEntity(
+        storyId: String,
+        sceneOrder: Short,
+        chapter: Short = 1,
+        characterOpening: String = "ㅇㅇ아, 내 이야기를 들어 줄래?",
+    ): SceneOrmEntity = SceneOrmEntity(
+        sceneId = "sc-$sceneOrder-$storyId",
+        storyId = storyId,
+        sceneOrder = sceneOrder,
+        chapter = chapter,
+        sceneType = SceneType.CHARACTER_LINE.name,
+        sceneDescription = "캐릭터 대사 설명 $sceneOrder",
+        characterName = "ch_banggui_daughter_in_law",
+        characterDisplayName = "방귀쟁이 며느리",
+        characterOpening = characterOpening,
+        characterClosing = null,
+        conflict = null,
+        sceneGoal = null,
+        requiredElements = null,
+        preferredTurns = null,
+        maxTurns = null,
+        characterVoice = CharacterVoice(
+            gender = VoiceGender.FEMALE,
+            ageGroup = VoiceAgeGroup.ADULT,
+            voiceProfile = "young_woman_gentle",
+        ),
         imageUrl = sceneImageUrl(storyId, sceneOrder),
         characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
     )
@@ -514,10 +552,73 @@ class SpeakingSessionControllerImplTest(
                     .body("data.scene.sceneType", equalTo(SceneType.DIALOGUE.name))
                     .body("data.scene.characterDisplayName", equalTo("방귀쟁이 며느리"))
                     .body("data.scene.maxTurns", equalTo(4))
-                    .body("data.scene.characterOpeningAudio", not(nullValue()))
-                    .body("data.scene.characterClosingAudio", not(nullValue()))
+                    .body("data.scene.characterOpening", nullValue())
+                    .body("data.scene.characterClosing", nullValue())
+                    .body("data.scene.characterOpeningAudio", nullValue())
+                    .body("data.scene.characterClosingAudio", nullValue())
                     .body("data.scene.imageUrl", equalTo("/files/$storyId-scene-3.png"))
                     .body("data.scene.characterImageUrl", equalTo("/files/char-ch_banggui_daughter_in_law.png"))
+            }
+
+            test("CHARACTER_LINE 장면 세션 GET은 개인화된 대사와 characterOpeningAudio를 반환하고 closingAudio는 null이다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testStoryFixture.saveScene(characterLineEntity(storyId, 2))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                val characterLineSceneId = "sc-2-$storyId"
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, currentSceneId = characterLineSceneId),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/speaking-sessions/$sessionId")
+                    .then()
+                    .statusCode(200)
+                    .body("data.viewType", equalTo("SCENE"))
+                    .body("data.scene.sceneId", equalTo(characterLineSceneId))
+                    .body("data.scene.sceneType", equalTo(SceneType.CHARACTER_LINE.name))
+                    .body("data.scene.characterOpening", equalTo("토토야, 내 이야기를 들어 줄래?"))
+                    .body("data.scene.characterOpeningAudio", not(nullValue()))
+                    .body("data.scene.characterClosingAudio", nullValue())
+                    .body("data.scene.characterImageUrl", equalTo("/files/char-ch_banggui_daughter_in_law.png"))
+            }
+
+            test("CHARACTER_LINE 장면 세션 advance는 종료 사유 없이도 200과 다음 장면 SCENE 뷰를 반환한다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(characterLineEntity(storyId, 2))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                val characterLineSceneId = "sc-2-$storyId"
+                val nextSceneId = "sc-3-$storyId"
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, currentSceneId = characterLineSceneId),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/advance")
+                    .then()
+                    .statusCode(200)
+                    .body("data.viewType", equalTo("SCENE"))
+                    .body("data.scene.sceneId", equalTo(nextSceneId))
+                    .body("data.scene.sceneType", equalTo(SceneType.DIALOGUE.name))
+
+                val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
+                storedSession?.currentSceneId shouldBe nextSceneId
             }
 
             test("전개(NARRATION) 장면 세션 advance는 200과 다음 장면 SCENE 뷰를 반환한다") {
@@ -547,8 +648,8 @@ class SpeakingSessionControllerImplTest(
                     .body("data.scene.sceneId", equalTo(nextSceneId))
                     .body("data.scene.sceneOrder", equalTo(3))
                     .body("data.scene.sceneType", equalTo(SceneType.DIALOGUE.name))
-                    .body("data.scene.characterOpeningAudio", not(nullValue()))
-                    .body("data.scene.characterClosingAudio", not(nullValue()))
+                    .body("data.scene.characterOpeningAudio", nullValue())
+                    .body("data.scene.characterClosingAudio", nullValue())
 
                 val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
                 storedSession?.currentSceneId shouldBe nextSceneId
@@ -1029,7 +1130,7 @@ class SpeakingSessionControllerImplTest(
                     .body("data.turnOrder", equalTo(7))
                     .body("data.characterReply.speakerType", equalTo("CHARACTER"))
                     .body("data.characterReply.turnOrder", equalTo(8))
-                    .body("data.characterReply.text", equalTo("그래도 아직은 못 말하겠어. 조금만 더 참아 볼게."))
+                    .body("data.characterReply.text", equalTo("방귀쟁이 며느리: 이야기해 줘서 정말 고마워. 네 덕분에 마음이 놓였어."))
 
                 val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
                 storedSession?.currentChildTurnCount shouldBe 4
@@ -2080,7 +2181,7 @@ class SpeakingSessionControllerImplTest(
 
     context("goBackSpeakingScene") {
         context("성공") {
-            test("두 번째 챕터 끝 장면 세션 back은 200과 이전 챕터 첫 장면 SCENE 뷰를 반환하고 진행 상태를 0으로 초기화한다") {
+            test("화자 단위로 구성된 두 번째 챕터 세션 back은 200과 이전 챕터 첫 장면 SCENE 뷰를 반환하고 진행 상태를 0으로 초기화한다") {
                 val (guardianId, token) = authorizedGuardian()
                 val childId = "child-${uniqueSuffix()}"
                 val storyId = "story-${uniqueSuffix()}"
@@ -2088,11 +2189,14 @@ class SpeakingSessionControllerImplTest(
                 testChildFixture.saveChild(childEntity(childId, guardianId))
                 testStoryFixture.saveStory(storyEntity(storyId))
                 testStoryFixture.saveScene(narrationEntity(storyId, 1, chapter = 1))
-                testStoryFixture.saveScene(dialogueEntity(storyId, 2, chapter = 1))
-                testStoryFixture.saveScene(narrationEntity(storyId, 3, chapter = 2))
-                testStoryFixture.saveScene(dialogueEntity(storyId, 4, chapter = 2))
+                testStoryFixture.saveScene(characterLineEntity(storyId, 2, chapter = 1))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3, chapter = 1))
+                testStoryFixture.saveScene(characterLineEntity(storyId, 4, chapter = 1))
+                testStoryFixture.saveScene(narrationEntity(storyId, 5, chapter = 2))
+                testStoryFixture.saveScene(characterLineEntity(storyId, 6, chapter = 2))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 7, chapter = 2))
                 val previousChapterFirstSceneId = "sc-1-$storyId"
-                val currentSceneId = "sc-4-$storyId"
+                val currentSceneId = "sc-7-$storyId"
                 testSpeakingSessionFixture.save(
                     sessionEntity(
                         sessionId,

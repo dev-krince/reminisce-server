@@ -29,7 +29,7 @@ class CharacterReplyOpenAiManualTest : FunSpec({
                 mode = mode,
                 childUtterance = utterance,
                 guidanceTarget = target,
-                characterOpening = "흑흑, 저는 방귀를 너무 크게 뀌어서 집에서 쫓겨날 위기에 처했어요.",
+                precedingCharacterLine = "흑흑, 저는 방귀를 너무 크게 뀌어서 집에서 쫓겨날 위기에 처했어요.",
                 conflict = "큰 방귀 때문에 며느리가 집에서 쫓겨날 위기에 놓였어요.",
                 sceneGoal = "며느리의 방귀가 특별한 장점이 될 수 있도록 아이가 함께 생각해 보게 한다.",
             )

@@ -94,8 +94,8 @@ class Scene(
     private fun requireDialogueFields() {
         require(characterName != null) { "DIALOGUE 장면은 characterName이 필요합니다" }
         require(characterDisplayName != null) { "DIALOGUE 장면은 characterDisplayName이 필요합니다" }
-        require(characterOpening != null) { "DIALOGUE 장면은 characterOpening이 필요합니다" }
-        require(characterClosing != null) { "DIALOGUE 장면은 characterClosing이 필요합니다" }
+        require(characterVoice != null) { "DIALOGUE 장면은 characterVoice가 필요합니다" }
+        require(characterImageUrl != null) { "DIALOGUE 장면은 characterImageUrl이 필요합니다" }
         require(sceneGoal != null) { "DIALOGUE 장면은 sceneGoal이 필요합니다" }
         require(!requiredElements.isNullOrEmpty()) { "DIALOGUE 장면은 비어있지 않은 requiredElements가 필요합니다" }
         require(maxTurns != null) { "DIALOGUE 장면은 maxTurns가 필요합니다" }

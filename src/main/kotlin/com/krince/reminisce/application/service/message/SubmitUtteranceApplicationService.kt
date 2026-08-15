@@ -105,8 +105,9 @@ class SubmitUtteranceApplicationService(
         recentTurns: List<ConversationTurn>,
     ): String {
         val mode: ResponseMode = requireNotNull(session.lastResponseMode)
-        if (mode == ResponseMode.CLOSING) {
-            return checkNotNull(scene.characterClosing)
+        val scriptedClosing: String? = scene.characterClosing
+        if (mode == ResponseMode.CLOSING && scriptedClosing != null) {
+            return scriptedClosing
         }
 
         return characterReplyPort.generate(
@@ -115,7 +116,7 @@ class SubmitUtteranceApplicationService(
                 mode = mode,
                 childUtterance = childMessage.text,
                 guidanceTarget = session.lastGuidanceTarget,
-                characterOpening = scene.characterOpening,
+                precedingCharacterLine = precedingCharacterLine(session, childName),
                 conflict = scene.conflict,
                 sceneGoal = scene.sceneGoal,
                 characterName = scene.characterName,
@@ -123,6 +124,14 @@ class SubmitUtteranceApplicationService(
                 recentTurns = recentTurns,
             ),
         )
+    }
+
+    private fun precedingCharacterLine(session: SpeakingSession, childName: String?): String? {
+        val currentSceneId: String = session.currentSceneId ?: return null
+        val characterLineScene: Scene = storyAccessPort.findPrecedingCharacterLine(session.storyId, currentSceneId)
+            ?: return null
+
+        return characterLineScene.personalizedFor(childName).characterOpening
     }
 
     private fun loadRecentTurns(session: SpeakingSession, currentChildMessage: Message): List<ConversationTurn> =

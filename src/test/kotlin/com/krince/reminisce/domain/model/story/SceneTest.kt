@@ -44,18 +44,25 @@ class SceneTest : FunSpec({
         maxTurns = maxTurns,
     )
 
+    val characterVoice = CharacterVoice(
+        gender = VoiceGender.FEMALE,
+        ageGroup = VoiceAgeGroup.ADULT,
+        voiceProfile = "young_woman_gentle",
+    )
+
     fun dialogueScene(
         chapter: Int = 1,
         characterName: String? = "ch_banggui_daughter_in_law",
         characterDisplayName: String? = "방귀쟁이 며느리",
-        characterOpening: String? = "고정 첫 대사",
-        characterClosing: String? = "고정 마지막 대사",
+        characterOpening: String? = null,
+        characterClosing: String? = null,
         conflict: String? = null,
         sceneGoal: String? = "장면 발화 목표",
         requiredElements: List<ThinkingElement>? = listOf(ThinkingElement.PERSPECTIVE, ThinkingElement.EMOTION),
         preferredTurns: Int? = null,
         maxTurns: Int? = 4,
-        characterImageUrl: String? = null,
+        characterVoiceValue: CharacterVoice? = characterVoice,
+        characterImageUrl: String? = "/files/char-ch_banggui_daughter_in_law.png",
     ): Scene = Scene(
         sceneId = SceneId("sc-dialogue-1"),
         storyId = StoryId("story-1"),
@@ -72,13 +79,8 @@ class SceneTest : FunSpec({
         requiredElements = requiredElements,
         preferredTurns = preferredTurns,
         maxTurns = maxTurns,
+        characterVoice = characterVoiceValue,
         characterImageUrl = characterImageUrl,
-    )
-
-    val characterVoice = CharacterVoice(
-        gender = VoiceGender.FEMALE,
-        ageGroup = VoiceAgeGroup.ADULT,
-        voiceProfile = "young_woman_gentle",
     )
 
     fun characterLineScene(
@@ -144,20 +146,32 @@ class SceneTest : FunSpec({
 
     context("DIALOGUE 생성") {
         context("성공") {
-            test("필수 대화 필드가 모두 있으면 생성되고 값이 보존된다") {
+            test("고정 대사 없이 필수 대화 필드만 있으면 순수 인터랙티브 슬롯으로 생성된다") {
                 val scene = dialogueScene()
 
                 scene.sceneType shouldBe SceneType.DIALOGUE
                 scene.characterName shouldBe "ch_banggui_daughter_in_law"
                 scene.characterDisplayName shouldBe "방귀쟁이 며느리"
-                scene.characterOpening shouldBe "고정 첫 대사"
-                scene.characterClosing shouldBe "고정 마지막 대사"
+                scene.characterOpening shouldBe null
+                scene.characterClosing shouldBe null
                 scene.sceneGoal shouldBe "장면 발화 목표"
                 scene.requiredElements shouldContainExactly listOf(
                     ThinkingElement.PERSPECTIVE,
                     ThinkingElement.EMOTION,
                 )
                 scene.maxTurns shouldBe 4
+                scene.characterVoice shouldBe characterVoice
+                scene.characterImageUrl shouldBe "/files/char-ch_banggui_daughter_in_law.png"
+            }
+
+            test("구 구조처럼 characterOpening·characterClosing이 있어도 생성되고 값이 보존된다") {
+                val scene = dialogueScene(
+                    characterOpening = "고정 첫 대사",
+                    characterClosing = "고정 마지막 대사",
+                )
+
+                scene.characterOpening shouldBe "고정 첫 대사"
+                scene.characterClosing shouldBe "고정 마지막 대사"
             }
 
             test("conflict와 preferredTurns는 저작 값이 없어도 생성된다") {
@@ -172,13 +186,6 @@ class SceneTest : FunSpec({
 
                 scene.conflict shouldBe "갈등 요약"
                 scene.preferredTurns shouldBe 3
-            }
-
-            test("characterImageUrl 기본값은 null이고 값을 주면 보존된다") {
-                dialogueScene().characterImageUrl shouldBe null
-                dialogueScene(
-                    characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
-                ).characterImageUrl shouldBe "/files/char-ch_banggui_daughter_in_law.png"
             }
 
             test("개인화 복사본도 characterImageUrl을 그대로 전달한다") {
@@ -205,8 +212,8 @@ class SceneTest : FunSpec({
                 val invalidCreations: List<() -> Scene> = listOf(
                     { dialogueScene(characterName = null) },
                     { dialogueScene(characterDisplayName = null) },
-                    { dialogueScene(characterOpening = null) },
-                    { dialogueScene(characterClosing = null) },
+                    { dialogueScene(characterVoiceValue = null) },
+                    { dialogueScene(characterImageUrl = null) },
                     { dialogueScene(sceneGoal = null) },
                     { dialogueScene(requiredElements = null) },
                     { dialogueScene(maxTurns = null) },

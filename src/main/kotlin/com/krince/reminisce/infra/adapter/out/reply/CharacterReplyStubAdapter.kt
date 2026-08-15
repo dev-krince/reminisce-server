@@ -13,8 +13,12 @@ class CharacterReplyStubAdapter : CharacterReplyPort {
     private val normalTemplate: String = "%s: 네 이야기를 잘 들었어. 나도 그렇게 느꼈어."
     private val guidedTemplate: String = "%s: 그런데 %s에 대해서는 어떻게 생각해?"
     private val guidedFallbackTemplate: String = "%s: 조금만 더 자세히 이야기해 줄래?"
+    private val closingTemplate: String = "%s: 이야기해 줘서 정말 고마워. 네 덕분에 마음이 놓였어."
 
     override fun generate(context: CharacterReplyContext): String {
+        if (context.mode == ResponseMode.CLOSING) {
+            return closingTemplate.format(context.characterDisplayName)
+        }
         if (context.mode == ResponseMode.GUIDED) {
             return guidedReply(context)
         }

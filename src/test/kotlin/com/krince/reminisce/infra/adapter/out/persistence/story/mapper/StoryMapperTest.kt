@@ -32,6 +32,12 @@ class StoryMapperTest : FunSpec({
     val storyIdStr = "story-uuid-1"
     val createdDate = LocalDateTime.of(2026, 8, 1, 10, 0)
     val modifiedDate = LocalDateTime.of(2026, 8, 2, 10, 0)
+    val dialogueVoice = CharacterVoice(
+        gender = VoiceGender.FEMALE,
+        ageGroup = VoiceAgeGroup.ADULT,
+        voiceProfile = "young_woman_gentle",
+    )
+    val dialogueAvatarUrl = "/files/char-ch_banggui_daughter_in_law.png"
     val postActivityConfig = PostActivityConfig(
         cards = listOf(PostActivityConfig.Card(id = "card_1", text = "카드 내용", correctOrder = 1)),
         retellingKeywords = listOf("며느리", "방귀"),
@@ -88,6 +94,8 @@ class StoryMapperTest : FunSpec({
         requiredElements = listOf(ThinkingElement.PERSPECTIVE, ThinkingElement.EMOTION),
         preferredTurns = null,
         maxTurns = 4,
+        characterVoice = dialogueVoice,
+        characterImageUrl = dialogueAvatarUrl,
     )
 
     fun dialogueEntityWithCharacterVoice(sceneId: String, sceneOrder: Short, characterVoice: CharacterVoice): SceneOrmEntity = SceneOrmEntity(
@@ -107,6 +115,7 @@ class StoryMapperTest : FunSpec({
         preferredTurns = null,
         maxTurns = 4,
         characterVoice = characterVoice,
+        characterImageUrl = dialogueAvatarUrl,
     )
 
     fun characterLineOrmEntity(sceneId: String, sceneOrder: Short, characterVoice: CharacterVoice): SceneOrmEntity = SceneOrmEntity(
@@ -144,6 +153,7 @@ class StoryMapperTest : FunSpec({
         requiredElements = listOf(ThinkingElement.PERSPECTIVE, ThinkingElement.EMOTION),
         preferredTurns = null,
         maxTurns = 4,
+        characterVoice = dialogueVoice,
         characterImageUrl = characterImageUrl,
     )
 
@@ -229,6 +239,8 @@ class StoryMapperTest : FunSpec({
                     preferredTurns = null,
                     maxTurns = 5,
                     mission = mission,
+                    characterVoice = dialogueVoice,
+                    characterImageUrl = "/files/char-ch_banggui_village_chief.png",
                 )
                 val aggregateEntity = StoryAggregateEntity(
                     storyOrmEntity = storyOrmEntity(),
@@ -332,11 +344,11 @@ class StoryMapperTest : FunSpec({
                             sceneDescription = "대화 설명 2",
                             characterName = "ch_banggui_father_in_law",
                             characterDisplayName = "시아버지",
-                            characterOpening = "고정 첫 대사",
-                            characterClosing = "고정 마지막 대사",
                             sceneGoal = "장면 발화 목표",
                             requiredElements = listOf(ThinkingElement.REASON, ThinkingElement.SOLUTION),
                             maxTurns = 5,
+                            characterVoice = dialogueVoice,
+                            characterImageUrl = "/files/char-ch_banggui_father_in_law.png",
                         ),
                     ),
                 )
@@ -363,8 +375,8 @@ class StoryMapperTest : FunSpec({
                 savedScenes.map { it.chapter } shouldContainExactly listOf(1.toShort(), 1.toShort())
                 savedScenes[1].characterName shouldBe "ch_banggui_father_in_law"
                 savedScenes[1].characterDisplayName shouldBe "시아버지"
-                savedScenes[1].characterOpening shouldBe "고정 첫 대사"
-                savedScenes[1].characterClosing shouldBe "고정 마지막 대사"
+                savedScenes[1].characterOpening shouldBe null
+                savedScenes[1].characterClosing shouldBe null
                 savedScenes[1].sceneGoal shouldBe "장면 발화 목표"
                 savedScenes[1].requiredElements shouldContainExactly listOf(
                     ThinkingElement.REASON,
@@ -373,7 +385,8 @@ class StoryMapperTest : FunSpec({
                 savedScenes[1].preferredTurns shouldBe null
                 savedScenes[1].maxTurns shouldBe 5.toShort()
                 savedScenes[1].mission shouldBe null
-                savedScenes[1].characterVoice shouldBe null
+                savedScenes[1].characterVoice shouldBe dialogueVoice
+                savedScenes[1].characterImageUrl shouldBe "/files/char-ch_banggui_father_in_law.png"
 
                 val savedTopics = aggregateEntity.storyTopicOrmEntities
                 savedTopics.map { it.topic } shouldContainExactly listOf("다름", "자기이해")
@@ -431,6 +444,8 @@ class StoryMapperTest : FunSpec({
                     preferredTurns = null,
                     maxTurns = 5,
                     mission = mission,
+                    characterVoice = dialogueVoice,
+                    characterImageUrl = "/files/char-ch_banggui_village_chief.png",
                 )
                 val aggregateEntity = StoryAggregateEntity(
                     storyOrmEntity = storyOrmEntity(),

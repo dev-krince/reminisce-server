@@ -6,8 +6,11 @@ import com.krince.reminisce.application.port.`in`.story.command.GetStoriesComman
 import com.krince.reminisce.application.port.`in`.story.command.GetStoryCommand
 import com.krince.reminisce.application.port.out.story.LoadStoryPort
 import com.krince.reminisce.domain.model.child.vo.ChildId
+import com.krince.reminisce.domain.model.story.CharacterVoice
 import com.krince.reminisce.domain.model.story.Scene
 import com.krince.reminisce.domain.model.story.Story
+import com.krince.reminisce.domain.model.story.VoiceAgeGroup
+import com.krince.reminisce.domain.model.story.VoiceGender
 import com.krince.reminisce.domain.model.story.vo.Difficulty
 import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.SceneId
@@ -67,11 +70,15 @@ class StoryQueryServiceTest : FunSpec({
         sceneDescription = "대화 설명 $sceneOrder",
         characterName = "ch_banggui_daughter_in_law",
         characterDisplayName = "방귀쟁이 며느리",
-        characterOpening = "고정 첫 대사",
-        characterClosing = "고정 마지막 대사",
         sceneGoal = "장면 발화 목표",
         requiredElements = listOf(ThinkingElement.PERSPECTIVE, ThinkingElement.EMOTION),
         maxTurns = 4,
+        characterVoice = CharacterVoice(
+            gender = VoiceGender.FEMALE,
+            ageGroup = VoiceAgeGroup.ADULT,
+            voiceProfile = "young_woman_gentle",
+        ),
+        characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
     )
 
     fun story(scenes: List<Scene>): Story = Story(
@@ -309,8 +316,8 @@ class StoryQueryServiceTest : FunSpec({
                 dialogue.sceneType shouldBe SceneType.DIALOGUE
                 dialogue.characterName shouldBe "ch_banggui_daughter_in_law"
                 dialogue.characterDisplayName shouldBe "방귀쟁이 며느리"
-                dialogue.characterOpening shouldBe "고정 첫 대사"
-                dialogue.characterClosing shouldBe "고정 마지막 대사"
+                dialogue.characterOpening shouldBe null
+                dialogue.characterClosing shouldBe null
                 dialogue.sceneGoal shouldBe "장면 발화 목표"
                 val requiredElements = dialogue.requiredElements.shouldNotBeNull()
                 requiredElements shouldContainExactly listOf(

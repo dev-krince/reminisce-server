@@ -1,5 +1,8 @@
 package com.krince.reminisce.infra.adapter.out.persistence.story
 
+import com.krince.reminisce.domain.model.story.CharacterVoice
+import com.krince.reminisce.domain.model.story.VoiceAgeGroup
+import com.krince.reminisce.domain.model.story.VoiceGender
 import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryId
@@ -99,6 +102,12 @@ class StoryOrmAdapterTest(
         ),
         preferredTurns = null,
         maxTurns = 4,
+        characterVoice = CharacterVoice(
+            gender = VoiceGender.FEMALE,
+            ageGroup = VoiceAgeGroup.ADULT,
+            voiceProfile = "young_woman_gentle",
+        ),
+        characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
     )
 
     fun topicEntity(storyId: String, topic: String): StoryTopicOrmEntity = StoryTopicOrmEntity(

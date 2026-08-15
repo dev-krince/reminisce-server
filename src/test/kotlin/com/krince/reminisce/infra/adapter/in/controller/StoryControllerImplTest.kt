@@ -153,8 +153,8 @@ class StoryControllerImplTest(
         sceneDescription = "대화 설명 $sceneOrder",
         characterName = "ch_banggui_daughter_in_law",
         characterDisplayName = "방귀쟁이 며느리",
-        characterOpening = "ㅇㅇ아, 내 방귀가 너무 크다는 걸 알면 가족들이 나를 이상하게 생각하지 않을까?",
-        characterClosing = "그래도 아직은 못 말하겠어. 조금만 더 참아 볼게.",
+        characterOpening = null,
+        characterClosing = null,
         conflict = null,
         sceneGoal = "며느리의 입장을 이해하고 공감해준다",
         requiredElements = listOf(
@@ -165,11 +165,21 @@ class StoryControllerImplTest(
         ),
         preferredTurns = null,
         maxTurns = 4,
+        characterVoice = CharacterVoice(
+            gender = VoiceGender.FEMALE,
+            ageGroup = VoiceAgeGroup.ADULT,
+            voiceProfile = "young_woman_gentle",
+        ),
         imageUrl = sceneImageUrl(storyId, sceneOrder),
         characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
     )
 
-    fun characterLineEntity(storyId: String, sceneOrder: Short, chapter: Short = 1): SceneOrmEntity = SceneOrmEntity(
+    fun characterLineEntity(
+        storyId: String,
+        sceneOrder: Short,
+        chapter: Short = 1,
+        characterOpening: String = "ㅇㅇ아, 안녕? 나는 방귀쟁이 며느리야.",
+    ): SceneOrmEntity = SceneOrmEntity(
         sceneId = "sc-$sceneOrder-$storyId",
         storyId = storyId,
         sceneOrder = sceneOrder,
@@ -178,7 +188,7 @@ class StoryControllerImplTest(
         sceneDescription = "캐릭터 대사 설명 $sceneOrder",
         characterName = "ch_banggui_daughter_in_law",
         characterDisplayName = "방귀쟁이 며느리",
-        characterOpening = "ㅇㅇ아, 안녕? 나는 방귀쟁이 며느리야.",
+        characterOpening = characterOpening,
         characterClosing = null,
         conflict = null,
         sceneGoal = null,
@@ -203,14 +213,20 @@ class StoryControllerImplTest(
         sceneDescription = "대화 설명 $sceneOrder",
         characterName = "ch_banggui_village_chief",
         characterDisplayName = "마을 이장",
-        characterOpening = "뾰족한 방법이 없겠는가?",
-        characterClosing = "고맙소!",
+        characterOpening = null,
+        characterClosing = null,
         conflict = null,
         sceneGoal = "해결책을 제안한다",
         requiredElements = listOf(ThinkingElement.SOLUTION),
         preferredTurns = null,
         maxTurns = 5,
         mission = mission,
+        characterVoice = CharacterVoice(
+            gender = VoiceGender.MALE,
+            ageGroup = VoiceAgeGroup.ELDER,
+            voiceProfile = "elderly_man_warm",
+        ),
+        characterImageUrl = "/files/char-ch_banggui_village_chief.png",
     )
 
     fun dialogueEntityWithCharacterVoice(
@@ -228,14 +244,15 @@ class StoryControllerImplTest(
         sceneDescription = "대화 설명 $sceneOrder",
         characterName = characterName,
         characterDisplayName = characterDisplayName,
-        characterOpening = "고정 첫 대사 $sceneOrder",
-        characterClosing = "고정 마지막 대사 $sceneOrder",
+        characterOpening = null,
+        characterClosing = null,
         conflict = null,
         sceneGoal = "장면 발화 목표 $sceneOrder",
         requiredElements = listOf(ThinkingElement.PERSPECTIVE, ThinkingElement.EMOTION),
         preferredTurns = null,
         maxTurns = 4,
         characterVoice = characterVoice,
+        characterImageUrl = "/files/char-$characterName.png",
     )
 
     fun topicEntity(storyId: String, topic: String): StoryTopicOrmEntity = StoryTopicOrmEntity(
@@ -722,11 +739,8 @@ class StoryControllerImplTest(
                     .body("data.scenes[2].sceneType", equalTo(SceneType.DIALOGUE.name))
                     .body("data.scenes[2].characterName", equalTo("ch_banggui_daughter_in_law"))
                     .body("data.scenes[2].characterDisplayName", equalTo("방귀쟁이 며느리"))
-                    .body(
-                        "data.scenes[2].characterOpening",
-                        equalTo("ㅇㅇ아, 내 방귀가 너무 크다는 걸 알면 가족들이 나를 이상하게 생각하지 않을까?"),
-                    )
-                    .body("data.scenes[2].characterClosing", equalTo("그래도 아직은 못 말하겠어. 조금만 더 참아 볼게."))
+                    .body("data.scenes[2].characterOpening", nullValue())
+                    .body("data.scenes[2].characterClosing", nullValue())
                     .body("data.scenes[2].sceneGoal", equalTo("며느리의 입장을 이해하고 공감해준다"))
                     .body(
                         "data.scenes[2].requiredElements",
@@ -739,13 +753,16 @@ class StoryControllerImplTest(
                     .body("data.scenes[2].mission", nullValue())
             }
 
-            test("캐릭터 대사 장면은 캐릭터·대사·아바타·음성을 담고 sceneType이 CHARACTER_LINE으로 반환된다") {
+            test("한 챕터에 여러 CHARACTER_LINE이 화자 단위로 노출되고 DIALOGUE는 고정 대사 없이 반환된다") {
                 val token = authorizedToken()
                 val storyId = "character-line-${uniqueSuffix()}"
                 testStoryFixture.saveStory(storyEntity(storyId))
                 testStoryFixture.saveScene(narrationEntity(storyId, 1))
                 testStoryFixture.saveScene(characterLineEntity(storyId, 2))
                 testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                testStoryFixture.saveScene(
+                    characterLineEntity(storyId, 4, characterOpening = "그래, 이야기해 줘서 고마워."),
+                )
                 testStoryFixture.saveTopic(topicEntity(storyId, "다름"))
 
                 RestAssured.given()
@@ -755,12 +772,14 @@ class StoryControllerImplTest(
                     .get("/stories/$storyId")
                     .then()
                     .statusCode(200)
-                    .body("data.scenes", hasSize<Any>(3))
+                    .body("data.scenes", hasSize<Any>(4))
                     .body("data.scenes.sceneType", contains(
                         SceneType.NARRATION.name,
                         SceneType.CHARACTER_LINE.name,
                         SceneType.DIALOGUE.name,
+                        SceneType.CHARACTER_LINE.name,
                     ))
+                    .body("data.scenes.chapter", contains(1, 1, 1, 1))
                     .body("data.scenes[1].sceneType", equalTo(SceneType.CHARACTER_LINE.name))
                     .body("data.scenes[1].characterName", equalTo("ch_banggui_daughter_in_law"))
                     .body("data.scenes[1].characterDisplayName", equalTo("방귀쟁이 며느리"))
@@ -773,7 +792,11 @@ class StoryControllerImplTest(
                     .body("data.scenes[1].maxTurns", nullValue())
                     .body("data.scenes[1].mission", nullValue())
                     .body("data.scenes[2].sceneType", equalTo(SceneType.DIALOGUE.name))
-                    .body("data.scenes[2].characterOpening", equalTo("ㅇㅇ아, 내 방귀가 너무 크다는 걸 알면 가족들이 나를 이상하게 생각하지 않을까?"))
+                    .body("data.scenes[2].characterOpening", nullValue())
+                    .body("data.scenes[2].characterClosing", nullValue())
+                    .body("data.scenes[2].sceneGoal", equalTo("며느리의 입장을 이해하고 공감해준다"))
+                    .body("data.scenes[2].maxTurns", equalTo(4))
+                    .body("data.scenes[3].characterOpening", equalTo("그래, 이야기해 줘서 고마워."))
             }
 
             test("미션이 있는 대화 장면은 mission.goal·examples를 담아 반환하고 미션 없는 장면은 mission이 null이다") {

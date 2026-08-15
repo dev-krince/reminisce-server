@@ -5,6 +5,7 @@ import com.krince.reminisce.application.port.out.story.LoadStoryPort
 import com.krince.reminisce.domain.model.story.Scene
 import com.krince.reminisce.domain.model.story.Story
 import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
+import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryId
 import org.springframework.stereotype.Service
 
@@ -52,6 +53,16 @@ class StoryAccessFacade(
     private fun firstSceneOfChapter(story: Story, chapter: Int): Scene? = story.scenes
         .filter { it.chapter == chapter }
         .minByOrNull { it.sceneOrder }
+
+    override fun findPrecedingCharacterLine(storyId: StoryId, currentSceneId: String): Scene? {
+        val story: Story = loadStoryPort.findByIdWithScenesPublished(storyId) ?: return null
+        val orderedScenes: List<Scene> = story.scenes.sortedBy { it.sceneOrder }
+        val currentScene: Scene = orderedScenes.firstOrNull { it.sceneId.value == currentSceneId } ?: return null
+
+        return orderedScenes
+            .filter { it.sceneOrder < currentScene.sceneOrder }
+            .lastOrNull { it.sceneType == SceneType.CHARACTER_LINE && it.characterName == currentScene.characterName }
+    }
 
     override fun findPostActivityConfig(storyId: StoryId): PostActivityConfig? {
         val story: Story = loadStoryPort.findByIdWithScenesPublished(storyId) ?: return null

@@ -10,7 +10,10 @@ import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
+import com.krince.reminisce.domain.model.story.CharacterVoice
 import com.krince.reminisce.domain.model.story.Scene
+import com.krince.reminisce.domain.model.story.VoiceAgeGroup
+import com.krince.reminisce.domain.model.story.VoiceGender
 import com.krince.reminisce.domain.model.story.vo.SceneId
 import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryId
@@ -59,6 +62,11 @@ class GetSpeakingSessionViewApplicationServiceTest : FunSpec({
     val firstSceneIdStr = "scene-uuid-1"
     val introText = "옛날 어느 마을에 방귀쟁이 며느리가 살았습니다."
     val sceneImageUrl = "/files/test-scene.png"
+    val characterVoice = CharacterVoice(
+        gender = VoiceGender.FEMALE,
+        ageGroup = VoiceAgeGroup.ADULT,
+        voiceProfile = "young_woman_gentle",
+    )
 
     fun command(): GetSpeakingSessionViewCommand =
         GetSpeakingSessionViewCommand(sessionId = sessionIdStr, guardianId = guardianIdStr)
@@ -86,7 +94,9 @@ class GetSpeakingSessionViewApplicationServiceTest : FunSpec({
         sceneGoal = "목표",
         requiredElements = listOf(ThinkingElement.PERSPECTIVE),
         maxTurns = 4,
+        characterVoice = characterVoice,
         imageUrl = sceneImageUrl,
+        characterImageUrl = "/files/char-ch_x.png",
     )
 
     fun narrationScene(): Scene = Scene(
@@ -111,6 +121,8 @@ class GetSpeakingSessionViewApplicationServiceTest : FunSpec({
         sceneGoal = "목표",
         requiredElements = listOf(ThinkingElement.PERSPECTIVE),
         maxTurns = 4,
+        characterVoice = characterVoice,
+        characterImageUrl = "/files/char-ch_x.png",
     )
 
     context("게이트 실패") {
@@ -164,8 +176,6 @@ class GetSpeakingSessionViewApplicationServiceTest : FunSpec({
             every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(firstSceneIdStr)
             every { childAccessPort.findGuardianId(childId) } returns guardianId
             every { storyAccessPort.findScene(storyId, firstSceneIdStr) } returns dialogueScene()
-            every { ttsPort.synthesize("여는 대사") } returns "stub://tts/opening"
-            every { ttsPort.synthesize("닫는 대사") } returns "stub://tts/closing"
 
             val result = service.execute(command())
 

@@ -9,7 +9,7 @@ class CharacterReplyContext(
     val mode: ResponseMode,
     val childUtterance: String,
     val guidanceTarget: ThinkingElement?,
-    val characterOpening: String? = null,
+    val precedingCharacterLine: String? = null,
     val conflict: String? = null,
     val sceneGoal: String? = null,
     val characterName: String? = null,
