@@ -29,6 +29,7 @@ class Scene(
     init {
         when (sceneType) {
             SceneType.NARRATION -> requireNoDialogueFields()
+            SceneType.CHARACTER_LINE -> requireCharacterLineFields()
             SceneType.DIALOGUE -> requireDialogueFields()
         }
     }
@@ -77,6 +78,17 @@ class Scene(
         )
 
         require(dialogueOnlyFields.all { it == null }) { "NARRATION 장면은 대화 전용 필드를 가질 수 없습니다" }
+    }
+
+    private fun requireCharacterLineFields() {
+        require(characterName != null) { "CHARACTER_LINE 장면은 characterName이 필요합니다" }
+        require(characterDisplayName != null) { "CHARACTER_LINE 장면은 characterDisplayName이 필요합니다" }
+        require(characterOpening != null) { "CHARACTER_LINE 장면은 characterOpening이 필요합니다" }
+        require(characterVoice != null) { "CHARACTER_LINE 장면은 characterVoice가 필요합니다" }
+        require(sceneGoal == null) { "CHARACTER_LINE 장면은 sceneGoal을 가질 수 없습니다" }
+        require(requiredElements == null) { "CHARACTER_LINE 장면은 requiredElements를 가질 수 없습니다" }
+        require(maxTurns == null) { "CHARACTER_LINE 장면은 maxTurns를 가질 수 없습니다" }
+        require(mission == null) { "CHARACTER_LINE 장면은 mission을 가질 수 없습니다" }
     }
 
     private fun requireDialogueFields() {

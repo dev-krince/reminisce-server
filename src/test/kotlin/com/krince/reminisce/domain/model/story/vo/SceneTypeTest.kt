@@ -10,8 +10,8 @@ import io.kotest.matchers.collections.shouldContainExactly
 class SceneTypeTest : FunSpec({
 
     context("종류") {
-        test("장면 종류는 전개와 대화 2종만 존재한다") {
-            SceneType.entries.map { it.name } shouldContainExactly listOf("NARRATION", "DIALOGUE")
+        test("장면 종류는 전개·캐릭터 대사·대화 3종만 존재한다") {
+            SceneType.entries.map { it.name } shouldContainExactly listOf("NARRATION", "CHARACTER_LINE", "DIALOGUE")
         }
     }
 })

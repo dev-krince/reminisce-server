@@ -109,6 +109,25 @@ class StoryMapperTest : FunSpec({
         characterVoice = characterVoice,
     )
 
+    fun characterLineOrmEntity(sceneId: String, sceneOrder: Short, characterVoice: CharacterVoice): SceneOrmEntity = SceneOrmEntity(
+        sceneId = sceneId,
+        storyId = storyIdStr,
+        sceneOrder = sceneOrder,
+        chapter = 1,
+        sceneType = "CHARACTER_LINE",
+        sceneDescription = "캐릭터 대사 설명 $sceneOrder",
+        characterName = "ch_banggui_daughter_in_law",
+        characterDisplayName = "방귀쟁이 며느리",
+        characterOpening = "ㅇㅇ아, 안녕?",
+        characterClosing = null,
+        conflict = null,
+        sceneGoal = null,
+        requiredElements = null,
+        preferredTurns = null,
+        maxTurns = null,
+        characterVoice = characterVoice,
+    )
+
     fun dialogueEntityWithCharacterImage(sceneId: String, sceneOrder: Short, characterImageUrl: String): SceneOrmEntity = SceneOrmEntity(
         sceneId = sceneId,
         storyId = storyIdStr,
@@ -251,6 +270,30 @@ class StoryMapperTest : FunSpec({
                 val dialogue = StoryMapper.toDomain(aggregateEntity).scenes.first()
 
                 dialogue.characterImageUrl shouldBe "/files/char-ch_banggui_daughter_in_law.png"
+            }
+
+            test("캐릭터 대사 장면 엔티티를 도메인으로 옮기고 대사·음성을 보존한다") {
+                val voice = CharacterVoice(
+                    gender = VoiceGender.FEMALE,
+                    ageGroup = VoiceAgeGroup.ADULT,
+                    voiceProfile = "young_woman_gentle",
+                )
+                val aggregateEntity = StoryAggregateEntity(
+                    storyOrmEntity = storyOrmEntity(),
+                    sceneOrmEntities = listOf(characterLineOrmEntity("sc-2", 2, voice)),
+                    storyTopicOrmEntities = emptyList(),
+                )
+
+                val characterLine = StoryMapper.toDomain(aggregateEntity).scenes.first()
+
+                characterLine.sceneType shouldBe SceneType.CHARACTER_LINE
+                characterLine.characterName shouldBe "ch_banggui_daughter_in_law"
+                characterLine.characterDisplayName shouldBe "방귀쟁이 며느리"
+                characterLine.characterOpening shouldBe "ㅇㅇ아, 안녕?"
+                characterLine.characterVoice shouldBe voice
+                characterLine.sceneGoal shouldBe null
+                characterLine.requiredElements shouldBe null
+                characterLine.maxTurns shouldBe null
             }
         }
     }
@@ -429,6 +472,25 @@ class StoryMapperTest : FunSpec({
                 val restored = StoryMapper.toEntity(StoryMapper.toDomain(aggregateEntity))
 
                 restored.sceneOrmEntities.first().characterImageUrl shouldBe "/files/char-ch_banggui_daughter_in_law.png"
+            }
+
+            test("캐릭터 대사 장면도 toDomain 후 toEntity 하면 sceneType 문자열·대사·음성이 보존된다") {
+                val voice = CharacterVoice(
+                    gender = VoiceGender.FEMALE,
+                    ageGroup = VoiceAgeGroup.ADULT,
+                    voiceProfile = "young_woman_gentle",
+                )
+                val aggregateEntity = StoryAggregateEntity(
+                    storyOrmEntity = storyOrmEntity(),
+                    sceneOrmEntities = listOf(characterLineOrmEntity("sc-2", 2, voice)),
+                    storyTopicOrmEntities = emptyList(),
+                )
+
+                val restored = StoryMapper.toEntity(StoryMapper.toDomain(aggregateEntity)).sceneOrmEntities.first()
+
+                restored.sceneType shouldBe "CHARACTER_LINE"
+                restored.characterOpening shouldBe "ㅇㅇ아, 안녕?"
+                restored.characterVoice shouldBe voice
             }
         }
     }

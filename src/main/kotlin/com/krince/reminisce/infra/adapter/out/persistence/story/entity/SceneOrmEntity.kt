@@ -46,7 +46,7 @@ class SceneOrmEntity(
     val chapter: Short,
 
     @Column(name = "scene_type", nullable = false)
-    @Comment("장면 종류 (NARRATION/DIALOGUE)")
+    @Comment("장면 종류 (NARRATION/CHARACTER_LINE/DIALOGUE)")
     val sceneType: String,
 
     @Column(name = "scene_description", nullable = false, columnDefinition = "text")

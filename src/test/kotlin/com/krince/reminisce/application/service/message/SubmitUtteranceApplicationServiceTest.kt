@@ -20,7 +20,10 @@ import com.krince.reminisce.domain.model.speakingsession.vo.ResponseMode
 import com.krince.reminisce.domain.model.speakingsession.vo.SceneEndReason
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
+import com.krince.reminisce.domain.model.story.CharacterVoice
 import com.krince.reminisce.domain.model.story.Scene
+import com.krince.reminisce.domain.model.story.VoiceAgeGroup
+import com.krince.reminisce.domain.model.story.VoiceGender
 import com.krince.reminisce.domain.model.story.vo.SceneId
 import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryId
@@ -95,6 +98,7 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
     val storyId = StoryId("story-uuid-1")
     val dialogueSceneIdStr = "scene-uuid-1"
     val narrationSceneIdStr = "scene-uuid-2"
+    val characterLineSceneIdStr = "scene-uuid-3"
     val validText = "며느리가 참 힘들었겠어요"
 
     fun command(text: String = validText, sttRawText: String? = null): SubmitUtteranceCommand =
@@ -141,6 +145,22 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
         sceneOrder = 1,
         sceneType = SceneType.NARRATION,
         sceneDescription = "전개 설명",
+    )
+
+    fun characterLineScene(): Scene = Scene(
+        sceneId = SceneId(characterLineSceneIdStr),
+        storyId = storyId,
+        sceneOrder = 2,
+        sceneType = SceneType.CHARACTER_LINE,
+        sceneDescription = "캐릭터 대사 설명",
+        characterName = "ch_x",
+        characterDisplayName = "표시명",
+        characterOpening = "한 줄 대사",
+        characterVoice = CharacterVoice(
+            gender = VoiceGender.FEMALE,
+            ageGroup = VoiceAgeGroup.ADULT,
+            voiceProfile = "young_woman_gentle",
+        ),
     )
 
     fun rawAnalysis(detectedElements: List<DetectedElement>): RawUtteranceAnalysis = RawUtteranceAnalysis(
@@ -196,6 +216,21 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(narrationSceneIdStr)
             every { childAccessPort.findGuardianId(childId) } returns guardianId
             every { storyAccessPort.findScene(storyId, narrationSceneIdStr) } returns narrationScene()
+
+            val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command()) }
+
+            exception.exceptionResponseCode shouldBe BUSINESS_RULE_VIOLATION
+            verify(exactly = 0) { commandMessagePort.save(any()) }
+            verify(exactly = 0) { speechAnalysisPort.analyze(any()) }
+            verify(exactly = 0) { commandUtteranceAnalysisPort.save(any()) }
+            verify(exactly = 0) { commandSpeakingSessionPort.save(any()) }
+            verify(exactly = 0) { characterReplyPort.generate(any()) }
+        }
+
+        test("현재 장면이 캐릭터 대사 장면이면 BUSINESS_RULE_VIOLATION을 던지고 저장하지 않는다") {
+            every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(characterLineSceneIdStr)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.findScene(storyId, characterLineSceneIdStr) } returns characterLineScene()
 
             val exception = shouldThrow<BusinessRuleViolationException> { service.execute(command()) }
 

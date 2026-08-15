@@ -75,6 +75,39 @@ class SceneTest : FunSpec({
         characterImageUrl = characterImageUrl,
     )
 
+    val characterVoice = CharacterVoice(
+        gender = VoiceGender.FEMALE,
+        ageGroup = VoiceAgeGroup.ADULT,
+        voiceProfile = "young_woman_gentle",
+    )
+
+    fun characterLineScene(
+        characterName: String? = "ch_banggui_daughter_in_law",
+        characterDisplayName: String? = "방귀쟁이 며느리",
+        characterOpening: String? = "ㅇㅇ아, 안녕?",
+        characterVoiceValue: CharacterVoice? = characterVoice,
+        sceneGoal: String? = null,
+        requiredElements: List<ThinkingElement>? = null,
+        maxTurns: Int? = null,
+        mission: Mission? = null,
+        characterImageUrl: String? = null,
+    ): Scene = Scene(
+        sceneId = SceneId("sc-character-line-1"),
+        storyId = StoryId("story-1"),
+        sceneOrder = 2,
+        sceneType = SceneType.CHARACTER_LINE,
+        sceneDescription = "캐릭터 대사 장면 설명",
+        characterName = characterName,
+        characterDisplayName = characterDisplayName,
+        characterOpening = characterOpening,
+        sceneGoal = sceneGoal,
+        requiredElements = requiredElements,
+        maxTurns = maxTurns,
+        mission = mission,
+        characterVoice = characterVoiceValue,
+        characterImageUrl = characterImageUrl,
+    )
+
     context("NARRATION 생성") {
         context("성공") {
             test("대화 전용 필드가 전부 null이면 생성된다") {
@@ -186,6 +219,64 @@ class SceneTest : FunSpec({
 
             test("requiredElements가 빈 목록이면 생성할 수 없다") {
                 shouldThrow<IllegalArgumentException> { dialogueScene(requiredElements = emptyList()) }
+            }
+        }
+    }
+
+    context("CHARACTER_LINE 생성") {
+        context("성공") {
+            test("필수 캐릭터 대사 필드가 모두 있으면 생성되고 값이 보존된다") {
+                val scene = characterLineScene(characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png")
+
+                scene.sceneType shouldBe SceneType.CHARACTER_LINE
+                scene.characterName shouldBe "ch_banggui_daughter_in_law"
+                scene.characterDisplayName shouldBe "방귀쟁이 며느리"
+                scene.characterOpening shouldBe "ㅇㅇ아, 안녕?"
+                scene.characterVoice shouldBe characterVoice
+                scene.characterImageUrl shouldBe "/files/char-ch_banggui_daughter_in_law.png"
+                scene.sceneGoal shouldBe null
+                scene.requiredElements shouldBe null
+                scene.maxTurns shouldBe null
+                scene.mission shouldBe null
+                scene.characterClosing shouldBe null
+            }
+
+            test("characterImageUrl은 없어도 생성된다") {
+                characterLineScene().characterImageUrl shouldBe null
+            }
+
+            test("개인화 복사본은 characterOpening 애칭을 치환하고 characterVoice를 그대로 전달한다") {
+                val personalized = characterLineScene().personalizedFor("지우")
+
+                personalized.characterOpening shouldBe "지우야, 안녕?"
+                personalized.characterVoice shouldBe characterVoice
+            }
+        }
+        context("실패") {
+            test("필수 캐릭터 대사 필드가 하나라도 없으면 생성할 수 없다") {
+                val invalidCreations: List<() -> Scene> = listOf(
+                    { characterLineScene(characterName = null) },
+                    { characterLineScene(characterDisplayName = null) },
+                    { characterLineScene(characterOpening = null) },
+                    { characterLineScene(characterVoiceValue = null) },
+                )
+
+                invalidCreations.forEach { creation ->
+                    shouldThrow<IllegalArgumentException> { creation() }
+                }
+            }
+
+            test("인터랙티브 전용 필드가 하나라도 있으면 생성할 수 없다") {
+                val invalidCreations: List<() -> Scene> = listOf(
+                    { characterLineScene(sceneGoal = "장면 발화 목표") },
+                    { characterLineScene(requiredElements = listOf(ThinkingElement.PERSPECTIVE)) },
+                    { characterLineScene(maxTurns = 4) },
+                    { characterLineScene(mission = Mission(goal = "목표", examples = listOf("예시"))) },
+                )
+
+                invalidCreations.forEach { creation ->
+                    shouldThrow<IllegalArgumentException> { creation() }
+                }
             }
         }
     }

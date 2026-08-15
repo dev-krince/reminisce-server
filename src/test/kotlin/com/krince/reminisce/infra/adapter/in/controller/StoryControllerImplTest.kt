@@ -169,6 +169,31 @@ class StoryControllerImplTest(
         characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
     )
 
+    fun characterLineEntity(storyId: String, sceneOrder: Short, chapter: Short = 1): SceneOrmEntity = SceneOrmEntity(
+        sceneId = "sc-$sceneOrder-$storyId",
+        storyId = storyId,
+        sceneOrder = sceneOrder,
+        chapter = chapter,
+        sceneType = SceneType.CHARACTER_LINE.name,
+        sceneDescription = "캐릭터 대사 설명 $sceneOrder",
+        characterName = "ch_banggui_daughter_in_law",
+        characterDisplayName = "방귀쟁이 며느리",
+        characterOpening = "ㅇㅇ아, 안녕? 나는 방귀쟁이 며느리야.",
+        characterClosing = null,
+        conflict = null,
+        sceneGoal = null,
+        requiredElements = null,
+        preferredTurns = null,
+        maxTurns = null,
+        characterVoice = CharacterVoice(
+            gender = VoiceGender.FEMALE,
+            ageGroup = VoiceAgeGroup.ADULT,
+            voiceProfile = "young_woman_gentle",
+        ),
+        imageUrl = sceneImageUrl(storyId, sceneOrder),
+        characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
+    )
+
     fun dialogueEntityWithMission(storyId: String, sceneOrder: Short, mission: Mission): SceneOrmEntity = SceneOrmEntity(
         sceneId = "sc-$sceneOrder-$storyId",
         storyId = storyId,
@@ -712,6 +737,43 @@ class StoryControllerImplTest(
                     .body("data.scenes[0].mission", nullValue())
                     .body("data.scenes[1].mission", nullValue())
                     .body("data.scenes[2].mission", nullValue())
+            }
+
+            test("캐릭터 대사 장면은 캐릭터·대사·아바타·음성을 담고 sceneType이 CHARACTER_LINE으로 반환된다") {
+                val token = authorizedToken()
+                val storyId = "character-line-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testStoryFixture.saveScene(characterLineEntity(storyId, 2))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                testStoryFixture.saveTopic(topicEntity(storyId, "다름"))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/stories/$storyId")
+                    .then()
+                    .statusCode(200)
+                    .body("data.scenes", hasSize<Any>(3))
+                    .body("data.scenes.sceneType", contains(
+                        SceneType.NARRATION.name,
+                        SceneType.CHARACTER_LINE.name,
+                        SceneType.DIALOGUE.name,
+                    ))
+                    .body("data.scenes[1].sceneType", equalTo(SceneType.CHARACTER_LINE.name))
+                    .body("data.scenes[1].characterName", equalTo("ch_banggui_daughter_in_law"))
+                    .body("data.scenes[1].characterDisplayName", equalTo("방귀쟁이 며느리"))
+                    .body("data.scenes[1].characterOpening", equalTo("ㅇㅇ아, 안녕? 나는 방귀쟁이 며느리야."))
+                    .body("data.scenes[1].characterClosing", nullValue())
+                    .body("data.scenes[1].characterImageUrl", equalTo("/files/char-ch_banggui_daughter_in_law.png"))
+                    .body("data.scenes[1].characterVoice.voiceProfile", equalTo("young_woman_gentle"))
+                    .body("data.scenes[1].sceneGoal", nullValue())
+                    .body("data.scenes[1].requiredElements", nullValue())
+                    .body("data.scenes[1].maxTurns", nullValue())
+                    .body("data.scenes[1].mission", nullValue())
+                    .body("data.scenes[2].sceneType", equalTo(SceneType.DIALOGUE.name))
+                    .body("data.scenes[2].characterOpening", equalTo("ㅇㅇ아, 내 방귀가 너무 크다는 걸 알면 가족들이 나를 이상하게 생각하지 않을까?"))
             }
 
             test("미션이 있는 대화 장면은 mission.goal·examples를 담아 반환하고 미션 없는 장면은 mission이 null이다") {
