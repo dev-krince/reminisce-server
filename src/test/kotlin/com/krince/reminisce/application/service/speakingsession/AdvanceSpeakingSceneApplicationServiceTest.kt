@@ -74,6 +74,8 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
     val narrationSceneIdStr = "scene-uuid-narration"
     val dialogueSceneIdStr = "scene-uuid-dialogue"
     val nextSceneIdStr = "scene-uuid-next"
+    val firstSceneImageUrl = "/files/first-scene.png"
+    val nextSceneImageUrl = "/files/next-scene.png"
 
     fun command(): AdvanceSpeakingSceneCommand =
         AdvanceSpeakingSceneCommand(sessionId = sessionIdStr, guardianId = guardianIdStr)
@@ -106,6 +108,7 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
         sceneGoal = "목표",
         requiredElements = listOf(ThinkingElement.PERSPECTIVE),
         maxTurns = 4,
+        imageUrl = firstSceneImageUrl,
     )
 
     fun narrationScene(): Scene = Scene(
@@ -137,6 +140,7 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
         sceneOrder = 3,
         sceneType = SceneType.NARRATION,
         sceneDescription = "다음 전개 설명",
+        imageUrl = nextSceneImageUrl,
     )
 
     fun placeholderScene(): Scene = Scene(
@@ -229,6 +233,7 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
 
             result.viewType shouldBe SpeakingSessionViewType.SCENE
             result.scene?.sceneId shouldBe firstSceneIdStr
+            result.scene?.imageUrl shouldBe firstSceneImageUrl
             savedSlot.captured.currentSceneId shouldBe firstSceneIdStr
             savedSlot.captured.status shouldBe SessionStatus.IN_PROGRESS
             savedSlot.captured.lastActivityAt shouldBe LocalDateTime.now(fixedClock)
@@ -264,6 +269,7 @@ class AdvanceSpeakingSceneApplicationServiceTest : FunSpec({
 
             result.viewType shouldBe SpeakingSessionViewType.SCENE
             result.scene?.sceneId shouldBe nextSceneIdStr
+            result.scene?.imageUrl shouldBe nextSceneImageUrl
             result.scene?.narrationAudio shouldNotBe null
             savedSlot.captured.currentSceneId shouldBe nextSceneIdStr
             savedSlot.captured.status shouldBe SessionStatus.IN_PROGRESS

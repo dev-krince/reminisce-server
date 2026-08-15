@@ -95,6 +95,10 @@ class SceneOrmEntity(
     @Convert(converter = CharacterVoiceConverter::class)
     @Comment("캐릭터 음성 메타 (성별·연령대·프로파일 키, JSON, DIALOGUE 전용 선택)")
     val characterVoice: CharacterVoice? = null,
+
+    @Column(name = "image_url")
+    @Comment("장면 이미지 URL (NARRATION·DIALOGUE 공통 선택)")
+    val imageUrl: String? = null,
 ) {
     @Column(name = "created_date", nullable = false, updatable = false)
     @CreatedDate

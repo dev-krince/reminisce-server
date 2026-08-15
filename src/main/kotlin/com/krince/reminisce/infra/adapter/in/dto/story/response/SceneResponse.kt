@@ -79,6 +79,9 @@ class SceneResponse(
 
     @field:Schema(description = "캐릭터 음성 메타 (DIALOGUE 전용 선택)", required = false)
     val characterVoice: CharacterVoiceResponse?,
+
+    @field:Schema(description = "장면 이미지 URL", example = "/files/banggui-scene-01.png", required = false)
+    val imageUrl: String?,
 )
 
 fun sceneResponse(result: SceneResult): SceneResponse = SceneResponse(
@@ -102,4 +105,5 @@ fun sceneResponse(result: SceneResult): SceneResponse = SceneResponse(
     characterVoice = result.characterVoice?.let {
         CharacterVoiceResponse(gender = it.gender.name, ageGroup = it.ageGroup.name, voiceProfile = it.voiceProfile)
     },
+    imageUrl = result.imageUrl,
 )

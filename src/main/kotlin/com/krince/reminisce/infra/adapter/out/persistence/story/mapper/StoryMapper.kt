@@ -61,6 +61,7 @@ object StoryMapper {
         maxTurns = ormEntity.maxTurns?.toInt(),
         mission = ormEntity.mission,
         characterVoice = ormEntity.characterVoice,
+        imageUrl = ormEntity.imageUrl,
     )
 
     private fun toStoryOrmEntity(story: Story): StoryOrmEntity = StoryOrmEntity(
@@ -98,6 +99,7 @@ object StoryMapper {
         maxTurns = scene.maxTurns?.toShort(),
         mission = scene.mission,
         characterVoice = scene.characterVoice,
+        imageUrl = scene.imageUrl,
     )
 
     private fun toStoryTopicOrmEntity(storyId: StoryId, topic: String): StoryTopicOrmEntity = StoryTopicOrmEntity(

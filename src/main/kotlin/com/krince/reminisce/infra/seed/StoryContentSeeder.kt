@@ -89,7 +89,7 @@ class StoryContentSeeder(
         childRole = "며느리의 방귀가 특별한 장점이 될 수 있도록 도와주세요.",
         difficulty = Difficulty("보통"),
         estimatedMinutes = 20,
-        representativeImageUrl = null,
+        representativeImageUrl = BANGGUI_COVER_IMAGE_URL,
         status = StoryStatus.PUBLISHED,
         postActivityConfig = bangguiPostActivityConfig(),
         topics = listOf("다름", "자기이해", "장점 발견"),
@@ -223,6 +223,7 @@ class StoryContentSeeder(
         sceneOrder = sceneOrder,
         sceneType = SceneType.NARRATION,
         sceneDescription = sceneDescription,
+        imageUrl = sceneImageUrl(sceneOrder),
     )
 
     private fun dialogueScene(
@@ -255,10 +256,19 @@ class StoryContentSeeder(
         maxTurns = maxTurns,
         mission = mission,
         characterVoice = characterVoice,
+        imageUrl = sceneImageUrl(sceneOrder),
     )
+
+    private fun sceneImageUrl(sceneOrder: Int): String =
+        SCENE_IMAGE_URL_PREFIX + sceneOrder.toString().padStart(SCENE_ORDER_PAD_WIDTH, '0') + SCENE_IMAGE_URL_SUFFIX
 
     private companion object {
         const val BANGGUI_STORY_ID = "s_banggui_daughter_in_law_001"
+
+        const val BANGGUI_COVER_IMAGE_URL = "/files/banggui-cover.png"
+        const val SCENE_IMAGE_URL_PREFIX = "/files/banggui-scene-"
+        const val SCENE_IMAGE_URL_SUFFIX = ".png"
+        const val SCENE_ORDER_PAD_WIDTH = 2
 
         const val VOICE_PROFILE_YOUNG_WOMAN_GENTLE = "young_woman_gentle"
         const val VOICE_PROFILE_ELDERLY_MAN_STERN = "elderly_man_stern"

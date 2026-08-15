@@ -25,6 +25,7 @@ class SceneResult(
     val maxTurns: Int?,
     val mission: Mission?,
     val characterVoice: CharacterVoice?,
+    val imageUrl: String?,
 ) {
     companion object {
         fun from(scene: Scene): SceneResult = from(scene, null, null, null)
@@ -53,6 +54,7 @@ class SceneResult(
             maxTurns = scene.maxTurns,
             mission = scene.mission,
             characterVoice = scene.characterVoice,
+            imageUrl = scene.imageUrl,
         )
     }
 }

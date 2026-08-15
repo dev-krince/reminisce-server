@@ -126,6 +126,8 @@ class SpeakingSessionControllerImplTest(
         return guardianId to testJwtTokenFixture.generateAccessToken(guardianId)
     }
 
+    fun sceneImageUrl(storyId: String, sceneOrder: Short): String = "/files/$storyId-scene-$sceneOrder.png"
+
     fun narrationEntity(storyId: String, sceneOrder: Short): SceneOrmEntity = SceneOrmEntity(
         sceneId = "sc-$sceneOrder-$storyId",
         storyId = storyId,
@@ -141,6 +143,7 @@ class SpeakingSessionControllerImplTest(
         requiredElements = null,
         preferredTurns = null,
         maxTurns = null,
+        imageUrl = sceneImageUrl(storyId, sceneOrder),
     )
 
     fun dialogueEntity(storyId: String, sceneOrder: Short): SceneOrmEntity = SceneOrmEntity(
@@ -158,6 +161,7 @@ class SpeakingSessionControllerImplTest(
         requiredElements = listOf(ThinkingElement.PERSPECTIVE, ThinkingElement.EMOTION),
         preferredTurns = null,
         maxTurns = 4,
+        imageUrl = sceneImageUrl(storyId, sceneOrder),
     )
 
     fun sessionEntity(
@@ -509,6 +513,7 @@ class SpeakingSessionControllerImplTest(
                     .body("data.scene.maxTurns", equalTo(4))
                     .body("data.scene.characterOpeningAudio", not(nullValue()))
                     .body("data.scene.characterClosingAudio", not(nullValue()))
+                    .body("data.scene.imageUrl", equalTo("/files/$storyId-scene-3.png"))
             }
 
             test("전개(NARRATION) 장면 세션 advance는 200과 다음 장면 SCENE 뷰를 반환한다") {

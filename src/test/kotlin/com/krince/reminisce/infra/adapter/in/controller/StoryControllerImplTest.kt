@@ -114,6 +114,8 @@ class StoryControllerImplTest(
             lastActivityAt = LocalDateTime.now().minusMinutes(1),
         )
 
+    fun sceneImageUrl(storyId: String, sceneOrder: Short): String = "/files/$storyId-scene-$sceneOrder.png"
+
     fun narrationEntity(storyId: String, sceneOrder: Short): SceneOrmEntity = SceneOrmEntity(
         sceneId = "sc-$sceneOrder-$storyId",
         storyId = storyId,
@@ -129,6 +131,7 @@ class StoryControllerImplTest(
         requiredElements = null,
         preferredTurns = null,
         maxTurns = null,
+        imageUrl = sceneImageUrl(storyId, sceneOrder),
     )
 
     fun dialogueEntity(storyId: String, sceneOrder: Short): SceneOrmEntity = SceneOrmEntity(
@@ -151,6 +154,7 @@ class StoryControllerImplTest(
         ),
         preferredTurns = null,
         maxTurns = 4,
+        imageUrl = sceneImageUrl(storyId, sceneOrder),
     )
 
     fun dialogueEntityWithMission(storyId: String, sceneOrder: Short, mission: Mission): SceneOrmEntity = SceneOrmEntity(
@@ -520,6 +524,8 @@ class StoryControllerImplTest(
                     .body("data.scenes[0].sceneDescription", equalTo("전개 설명 1"))
                     .body("data.scenes[0].characterName", nullValue())
                     .body("data.scenes[0].requiredElements", nullValue())
+                    .body("data.scenes[0].imageUrl", equalTo("/files/$storyId-scene-1.png"))
+                    .body("data.scenes[2].imageUrl", equalTo("/files/$storyId-scene-3.png"))
                     .body("data.scenes[2].sceneType", equalTo(SceneType.DIALOGUE.name))
                     .body("data.scenes[2].characterName", equalTo("ch_banggui_daughter_in_law"))
                     .body("data.scenes[2].characterDisplayName", equalTo("방귀쟁이 며느리"))

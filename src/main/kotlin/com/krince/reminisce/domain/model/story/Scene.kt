@@ -22,6 +22,7 @@ class Scene(
     val maxTurns: Int? = null,
     val mission: Mission? = null,
     val characterVoice: CharacterVoice? = null,
+    val imageUrl: String? = null,
 ) {
     init {
         when (sceneType) {
@@ -52,6 +53,7 @@ class Scene(
             maxTurns = maxTurns,
             mission = mission,
             characterVoice = characterVoice,
+            imageUrl = imageUrl,
         )
     }
 

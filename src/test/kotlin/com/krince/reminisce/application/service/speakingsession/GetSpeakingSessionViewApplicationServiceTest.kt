@@ -58,6 +58,7 @@ class GetSpeakingSessionViewApplicationServiceTest : FunSpec({
     val storyId = StoryId("story-uuid-1")
     val firstSceneIdStr = "scene-uuid-1"
     val introText = "옛날 어느 마을에 방귀쟁이 며느리가 살았습니다."
+    val sceneImageUrl = "/files/test-scene.png"
 
     fun command(): GetSpeakingSessionViewCommand =
         GetSpeakingSessionViewCommand(sessionId = sessionIdStr, guardianId = guardianIdStr)
@@ -85,6 +86,7 @@ class GetSpeakingSessionViewApplicationServiceTest : FunSpec({
         sceneGoal = "목표",
         requiredElements = listOf(ThinkingElement.PERSPECTIVE),
         maxTurns = 4,
+        imageUrl = sceneImageUrl,
     )
 
     fun narrationScene(): Scene = Scene(
@@ -93,6 +95,7 @@ class GetSpeakingSessionViewApplicationServiceTest : FunSpec({
         sceneOrder = 1,
         sceneType = SceneType.NARRATION,
         sceneDescription = "전개 설명",
+        imageUrl = sceneImageUrl,
     )
 
     fun placeholderScene(): Scene = Scene(
@@ -154,6 +157,7 @@ class GetSpeakingSessionViewApplicationServiceTest : FunSpec({
             result.intro shouldBe null
             result.scene?.sceneId shouldBe firstSceneIdStr
             result.scene?.sceneType shouldBe SceneType.DIALOGUE
+            result.scene?.imageUrl shouldBe sceneImageUrl
         }
 
         test("DIALOGUE 장면이면 characterOpeningAudio·characterClosingAudio가 non-null이다") {
