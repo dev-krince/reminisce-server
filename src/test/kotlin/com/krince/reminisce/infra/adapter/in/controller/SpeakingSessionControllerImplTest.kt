@@ -1229,7 +1229,7 @@ class SpeakingSessionControllerImplTest(
                     .body("data.detectedElements[0].type", equalTo("EMOTION"))
                     .body("data.detectedElements[0].evidence", equalTo("힘들"))
                     .body("data.accumulatedElements", equalTo(listOf("EMOTION")))
-                    .body("data.missingElements", equalTo(listOf("PERSPECTIVE")))
+                    .body("data.missingElements", equalTo(emptyList<String>()))
                     .body("data.mode", equalTo("NORMAL"))
                     .body("data.sceneEndReason", nullValue())
                     .body("data.sceneGoalMet", equalTo(false))
@@ -1257,6 +1257,41 @@ class SpeakingSessionControllerImplTest(
                 storedSession?.turnsWithoutNewElement shouldBe 0
                 storedSession?.lastResponseMode shouldBe "NORMAL"
                 storedSession?.sceneEndReason shouldBe null
+            }
+
+            test("필수 요소 중 하나만 충족해도 2턴째에 GOAL_MET·CLOSING으로 장면을 통과한다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                val dialogueSceneId = "sc-3-$storyId"
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, currentSceneId = dialogueSceneId),
+                )
+                val emotionOnlyText = "며느리가 참 힘들었겠어요"
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .multiPart(utteranceRequestPart(emotionOnlyText))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/utterances")
+                    .then()
+                    .statusCode(201)
+                    .body("data.sceneEndReason", nullValue())
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .multiPart(utteranceRequestPart(emotionOnlyText))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/utterances")
+                    .then()
+                    .statusCode(201)
+                    .body("data.sceneEndReason", equalTo("GOAL_MET"))
+                    .body("data.sceneGoalMet", equalTo(true))
+                    .body("data.mode", equalTo("CLOSING"))
             }
 
             test("발화 음성과 함께 제출하면 201과 저장된 메시지 audioUrl이 /files/ 로 시작한다") {
@@ -1368,12 +1403,12 @@ class SpeakingSessionControllerImplTest(
                 testSpeakingSessionFixture.save(
                     sessionEntity(sessionId, childId, storyId, currentSceneId = dialogueSceneId),
                 )
-                val emotionOnlyText = "며느리가 참 힘들었겠어요"
+                val noElementText = "그냥 그랬어요"
 
                 repeat(3) {
                     RestAssured.given()
                         .header("Authorization", token)
-                        .multiPart(utteranceRequestPart(emotionOnlyText))
+                        .multiPart(utteranceRequestPart(noElementText))
                         .`when`()
                         .post("/speaking-sessions/$sessionId/utterances")
                         .then()
@@ -1383,7 +1418,7 @@ class SpeakingSessionControllerImplTest(
 
                 RestAssured.given()
                     .header("Authorization", token)
-                    .multiPart(utteranceRequestPart(emotionOnlyText))
+                    .multiPart(utteranceRequestPart(noElementText))
                     .`when`()
                     .post("/speaking-sessions/$sessionId/utterances")
                     .then()

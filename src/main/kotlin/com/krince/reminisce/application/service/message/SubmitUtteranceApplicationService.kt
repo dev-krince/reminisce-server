@@ -172,8 +172,15 @@ class SubmitUtteranceApplicationService(
     private fun requiredMaxTurns(scene: Scene): Int =
         scene.maxTurns ?: throw BusinessRuleViolationException(BUSINESS_RULE_VIOLATION, BUSINESS_RULE_VIOLATION.message)
 
-    private fun missingElements(scene: Scene, session: SpeakingSession): List<ThinkingElement> =
-        (scene.requiredElements ?: emptyList()) - session.accumulatedElements.toSet()
+    private fun missingElements(scene: Scene, session: SpeakingSession): List<ThinkingElement> {
+        val requiredElements: List<ThinkingElement> = scene.requiredElements ?: emptyList()
+        val missing: List<ThinkingElement> = requiredElements - session.accumulatedElements.toSet()
+        if (missing.size < requiredElements.size) {
+            return emptyList()
+        }
+
+        return missing
+    }
 
     private fun loadOwnedSession(sessionId: String, guardianId: String): SpeakingSession {
         val session: SpeakingSession = loadSpeakingSessionPort.findById(SpeakingSessionId(sessionId))
