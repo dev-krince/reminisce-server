@@ -77,6 +77,10 @@ interface StoryController {
         @NotBlank(message = "이야기 식별자는 비어있을 수 없습니다.")
         @PathVariable
         storyId: String,
+        @Parameter(description = "캐릭터 대사 개인화·오디오 대상 아이 식별자 (미지정 시 캐릭터 대사 오디오 없음). 인증 보호자 소유 아이만 허용", required = false)
+        @RequestParam(required = false)
+        childId: String?,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<StoryDetailResponse>>
 
     @Operation(summary = "추천 이야기 목록 조회", description = "인증 보호자의 아이가 아직 시작하지 않은 게시 이야기를 난이도 오름차순으로 최대 10개 반환합니다.")

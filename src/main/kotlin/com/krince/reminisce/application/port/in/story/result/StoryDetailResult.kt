@@ -15,7 +15,9 @@ class StoryDetailResult(
     val topics: List<String>,
 ) {
     companion object {
-        fun from(story: Story): StoryDetailResult = StoryDetailResult(
+        fun from(story: Story): StoryDetailResult = from(story, story.scenes.map { SceneResult.from(it) })
+
+        fun from(story: Story, scenes: List<SceneResult>): StoryDetailResult = StoryDetailResult(
             storyId = story.storyId.value,
             title = story.title,
             intro = story.intro,
@@ -23,7 +25,7 @@ class StoryDetailResult(
             childRole = story.childRole,
             genre = story.genre?.label,
             postActivity = story.postActivityConfig?.let { PostActivityConfigResult.from(it) },
-            scenes = story.scenes.map { SceneResult.from(it) },
+            scenes = scenes,
             difficulty = story.difficulty.value,
             topics = story.topics,
         )

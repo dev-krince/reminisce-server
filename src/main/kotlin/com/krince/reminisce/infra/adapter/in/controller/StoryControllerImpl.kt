@@ -64,8 +64,10 @@ class StoryControllerImpl(
     @GetMapping("/{storyId}")
     override fun getStory(
         @PathVariable storyId: String,
+        @RequestParam(required = false) childId: String?,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<StoryDetailResponse>> {
-        val command = GetStoryCommand(storyId = storyId)
+        val command = GetStoryCommand(storyId = storyId, childId = childId, guardianId = userDetails.getId())
         val result: StoryDetailResult = getStoryUseCase.execute(command)
         val response: StoryDetailResponse = storyDetailResponse(result = result)
         val responseBody: SuccessResponse<StoryDetailResponse> = successResponse(responseCode = OK, data = response)

@@ -858,6 +858,51 @@ class StoryControllerImplTest(
                     .body("data.scenes[1].mission.wordCards.correctOrder", contains(1, 2, 3, 4))
             }
 
+            test("childId 없이 조회하면 나레이션 오디오만 채워지고 캐릭터 대사 오디오는 null이다") {
+                val token = authorizedToken()
+                val storyId = "audio-nochild-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testStoryFixture.saveScene(characterLineEntity(storyId, 2))
+                testStoryFixture.saveTopic(topicEntity(storyId, "다름"))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/stories/$storyId")
+                    .then()
+                    .statusCode(200)
+                    .body("data.scenes[0].narrationAudio", org.hamcrest.Matchers.notNullValue())
+                    .body("data.scenes[1].characterOpeningAudio", nullValue())
+                    .body("data.scenes[1].characterClosingAudio", nullValue())
+            }
+
+            test("childId와 함께 조회하면 나레이션과 캐릭터 대사 오디오가 모두 채워진다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+                val childId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+
+                val storyId = "audio-child-${uniqueSuffix()}"
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testStoryFixture.saveScene(characterLineEntity(storyId, 2))
+                testStoryFixture.saveTopic(topicEntity(storyId, "다름"))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .queryParam("childId", childId)
+                    .`when`()
+                    .get("/stories/$storyId")
+                    .then()
+                    .statusCode(200)
+                    .body("data.scenes[0].narrationAudio", org.hamcrest.Matchers.notNullValue())
+                    .body("data.scenes[1].characterOpeningAudio", org.hamcrest.Matchers.notNullValue())
+            }
+
             test("음성 메타가 있는 대화 장면은 characterVoice를 담아 반환하고 내레이션은 characterVoice가 null이다") {
                 val token = authorizedToken()
                 val storyId = "voice-${uniqueSuffix()}"

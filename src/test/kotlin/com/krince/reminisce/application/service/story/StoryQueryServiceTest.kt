@@ -5,6 +5,8 @@ import com.krince.reminisce.application.port.access.savedstory.SavedStoryAccessP
 import com.krince.reminisce.application.port.`in`.story.command.GetStoriesCommand
 import com.krince.reminisce.application.port.`in`.story.command.GetStoryCommand
 import com.krince.reminisce.application.port.out.story.LoadStoryPort
+import com.krince.reminisce.application.port.out.tts.NARRATOR_VOICE_PROFILE
+import com.krince.reminisce.application.port.out.tts.TtsPort
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.story.CharacterVoice
 import com.krince.reminisce.domain.model.story.Scene
@@ -44,7 +46,8 @@ class StoryQueryServiceTest : FunSpec({
     val loadStoryPort = mockk<LoadStoryPort>()
     val savedStoryAccessPort = mockk<SavedStoryAccessPort>()
     val childAccessPort = mockk<ChildAccessPort>()
-    val service = StoryQueryService(loadStoryPort, savedStoryAccessPort, childAccessPort)
+    val ttsPort = mockk<TtsPort>()
+    val service = StoryQueryService(loadStoryPort, savedStoryAccessPort, childAccessPort, ttsPort)
 
     beforeEach { clearAllMocks() }
 
@@ -79,6 +82,23 @@ class StoryQueryServiceTest : FunSpec({
             voiceProfile = "young_woman_gentle",
         ),
         characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
+    )
+
+    fun characterLineScene(sceneId: String, sceneOrder: Int): Scene = Scene(
+        sceneId = SceneId(sceneId),
+        storyId = StoryId(storyIdStr),
+        sceneOrder = sceneOrder,
+        sceneType = SceneType.CHARACTER_LINE,
+        sceneDescription = "캐릭터 대사 설명 $sceneOrder",
+        characterName = "ch_banggui_daughter_in_law",
+        characterDisplayName = "방귀쟁이 며느리",
+        characterOpening = "ㅇㅇ아, 안녕? 나는 방귀쟁이 며느리야.",
+        characterClosing = "ㅇㅇ아, 이야기해 줘서 고마워.",
+        characterVoice = CharacterVoice(
+            gender = VoiceGender.FEMALE,
+            ageGroup = VoiceAgeGroup.ADULT,
+            voiceProfile = "young_woman_gentle",
+        ),
     )
 
     fun story(scenes: List<Scene>): Story = Story(
@@ -292,6 +312,7 @@ class StoryQueryServiceTest : FunSpec({
                         dialogueScene("sc-2", 2),
                     ),
                 )
+                every { ttsPort.synthesize(any(), any()) } returns "audio://x"
 
                 val result = service.execute(GetStoryCommand(storyId = storyIdStr))
 
@@ -326,6 +347,83 @@ class StoryQueryServiceTest : FunSpec({
                 )
                 dialogue.maxTurns shouldBe 4
             }
+
+            test("childId가 있으면 나레이션은 NARRATOR 보이스로, 캐릭터 대사는 캐릭터 보이스로 오디오를 채운다") {
+                every { loadStoryPort.findByIdWithScenesPublished(StoryId(storyIdStr)) } returns story(
+                    scenes = listOf(
+                        narrationScene("sc-1", 1),
+                        characterLineScene("sc-2", 2),
+                    ),
+                )
+                every { childAccessPort.findGuardianId(ChildId("child-1")) } returns UserId("guardian-1")
+                every { childAccessPort.findChildName(ChildId("child-1")) } returns "지민"
+                every {
+                    ttsPort.synthesize("전개 설명 1", NARRATOR_VOICE_PROFILE)
+                } returns "audio://narration-1"
+                every {
+                    ttsPort.synthesize(match { it.startsWith("지민") }, "young_woman_gentle")
+                } returns "audio://opening"
+                every {
+                    ttsPort.synthesize(match { it.contains("고마워") }, "young_woman_gentle")
+                } returns "audio://closing"
+
+                val result = service.execute(
+                    GetStoryCommand(storyId = storyIdStr, childId = "child-1", guardianId = "guardian-1"),
+                )
+
+                val narration = result.scenes[0]
+                narration.narrationAudio shouldBe "audio://narration-1"
+                narration.characterOpeningAudio shouldBe null
+                narration.characterClosingAudio shouldBe null
+
+                val characterLine = result.scenes[1]
+                characterLine.narrationAudio shouldBe null
+                characterLine.characterOpeningAudio.shouldNotBeNull()
+                characterLine.characterClosingAudio.shouldNotBeNull()
+            }
+
+            test("childId가 없으면 나레이션만 오디오가 채워지고 캐릭터 대사 오디오는 null이다") {
+                every { loadStoryPort.findByIdWithScenesPublished(StoryId(storyIdStr)) } returns story(
+                    scenes = listOf(
+                        narrationScene("sc-1", 1),
+                        characterLineScene("sc-2", 2),
+                    ),
+                )
+                every {
+                    ttsPort.synthesize("전개 설명 1", NARRATOR_VOICE_PROFILE)
+                } returns "audio://narration-1"
+
+                val result = service.execute(GetStoryCommand(storyId = storyIdStr))
+
+                result.scenes[0].narrationAudio shouldBe "audio://narration-1"
+                result.scenes[1].characterOpeningAudio shouldBe null
+                result.scenes[1].characterClosingAudio shouldBe null
+                verify(exactly = 0) { childAccessPort.findChildName(any()) }
+                verify(exactly = 1) { ttsPort.synthesize("전개 설명 1", NARRATOR_VOICE_PROFILE) }
+            }
+
+            test("childId가 있으면 이름 치환된 텍스트로 캐릭터 대사 오디오를 합성한다") {
+                every { loadStoryPort.findByIdWithScenesPublished(StoryId(storyIdStr)) } returns story(
+                    scenes = listOf(characterLineScene("sc-1", 1)),
+                )
+                every { childAccessPort.findGuardianId(ChildId("child-1")) } returns UserId("guardian-1")
+                every { childAccessPort.findChildName(ChildId("child-1")) } returns "지민"
+                every { ttsPort.synthesize(any(), any()) } returns "audio://x"
+
+                service.execute(
+                    GetStoryCommand(storyId = storyIdStr, childId = "child-1", guardianId = "guardian-1"),
+                )
+
+                verify {
+                    ttsPort.synthesize("지민아, 안녕? 나는 방귀쟁이 며느리야.", "young_woman_gentle")
+                }
+                verify {
+                    ttsPort.synthesize("지민아, 이야기해 줘서 고마워.", "young_woman_gentle")
+                }
+                verify(exactly = 0) {
+                    ttsPort.synthesize(match { it.contains("ㅇㅇ") }, any())
+                }
+            }
         }
         context("실패") {
             test("공개 이야기가 없으면 NOT_FOUND_STORY로 NotFoundException을 던진다") {
@@ -336,6 +434,23 @@ class StoryQueryServiceTest : FunSpec({
                 }
 
                 exception.exceptionResponseCode shouldBe NOT_FOUND_STORY
+            }
+
+            test("childId가 남의 아이면 NotFoundException(NOT_FOUND)을 던지고 이름 조회·오디오 합성을 하지 않는다") {
+                every { loadStoryPort.findByIdWithScenesPublished(StoryId(storyIdStr)) } returns story(
+                    scenes = listOf(characterLineScene("sc-1", 1)),
+                )
+                every { childAccessPort.findGuardianId(ChildId("child-1")) } returns UserId("guardian-2")
+
+                val exception = shouldThrow<NotFoundException> {
+                    service.execute(
+                        GetStoryCommand(storyId = storyIdStr, childId = "child-1", guardianId = "guardian-1"),
+                    )
+                }
+
+                exception.exceptionResponseCode shouldBe NOT_FOUND
+                verify(exactly = 0) { childAccessPort.findChildName(any()) }
+                verify(exactly = 0) { ttsPort.synthesize(any(), any()) }
             }
         }
     }
