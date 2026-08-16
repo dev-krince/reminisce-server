@@ -5,6 +5,9 @@ import com.krince.reminisce.application.port.out.message.LoadMessagePort
 import com.krince.reminisce.application.port.out.missionresult.CommandMissionResultPort
 import com.krince.reminisce.application.port.out.postactivityresult.CommandPostActivityResultPort
 import com.krince.reminisce.application.port.out.postactivityresult.LoadPostActivityResultPort
+import com.krince.reminisce.application.port.out.profileinterview.CommandInterviewMessagePort
+import com.krince.reminisce.application.port.out.profileinterview.CommandProfileInterviewPort
+import com.krince.reminisce.application.port.out.profileinterview.LoadProfileInterviewPort
 import com.krince.reminisce.application.port.out.report.CommandReportPort
 import com.krince.reminisce.application.port.out.savedstory.CommandSavedStoryPort
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
@@ -27,6 +30,9 @@ class ChildLearningDataPurger(
     private val commandUtteranceAnalysisPort: CommandUtteranceAnalysisPort,
     private val commandSavedWordPort: CommandSavedWordPort,
     private val commandSavedStoryPort: CommandSavedStoryPort,
+    private val loadProfileInterviewPort: LoadProfileInterviewPort,
+    private val commandProfileInterviewPort: CommandProfileInterviewPort,
+    private val commandInterviewMessagePort: CommandInterviewMessagePort,
 ) {
 
     fun purge(childIds: List<ChildId>): List<String> {
@@ -34,10 +40,19 @@ class ChildLearningDataPurger(
             return emptyList()
         }
         val retellingAudioUrls: List<String> = purgeSessionData(childIds)
+        purgeProfileInterviewData(childIds)
         commandSavedWordPort.deleteAllByChildIds(childIds)
         commandSavedStoryPort.deleteAllByChildIds(childIds)
 
         return retellingAudioUrls
+    }
+
+    private fun purgeProfileInterviewData(childIds: List<ChildId>) {
+        val interviewIds: List<String> = loadProfileInterviewPort.findInterviewIdsByChildIds(childIds)
+        if (interviewIds.isNotEmpty()) {
+            commandInterviewMessagePort.deleteAllByInterviewIds(interviewIds)
+        }
+        commandProfileInterviewPort.deleteAllByChildIds(childIds)
     }
 
     private fun purgeSessionData(childIds: List<ChildId>): List<String> {
