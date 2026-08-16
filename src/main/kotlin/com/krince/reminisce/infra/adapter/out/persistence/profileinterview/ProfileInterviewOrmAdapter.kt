@@ -29,10 +29,16 @@ class ProfileInterviewOrmAdapter(
         return ProfileInterviewMapper.toDomain(entity)
     }
 
-    override fun findInProgressByChild(childId: ChildId): ProfileInterview? {
+    override fun findInProgressByChild(childId: ChildId): ProfileInterview? =
+        findByChildAndStatus(childId, ProfileInterviewStatus.IN_PROGRESS)
+
+    override fun findLatestCompletedByChild(childId: ChildId): ProfileInterview? =
+        findByChildAndStatus(childId, ProfileInterviewStatus.COMPLETED)
+
+    private fun findByChildAndStatus(childId: ChildId, status: ProfileInterviewStatus): ProfileInterview? {
         val entity: ProfileInterviewOrmEntity = interviewRepository.findFirstByChildIdAndStatusOrderByStartedAtDesc(
             childId.value,
-            ProfileInterviewStatus.IN_PROGRESS.name,
+            status.name,
         ) ?: return null
 
         return ProfileInterviewMapper.toDomain(entity)

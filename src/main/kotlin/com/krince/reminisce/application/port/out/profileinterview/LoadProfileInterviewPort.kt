@@ -9,5 +9,7 @@ interface LoadProfileInterviewPort {
 
     fun findInProgressByChild(childId: ChildId): ProfileInterview?
 
+    fun findLatestCompletedByChild(childId: ChildId): ProfileInterview?
+
     fun findInterviewIdsByChildIds(childIds: List<ChildId>): List<String>
 }
