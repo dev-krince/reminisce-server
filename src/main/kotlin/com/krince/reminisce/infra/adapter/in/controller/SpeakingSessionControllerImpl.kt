@@ -20,6 +20,7 @@ import com.krince.reminisce.application.port.`in`.speakingsession.command.GetRes
 import com.krince.reminisce.application.port.`in`.speakingsession.command.GetSpeakingSessionViewCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.command.GoBackSpeakingSceneCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.command.StartSpeakingSessionCommand
+import com.krince.reminisce.application.port.`in`.speakingsession.command.DeleteSpeakingSessionCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.command.StopSpeakingSessionCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.result.SpeakingSessionResult
 import com.krince.reminisce.application.port.`in`.speakingsession.result.SpeakingSessionSummaryResult
@@ -29,6 +30,7 @@ import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GetRes
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GetSpeakingSessionViewUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.GoBackSpeakingSceneUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.StartSpeakingSessionUseCase
+import com.krince.reminisce.application.port.`in`.speakingsession.usecase.DeleteSpeakingSessionUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.usecase.StopSpeakingSessionUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.command.GetSpeakingHintCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.result.SpeakingHintResult
@@ -61,6 +63,7 @@ import com.krince.reminisce.infra.security.CustomUserDetails
 import com.krince.reminisce.shared.response.SuccessResponse
 import com.krince.reminisce.shared.response.SuccessResponseCode
 import com.krince.reminisce.shared.response.SuccessResponseCode.CREATED
+import com.krince.reminisce.shared.response.SuccessResponseCode.NO_CONTENT
 import com.krince.reminisce.shared.response.SuccessResponseCode.OK
 import com.krince.reminisce.shared.response.successResponse
 import jakarta.validation.Valid
@@ -68,6 +71,7 @@ import org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -88,6 +92,7 @@ class SpeakingSessionControllerImpl(
     private val advanceSpeakingSceneUseCase: AdvanceSpeakingSceneUseCase,
     private val goBackSpeakingSceneUseCase: GoBackSpeakingSceneUseCase,
     private val stopSpeakingSessionUseCase: StopSpeakingSessionUseCase,
+    private val deleteSpeakingSessionUseCase: DeleteSpeakingSessionUseCase,
     private val submitUtteranceUseCase: SubmitUtteranceUseCase,
     private val getResumableSessionsUseCase: GetResumableSessionsUseCase,
     private val submitCardOrderUseCase: SubmitCardOrderUseCase,
@@ -174,6 +179,17 @@ class SpeakingSessionControllerImpl(
             successResponse(responseCode = OK, data = response)
 
         return ResponseEntity.status(responseBody.code).body(responseBody)
+    }
+
+    @DeleteMapping("/{sessionId}")
+    override fun deleteSpeakingSession(
+        @PathVariable sessionId: String,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<Void> {
+        val command = DeleteSpeakingSessionCommand(guardianId = userDetails.getId(), sessionId = sessionId)
+        deleteSpeakingSessionUseCase.execute(command)
+
+        return ResponseEntity.status(NO_CONTENT.code).build()
     }
 
     @PostMapping("/{sessionId}/utterances", consumes = [MULTIPART_FORM_DATA_VALUE])

@@ -2523,6 +2523,92 @@ class SpeakingSessionControllerImplTest(
         }
     }
 
+    context("deleteSpeakingSession") {
+        context("성공") {
+            test("본인 아이 세션을 폐기하면 204를 반환하고 세션이 DB에서 사라진다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, currentSceneId = "sc-1-$storyId"),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .delete("/speaking-sessions/$sessionId")
+                    .then()
+                    .statusCode(204)
+
+                testSpeakingSessionFixture.findBySessionId(sessionId) shouldBe null
+            }
+
+            test("완료(COMPLETED)된 세션도 폐기할 수 있다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, status = SessionStatus.COMPLETED),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .delete("/speaking-sessions/$sessionId")
+                    .then()
+                    .statusCode(204)
+
+                testSpeakingSessionFixture.findBySessionId(sessionId) shouldBe null
+            }
+        }
+        context("예외케이스") {
+            test("다른 보호자의 아이 세션이면 404로 은닉하고 세션은 남는다") {
+                val (_, intruderToken) = authorizedGuardian()
+                val (ownerGuardianId, _) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, ownerGuardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testSpeakingSessionFixture.save(sessionEntity(sessionId, childId, storyId))
+
+                RestAssured.given()
+                    .header("Authorization", intruderToken)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .delete("/speaking-sessions/$sessionId")
+                    .then()
+                    .statusCode(404)
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+
+                testSpeakingSessionFixture.findBySessionId(sessionId)?.sessionId shouldBe sessionId
+            }
+
+            test("없는 세션이면 404를 반환한다") {
+                val (_, token) = authorizedGuardian()
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .delete("/speaking-sessions/none-${uniqueSuffix()}")
+                    .then()
+                    .statusCode(404)
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+            }
+        }
+    }
+
     context("stopSpeakingSession") {
         context("성공") {
             test("IN_PROGRESS 세션 stop은 200과 status=IN_PROGRESS를 반환하고 저장 상태도 IN_PROGRESS로 유지된다") {

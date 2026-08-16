@@ -30,6 +30,7 @@ import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND_CHIL
 import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND_STORY
 import com.krince.reminisce.shared.response.SuccessResponse
 import com.krince.reminisce.shared.response.SuccessResponseCode.CREATED
+import com.krince.reminisce.shared.response.SuccessResponseCode.NO_CONTENT
 import com.krince.reminisce.shared.response.SuccessResponseCode.OK
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -254,6 +255,25 @@ interface SpeakingSessionController {
         @Parameter(description = "말하기 세션 고유 식별자", required = true) @PathVariable sessionId: String,
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<SpeakingSessionResponse>>
+
+    @Operation(
+        summary = "말하기 세션 폐기",
+        description = "로그인한 보호자가 본인 아이의 세션 하나를 상태와 무관하게 영구 삭제합니다. 그 세션의 대화·발화 분석·미션 결과·후활동 결과·리포트와 발화·재구성 음성 파일까지 함께 삭제되며 되돌릴 수 없습니다. 완료된 세션을 폐기하면 그 회차의 리포트도 사라집니다.",
+    )
+    @SwaggerSuccessResponse(responseCode = NO_CONTENT, description = "말하기 세션 폐기 성공")
+    @SwaggerExceptionResponse(
+        examples = [
+            ExceptionExample(code = EMPTY_TOKEN, name = "토큰 없음", message = "토큰이 없습니다.", description = "인증 토큰이 제공되지 않은 경우"),
+            ExceptionExample(code = INVALID_TOKEN, name = "유효하지 않은 토큰", message = "유효하지 않은 토큰입니다.", description = "토큰이 유효하지 않거나 서명이 잘못된 경우"),
+            ExceptionExample(code = EXPIRED_TOKEN, name = "만료된 토큰", message = "만료된 토큰입니다.", description = "토큰의 유효기간이 만료된 경우"),
+            ExceptionExample(code = NOT_FOUND, name = "세션 없음", message = "리소스가 존재하지 않습니다.", description = "세션이 없거나 다른 보호자의 아이 세션인 경우"),
+            ExceptionExample(code = INTERNAL_SERVER_ERROR, name = "서버 오류", message = "서버 에러입니다. 개발자에게 문의해주세요.", description = "예상치 못한 서버 오류가 발생한 경우"),
+        ]
+    )
+    fun deleteSpeakingSession(
+        @Parameter(description = "말하기 세션 고유 식별자", required = true) @PathVariable sessionId: String,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<Void>
 
     @Operation(
         summary = "말하기 세션 이전 장면 되돌리기",

@@ -56,6 +56,10 @@ class SpeakingSessionOrmAdapter(
         return repository.findSessionIdsByChildIdIn(childIds.map { it.value })
     }
 
+    override fun deleteById(sessionId: SpeakingSessionId) {
+        repository.deleteById(sessionId.value)
+    }
+
     override fun deleteAllByChildIds(childIds: List<ChildId>) {
         if (childIds.isEmpty()) {
             return
