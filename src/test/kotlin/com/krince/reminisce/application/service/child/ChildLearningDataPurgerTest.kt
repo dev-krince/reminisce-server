@@ -69,12 +69,14 @@ class ChildLearningDataPurgerTest : FunSpec({
     val sessionIds = listOf("session-1", "session-2")
     val messageIds = listOf("message-1", "message-2")
     val audioUrls = listOf("/files/retelling-1.m4a", "/files/retelling-2.webm")
+    val utteranceAudioUrls = listOf("/files/utterance-1.m4a", "/files/utterance-2.webm")
 
     context("세션 계열·단어장 파기") {
-        test("발화분석→메시지→리포트→후속활동→미션결과→세션→인터뷰→단어→찜 순으로 leaf→root 파기하고 재구성 음성 URL을 반환한다") {
+        test("발화분석→메시지→리포트→후속활동→미션결과→세션→인터뷰→단어→찜 순으로 leaf→root 파기하고 재구성+발화 음성 URL을 합쳐 반환한다") {
             val interviewIds = listOf("interview-1")
             every { loadSpeakingSessionPort.findSessionIdsByChildIds(childIds) } returns sessionIds
             every { loadPostActivityResultPort.findRetellingAudioUrlsBySessionIds(sessionIds) } returns audioUrls
+            every { loadMessagePort.findAudioUrlsBySessionIds(sessionIds) } returns utteranceAudioUrls
             every { loadMessagePort.findMessageIdsBySessionIds(sessionIds) } returns messageIds
             every { commandUtteranceAnalysisPort.deleteAllByMessageIds(messageIds) } returns Unit
             every { commandMessagePort.deleteAllBySessionIds(sessionIds) } returns Unit
@@ -91,7 +93,7 @@ class ChildLearningDataPurgerTest : FunSpec({
 
             val result = purger.purge(childIds)
 
-            result shouldBe audioUrls
+            result shouldBe audioUrls + utteranceAudioUrls
             verifyOrder {
                 commandUtteranceAnalysisPort.deleteAllByMessageIds(messageIds)
                 commandMessagePort.deleteAllBySessionIds(sessionIds)
@@ -119,6 +121,7 @@ class ChildLearningDataPurgerTest : FunSpec({
 
             result shouldBe emptyList()
             verify(exactly = 0) { loadMessagePort.findMessageIdsBySessionIds(any()) }
+            verify(exactly = 0) { loadMessagePort.findAudioUrlsBySessionIds(any()) }
             verify(exactly = 0) { commandUtteranceAnalysisPort.deleteAllByMessageIds(any()) }
             verify(exactly = 0) { commandMessagePort.deleteAllBySessionIds(any()) }
             verify(exactly = 0) { commandReportPort.deleteAllBySessionIds(any()) }
@@ -134,6 +137,7 @@ class ChildLearningDataPurgerTest : FunSpec({
         test("메시지가 없으면 발화분석 삭제는 건너뛰고 나머지 세션 계열은 삭제한다") {
             every { loadSpeakingSessionPort.findSessionIdsByChildIds(childIds) } returns sessionIds
             every { loadPostActivityResultPort.findRetellingAudioUrlsBySessionIds(sessionIds) } returns emptyList()
+            every { loadMessagePort.findAudioUrlsBySessionIds(sessionIds) } returns emptyList()
             every { loadMessagePort.findMessageIdsBySessionIds(sessionIds) } returns emptyList()
             every { commandMessagePort.deleteAllBySessionIds(sessionIds) } returns Unit
             every { commandReportPort.deleteAllBySessionIds(sessionIds) } returns Unit

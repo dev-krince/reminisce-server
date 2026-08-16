@@ -4,6 +4,7 @@ import com.krince.reminisce.infra.adapter.out.persistence.message.entity.Message
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 
 interface MessageRepository : JpaRepository<MessageOrmEntity, String> {
     fun countBySessionId(sessionId: String): Long
@@ -16,6 +17,17 @@ interface MessageRepository : JpaRepository<MessageOrmEntity, String> {
 
     @Query("SELECT m.id FROM MessageOrmEntity m WHERE m.sessionId IN :sessionIds")
     fun findMessageIdsBySessionIdIn(sessionIds: List<String>): List<String>
+
+    @Query(
+        """
+        select m.audioUrl
+        from MessageOrmEntity m
+        where m.sessionId in :sessionIds
+          and m.audioUrl is not null
+          and trim(m.audioUrl) <> ''
+        """,
+    )
+    fun findAudioUrlsBySessionIdIn(@Param("sessionIds") sessionIds: List<String>): List<String>
 
     fun deleteAllBySessionIdIn(sessionIds: List<String>)
 }

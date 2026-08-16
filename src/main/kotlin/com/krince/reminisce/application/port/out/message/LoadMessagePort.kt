@@ -11,5 +11,7 @@ interface LoadMessagePort {
 
     fun findMessageIdsBySessionIds(sessionIds: List<String>): List<String>
 
+    fun findAudioUrlsBySessionIds(sessionIds: List<String>): List<String>
+
     fun findRecentMessagesBySession(sessionId: SpeakingSessionId, limit: Int): List<Message>
 }

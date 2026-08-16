@@ -64,6 +64,7 @@ class ChildLearningDataPurger(
             return emptyList()
         }
         val retellingAudioUrls: List<String> = loadPostActivityResultPort.findRetellingAudioUrlsBySessionIds(sessionIds)
+        val utteranceAudioUrls: List<String> = loadMessagePort.findAudioUrlsBySessionIds(sessionIds)
         val messageIds: List<String> = loadMessagePort.findMessageIdsBySessionIds(sessionIds)
         if (messageIds.isNotEmpty()) {
             commandUtteranceAnalysisPort.deleteAllByMessageIds(messageIds)
@@ -74,6 +75,6 @@ class ChildLearningDataPurger(
         commandMissionResultPort.deleteAllBySessionIds(sessionIds)
         commandSpeakingSessionPort.deleteAllByChildIds(childIds)
 
-        return retellingAudioUrls
+        return retellingAudioUrls + utteranceAudioUrls
     }
 }

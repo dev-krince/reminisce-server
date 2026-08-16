@@ -51,6 +51,14 @@ class MessageOrmAdapter(
         return repository.findMessageIdsBySessionIdIn(sessionIds)
     }
 
+    override fun findAudioUrlsBySessionIds(sessionIds: List<String>): List<String> {
+        if (sessionIds.isEmpty()) {
+            return emptyList()
+        }
+
+        return repository.findAudioUrlsBySessionIdIn(sessionIds)
+    }
+
     override fun deleteAllBySessionIds(sessionIds: List<String>) {
         if (sessionIds.isEmpty()) {
             return
