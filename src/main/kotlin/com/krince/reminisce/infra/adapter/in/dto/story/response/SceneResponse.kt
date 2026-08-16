@@ -62,6 +62,9 @@ class SceneResponse(
     @field:Schema(description = "장면 상황과 대화 맥락", example = "옛날 어느 마을에 방귀를 아주 크게 뀌는 며느리가 살았습니다.", required = true)
     val sceneDescription: String,
 
+    @field:Schema(description = "장면 화면 표시용 제목", example = "걱정하는 며느리", required = false)
+    val title: String?,
+
     @field:Schema(description = "대화 캐릭터 코드", example = "ch_banggui_daughter_in_law", required = false)
     val characterName: String?,
 
@@ -123,6 +126,7 @@ fun sceneResponse(result: SceneResult): SceneResponse = SceneResponse(
     sceneOrder = result.sceneOrder,
     sceneType = result.sceneType.name,
     sceneDescription = result.sceneDescription,
+    title = result.title,
     characterName = result.characterName,
     characterDisplayName = result.characterDisplayName,
     characterOpening = result.characterOpening,

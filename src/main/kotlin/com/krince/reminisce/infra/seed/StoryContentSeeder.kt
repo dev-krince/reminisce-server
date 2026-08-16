@@ -140,6 +140,7 @@ class StoryContentSeeder(
                 sceneOrder = 4,
                 chapter = 1,
                 sceneDescription = dialogueDescription,
+                title = SCENE_04_TITLE,
                 characterName = DAUGHTER_IN_LAW_NAME,
                 characterDisplayName = DAUGHTER_IN_LAW_DISPLAY_NAME,
                 sceneGoal = "방귀를 숨기고 싶어하는 며느리의 입장을 이해하고 공감해주며, 문제를 숨기지 않고 솔직하게 말할 용기를 준다",
@@ -198,6 +199,7 @@ class StoryContentSeeder(
                 sceneOrder = 8,
                 chapter = 2,
                 sceneDescription = dialogueDescription,
+                title = SCENE_08_TITLE,
                 characterName = FATHER_IN_LAW_NAME,
                 characterDisplayName = FATHER_IN_LAW_DISPLAY_NAME,
                 sceneGoal = "시아버지가 놀란 마음을 이해하면서도, 며느리가 일부러 그런 것이 아니라 오래 참아 힘들었음을 말하고 따뜻하게 이해해 달라 설득한다",
@@ -257,6 +259,7 @@ class StoryContentSeeder(
                 sceneOrder = 12,
                 chapter = 3,
                 sceneDescription = dialogueDescription,
+                title = SCENE_12_TITLE,
                 characterName = VILLAGE_CHIEF_NAME,
                 characterDisplayName = VILLAGE_CHIEF_DISPLAY_NAME,
                 sceneGoal = "높은 배나무의 배를 떨어뜨릴 방법을 생각하고, 며느리의 큰 방귀를 안전하게 사용할 해결책을 제안한다",
@@ -321,6 +324,7 @@ class StoryContentSeeder(
                 sceneOrder = 16,
                 chapter = 4,
                 sceneDescription = dialogueDescription,
+                title = SCENE_16_TITLE,
                 characterName = DAUGHTER_IN_LAW_NAME,
                 characterDisplayName = DAUGHTER_IN_LAW_DISPLAY_NAME,
                 sceneGoal = "다름을 인정하고, 자신의 특징을 긍정적으로 받아들이는 태도를 말한다",
@@ -400,6 +404,7 @@ class StoryContentSeeder(
         sceneOrder: Int,
         chapter: Int,
         sceneDescription: String,
+        title: String,
         characterName: String,
         characterDisplayName: String,
         sceneGoal: String,
@@ -415,6 +420,7 @@ class StoryContentSeeder(
         chapter = chapter,
         sceneType = SceneType.DIALOGUE,
         sceneDescription = sceneDescription,
+        title = title,
         characterName = characterName,
         characterDisplayName = characterDisplayName,
         sceneGoal = sceneGoal,
@@ -450,6 +456,11 @@ class StoryContentSeeder(
         const val DAUGHTER_IN_LAW_DISPLAY_NAME = "방귀쟁이 며느리"
         const val FATHER_IN_LAW_DISPLAY_NAME = "시아버지"
         const val VILLAGE_CHIEF_DISPLAY_NAME = "마을 이장"
+
+        const val SCENE_04_TITLE = "걱정하는 며느리"
+        const val SCENE_08_TITLE = "화가 난 시아버지"
+        const val SCENE_12_TITLE = "이장님의 부탁"
+        const val SCENE_16_TITLE = "달라진 며느리"
 
         const val VOICE_PROFILE_YOUNG_WOMAN_GENTLE = "young_woman_gentle"
         const val VOICE_PROFILE_ELDERLY_MAN_STERN = "elderly_man_stern"

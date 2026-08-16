@@ -53,6 +53,10 @@ class SceneOrmEntity(
     @Comment("장면 상황과 대화 맥락")
     val sceneDescription: String,
 
+    @Column(name = "scene_title")
+    @Comment("장면 화면 표시용 제목 (모든 장면 공통 선택)")
+    val title: String? = null,
+
     @Column(name = "character_name")
     @Comment("대화 캐릭터 코드")
     val characterName: String?,
