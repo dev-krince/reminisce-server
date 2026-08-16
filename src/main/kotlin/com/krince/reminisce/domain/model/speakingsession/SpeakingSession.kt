@@ -160,7 +160,7 @@ data class SpeakingSession(
     }
 
     companion object {
-        private const val MIN_PREFERRED_TURNS: Int = 3
+        private const val MIN_PREFERRED_TURNS: Int = 2
         private const val GUIDE_STREAK_THRESHOLD: Int = 2
         private val LOW_INFORMATION_VALIDITIES: Set<UtteranceValidity> = setOf(
             UtteranceValidity.SHORT,

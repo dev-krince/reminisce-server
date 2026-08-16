@@ -1,6 +1,7 @@
 package com.krince.reminisce.infra.seed
 
 import com.krince.reminisce.domain.model.story.vo.MissionType
+import com.krince.reminisce.domain.model.story.vo.ThinkingElement
 import com.krince.reminisce.infra.adapter.out.persistence.story.SceneRepository
 import com.krince.reminisce.infra.adapter.out.persistence.story.StoryRepository
 import com.krince.reminisce.infra.adapter.out.persistence.story.StoryTopicRepository
@@ -97,7 +98,7 @@ class StoryContentSeederTest : FunSpec({
                 dialogue.characterOpening shouldBe null
                 dialogue.characterClosing shouldBe null
                 dialogue.sceneGoal.shouldNotBeNull()
-                dialogue.requiredElements.shouldNotBeNull() shouldHaveSize 4
+                dialogue.requiredElements.shouldNotBeNull() shouldHaveSize 2
                 dialogue.maxTurns.shouldNotBeNull()
                 dialogue.characterVoice.shouldNotBeNull()
                 dialogue.characterImageUrl.shouldNotBeNull()
@@ -109,6 +110,27 @@ class StoryContentSeederTest : FunSpec({
                 "ch_banggui_daughter_in_law",
             )
             dialogues.map { it.maxTurns?.toInt() } shouldContainExactly listOf(4, 5, 5, 4)
+        }
+
+        test("DIALOGUE 신의 requiredElements는 장면별 핵심 2개로 구성된다") {
+            val scenes = seedScenes()
+
+            scenes.first { it.sceneId == "sc_banggui_04" }.requiredElements.shouldNotBeNull() shouldContainExactly listOf(
+                ThinkingElement.PERSPECTIVE,
+                ThinkingElement.EMOTION,
+            )
+            scenes.first { it.sceneId == "sc_banggui_08" }.requiredElements.shouldNotBeNull() shouldContainExactly listOf(
+                ThinkingElement.PERSPECTIVE,
+                ThinkingElement.REASON,
+            )
+            scenes.first { it.sceneId == "sc_banggui_12" }.requiredElements.shouldNotBeNull() shouldContainExactly listOf(
+                ThinkingElement.SOLUTION,
+                ThinkingElement.RESULT,
+            )
+            scenes.first { it.sceneId == "sc_banggui_16" }.requiredElements.shouldNotBeNull() shouldContainExactly listOf(
+                ThinkingElement.PERSPECTIVE,
+                ThinkingElement.EMOTION,
+            )
         }
 
         test("CHARACTER_LINE 신은 확정 스크립트 대사를 자구 그대로 담고 인터랙티브 필드를 갖지 않는다") {

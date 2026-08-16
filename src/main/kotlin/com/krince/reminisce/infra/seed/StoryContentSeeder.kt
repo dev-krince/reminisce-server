@@ -146,8 +146,6 @@ class StoryContentSeeder(
                 requiredElements = listOf(
                     ThinkingElement.PERSPECTIVE,
                     ThinkingElement.EMOTION,
-                    ThinkingElement.REASON,
-                    ThinkingElement.SOLUTION,
                 ),
                 maxTurns = 4,
                 characterVoice = DAUGHTER_IN_LAW_VOICE,
@@ -205,9 +203,7 @@ class StoryContentSeeder(
                 sceneGoal = "시아버지가 놀란 마음을 이해하면서도, 며느리가 일부러 그런 것이 아니라 오래 참아 힘들었음을 말하고 따뜻하게 이해해 달라 설득한다",
                 requiredElements = listOf(
                     ThinkingElement.PERSPECTIVE,
-                    ThinkingElement.EMOTION,
                     ThinkingElement.REASON,
-                    ThinkingElement.SOLUTION,
                 ),
                 maxTurns = 5,
                 characterVoice = FATHER_IN_LAW_VOICE,
@@ -266,8 +262,6 @@ class StoryContentSeeder(
                 sceneGoal = "높은 배나무의 배를 떨어뜨릴 방법을 생각하고, 며느리의 큰 방귀를 안전하게 사용할 해결책을 제안한다",
                 requiredElements = listOf(
                     ThinkingElement.SOLUTION,
-                    ThinkingElement.REASON,
-                    ThinkingElement.REQUEST,
                     ThinkingElement.RESULT,
                 ),
                 maxTurns = 5,
@@ -329,10 +323,8 @@ class StoryContentSeeder(
                 characterDisplayName = DAUGHTER_IN_LAW_DISPLAY_NAME,
                 sceneGoal = "다름을 인정하고, 자신의 특징을 긍정적으로 받아들이는 태도를 말한다",
                 requiredElements = listOf(
-                    ThinkingElement.EMOTION,
                     ThinkingElement.PERSPECTIVE,
-                    ThinkingElement.RESULT,
-                    ThinkingElement.SOLUTION,
+                    ThinkingElement.EMOTION,
                 ),
                 maxTurns = 4,
                 mission = Mission(

@@ -129,25 +129,23 @@ class SpeakingSessionAdvanceTurnTest : FunSpec({
             updated.lastResponseMode shouldBe ResponseMode.CLOSING
         }
 
-        test("권장턴이 null이면 요소를 다 채워도 최소 3턴 전에는 GOAL_MET/CLOSING이 아니고 진행을 유지한다") {
-            listOf(0, 1).forEach { beforeTurnCount ->
-                val updated = session(currentChildTurnCount = beforeTurnCount).advanceTurn(
-                    hasNewElement = true,
-                    validity = UtteranceValidity.VALID,
-                    missingElements = emptyList(),
-                    preferredTurns = null,
-                    maxTurns = bigMaxTurns,
-                    at = at,
-                )
+        test("권장턴이 null이면 요소를 다 채워도 최소 2턴 전에는 GOAL_MET/CLOSING이 아니고 진행을 유지한다") {
+            val updated = session(currentChildTurnCount = 0).advanceTurn(
+                hasNewElement = true,
+                validity = UtteranceValidity.VALID,
+                missingElements = emptyList(),
+                preferredTurns = null,
+                maxTurns = bigMaxTurns,
+                at = at,
+            )
 
-                updated.sceneEndReason shouldBe null
-                updated.sceneGoalMet shouldBe false
-                updated.lastResponseMode shouldNotBe ResponseMode.CLOSING
-            }
+            updated.sceneEndReason shouldBe null
+            updated.sceneGoalMet shouldBe false
+            updated.lastResponseMode shouldNotBe ResponseMode.CLOSING
         }
 
-        test("권장턴이 null이면 요소를 다 채운 3턴째에 GOAL_MET·CLOSING이 된다") {
-            val updated = session(currentChildTurnCount = 2).advanceTurn(
+        test("권장턴이 null이면 요소를 다 채운 2턴째에 GOAL_MET·CLOSING이 된다") {
+            val updated = session(currentChildTurnCount = 1).advanceTurn(
                 hasNewElement = true,
                 validity = UtteranceValidity.VALID,
                 missingElements = emptyList(),
