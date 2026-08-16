@@ -5,6 +5,7 @@ import com.krince.reminisce.application.port.out.auth.NaverUserInfo
 import com.krince.reminisce.infra.config.properties.NaverOAuthProperties
 import com.krince.reminisce.shared.exception.SocialAuthException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.SOCIAL_AUTH_FAILED
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
@@ -14,6 +15,7 @@ import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientException
 
 @Component
+@ConditionalOnProperty(name = ["oauth.naver.mode"], havingValue = "real", matchIfMissing = true)
 @EnableConfigurationProperties(NaverOAuthProperties::class)
 class NaverOAuthAdapter(
     private val naverOAuthProperties: NaverOAuthProperties,

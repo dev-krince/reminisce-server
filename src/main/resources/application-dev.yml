@@ -90,11 +90,12 @@ oauth:
     token-uri: ${GOOGLE_TOKEN_URI}
     user-info-uri: ${GOOGLE_USER_INFO_URI}
   naver:
-    client-id: ${NAVER_CLIENT_ID}
-    client-secret: ${NAVER_CLIENT_SECRET}
-    redirect-uri: ${NAVER_REDIRECT_URI}
-    token-uri: ${NAVER_TOKEN_URI}
-    user-info-uri: ${NAVER_USER_INFO_URI}
+    mode: ${NAVER_MODE:stub}
+    client-id: ${NAVER_CLIENT_ID:}
+    client-secret: ${NAVER_CLIENT_SECRET:}
+    redirect-uri: ${NAVER_REDIRECT_URI:}
+    token-uri: ${NAVER_TOKEN_URI:}
+    user-info-uri: ${NAVER_USER_INFO_URI:}
 
 LOG_HOST: ${LOG_HOST}
 LOG_INDEX_ID: ${LOG_INDEX_ID}
