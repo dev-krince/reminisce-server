@@ -199,4 +199,128 @@ class ProfileInterviewControllerImplTest(
             }
         }
     }
+
+    context("submitInterviewUtterance") {
+        fun startInterview(token: String, childId: String): String =
+            RestAssured.given()
+                .header("Authorization", token)
+                .contentType(ContentType.JSON)
+                .body(mapOf("childId" to childId))
+                .`when`()
+                .post("/profile-interviews")
+                .then()
+                .statusCode(201)
+                .extract()
+                .path("data.interviewId")
+
+        context("성공") {
+            test("아이 발화를 제출하면 200과 큐미의 다음 말을 반환하고 아이·큐미 메시지가 쌓인다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+                val childId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testChildConsentFixture.saveConsent(consentEntity(childId))
+                val interviewId = startInterview(token, childId)
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("text" to "토끼요.", "sttRawText" to "토끼요"))
+                    .`when`()
+                    .post("/profile-interviews/$interviewId/utterances")
+                    .then()
+                    .statusCode(200)
+                    .body("data.status", equalTo("IN_PROGRESS"))
+                    .body("data.stage", equalTo("FREE_TALK"))
+                    .body("data.qumiText", notNullValue())
+                    .body("data.qumiAudio", notNullValue())
+
+                val messages = testProfileInterviewFixture.findMessagesByInterviewId(interviewId)
+                messages.size shouldBe 3
+                messages.map { it.speaker } shouldBe listOf("QUMI", "CHILD", "QUMI")
+            }
+
+            test("18번 답하면 단계가 순서대로 진행되고 인터뷰가 COMPLETED로 끝나며, 끝난 뒤 제출은 422다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+                val childId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testChildConsentFixture.saveConsent(consentEntity(childId))
+                val interviewId = startInterview(token, childId)
+
+                var lastStatus = ""
+                var lastStage = ""
+                repeat(18) { turn ->
+                    val response = RestAssured.given()
+                        .header("Authorization", token)
+                        .contentType(ContentType.JSON)
+                        .body(mapOf("text" to "대답 ${turn + 1}이에요."))
+                        .`when`()
+                        .post("/profile-interviews/$interviewId/utterances")
+                        .then()
+                        .statusCode(200)
+                        .extract()
+                    lastStatus = response.path("data.status")
+                    lastStage = response.path("data.stage")
+                }
+
+                lastStatus shouldBe "COMPLETED"
+                lastStage shouldBe "CLOSING"
+                testProfileInterviewFixture.findMessagesByInterviewId(interviewId).size shouldBe 37
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("text" to "한 마디 더요."))
+                    .`when`()
+                    .post("/profile-interviews/$interviewId/utterances")
+                    .then()
+                    .statusCode(422)
+                    .body("detailCode", equalTo(ExceptionResponseCode.BUSINESS_RULE_VIOLATION.detailCode))
+            }
+        }
+
+        context("예외케이스") {
+            test("다른 보호자의 인터뷰에 제출하면 404로 은닉한다") {
+                val ownerGuardianId = "guardian-${uniqueSuffix()}"
+                val intruderGuardianId = "intruder-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(ownerGuardianId))
+                testUserFixture.saveUser(userEntity(intruderGuardianId))
+                val ownerToken = testJwtTokenFixture.generateAccessToken(ownerGuardianId)
+                val intruderToken = testJwtTokenFixture.generateAccessToken(intruderGuardianId)
+                val childId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, ownerGuardianId))
+                testChildConsentFixture.saveConsent(consentEntity(childId))
+                val interviewId = startInterview(ownerToken, childId)
+
+                RestAssured.given()
+                    .header("Authorization", intruderToken)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("text" to "몰래 한 마디."))
+                    .`when`()
+                    .post("/profile-interviews/$interviewId/utterances")
+                    .then()
+                    .statusCode(404)
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+            }
+
+            test("없는 인터뷰면 404를 반환한다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("text" to "아무 말."))
+                    .`when`()
+                    .post("/profile-interviews/unknown-${uniqueSuffix()}/utterances")
+                    .then()
+                    .statusCode(404)
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+            }
+        }
+    }
 })
