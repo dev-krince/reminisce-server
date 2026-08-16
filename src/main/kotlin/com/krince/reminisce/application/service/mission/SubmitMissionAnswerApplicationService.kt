@@ -5,6 +5,7 @@ import com.krince.reminisce.application.port.access.story.StoryAccessPort
 import com.krince.reminisce.application.port.`in`.mission.command.SubmitMissionAnswerCommand
 import com.krince.reminisce.application.port.`in`.mission.result.MissionAnswerResult
 import com.krince.reminisce.application.port.`in`.mission.usecase.SubmitMissionAnswerUseCase
+import com.krince.reminisce.application.port.out.mission.MissionJudgeContext
 import com.krince.reminisce.application.port.out.mission.MissionJudgePort
 import com.krince.reminisce.application.port.out.mission.MissionJudgement
 import com.krince.reminisce.application.port.out.missionresult.CommandMissionResultPort
@@ -67,7 +68,13 @@ class SubmitMissionAnswerApplicationService(
             return judgeWordOrder(mission, submittedOrder)
         }
 
-        return missionJudgePort.judge(text.orEmpty())
+        return missionJudgePort.judge(
+            MissionJudgeContext(
+                goal = mission.goal,
+                examples = mission.examples,
+                text = text.orEmpty(),
+            ),
+        )
     }
 
     private fun judgeWordOrder(mission: Mission, submittedOrder: List<String>?): MissionJudgement {

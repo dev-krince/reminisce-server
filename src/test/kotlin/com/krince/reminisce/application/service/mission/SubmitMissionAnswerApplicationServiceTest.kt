@@ -3,6 +3,7 @@ package com.krince.reminisce.application.service.mission
 import com.krince.reminisce.application.port.access.child.ChildAccessPort
 import com.krince.reminisce.application.port.access.story.StoryAccessPort
 import com.krince.reminisce.application.port.`in`.mission.command.SubmitMissionAnswerCommand
+import com.krince.reminisce.application.port.out.mission.MissionJudgeContext
 import com.krince.reminisce.application.port.out.mission.MissionJudgePort
 import com.krince.reminisce.application.port.out.mission.MissionJudgement
 import com.krince.reminisce.application.port.out.missionresult.CommandMissionResultPort
@@ -207,18 +208,57 @@ class SubmitMissionAnswerApplicationServiceTest : FunSpec({
     }
 
     context("SPEAKING 미션") {
-        test("stub 판정이 통과하면 completed=true로 저장한다") {
+        test("판정이 통과하면 미션 목표·기준·아이 답을 판정 포트에 넘기고 completed=true로 저장한다") {
             ownedSessionWithScene(dialogueScene(speakingMission))
-            every { missionJudgePort.judge(any()) } returns MissionJudgement(passed = true, hint = "좋아요")
+            val contextSlot = slot<MissionJudgeContext>()
+            every { missionJudgePort.judge(capture(contextSlot)) } returns MissionJudgement(passed = true, hint = null)
             every { loadMissionResultPort.findBySessionAndScene(SpeakingSessionId(sessionIdStr), sceneIdStr) } returns null
             val savedSlot = slot<MissionResult>()
             every { commandMissionResultPort.save(capture(savedSlot)) } answers { savedResult(completed = true, attemptCount = 1) }
 
-            val result = service.execute(command(text = "며느리에게 부탁해서 배를 떨어뜨려요"))
+            val answerText = "긴 막대기로 나무를 밀어서 배를 떨어뜨려요"
+            val result = service.execute(command(text = answerText))
 
             result.completed shouldBe true
+            result.hints shouldBe emptyList()
             savedSlot.captured.completed shouldBe true
-            verify(exactly = 1) { missionJudgePort.judge("며느리에게 부탁해서 배를 떨어뜨려요") }
+            contextSlot.captured.goal shouldBe speakingMission.goal
+            contextSlot.captured.examples shouldContainExactly speakingMission.examples
+            contextSlot.captured.text shouldBe answerText
+        }
+
+        test("판정이 미통과하면 completed=false로 저장하고 힌트를 돌려준다") {
+            ownedSessionWithScene(dialogueScene(speakingMission))
+            every { missionJudgePort.judge(any()) } returns MissionJudgement(passed = false, hint = "무엇을 사용할지 말해 볼까요?")
+            every { loadMissionResultPort.findBySessionAndScene(SpeakingSessionId(sessionIdStr), sceneIdStr) } returns null
+            val savedSlot = slot<MissionResult>()
+            every { commandMissionResultPort.save(capture(savedSlot)) } answers { savedResult(completed = false, attemptCount = 1) }
+
+            val result = service.execute(command(text = "몰라요"))
+
+            result.completed shouldBe false
+            result.hints shouldContainExactly speakingMission.examples
+            savedSlot.captured.completed shouldBe false
+        }
+
+        test("판정 기준이 없는 미션은 미통과 시 판정 힌트를 그대로 돌려준다") {
+            val noExampleMission = Mission(
+                goal = "안전하게 배 떨어뜨리기",
+                examples = emptyList(),
+                type = MissionType.SPEAKING,
+            )
+            ownedSessionWithScene(dialogueScene(noExampleMission))
+            val judgeHint = "무엇을 사용해서 배를 떨어뜨릴지 이야기해 볼까요?"
+            every { missionJudgePort.judge(any()) } returns MissionJudgement(passed = false, hint = judgeHint)
+            every { loadMissionResultPort.findBySessionAndScene(SpeakingSessionId(sessionIdStr), sceneIdStr) } returns null
+            val savedSlot = slot<MissionResult>()
+            every { commandMissionResultPort.save(capture(savedSlot)) } answers { savedResult(completed = false, attemptCount = 1) }
+
+            val result = service.execute(command(text = "몰라요"))
+
+            result.completed shouldBe false
+            result.hints shouldContainExactly listOf(judgeHint)
+            savedSlot.captured.completed shouldBe false
         }
     }
 
