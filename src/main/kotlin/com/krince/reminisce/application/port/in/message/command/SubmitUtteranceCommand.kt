@@ -5,4 +5,5 @@ class SubmitUtteranceCommand(
     val guardianId: String,
     val text: String,
     val sttRawText: String?,
+    val audioUrl: String? = null,
 )

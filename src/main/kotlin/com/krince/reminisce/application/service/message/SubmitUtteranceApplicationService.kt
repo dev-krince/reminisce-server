@@ -67,7 +67,7 @@ class SubmitUtteranceApplicationService(
         }
         val childName: String? = childAccessPort.findChildName(session.childId)
         val dialogueScene: Scene = requireDialogueScene(session).personalizedFor(childName)
-        val message: Message = saveChildUtterance(session, dialogueScene, command.text, command.sttRawText)
+        val message: Message = saveChildUtterance(session, dialogueScene, command.text, command.sttRawText, command.audioUrl)
         val recentTurns: List<ConversationTurn> = loadRecentTurns(session, message)
         val analysis: UtteranceAnalysis = analyzeAndSave(message, recentTurns)
         val progressedSession: SpeakingSession = progressAndSave(session, analysis, dialogueScene)
@@ -207,6 +207,7 @@ class SubmitUtteranceApplicationService(
         scene: Scene,
         text: String,
         sttRawText: String?,
+        audioUrl: String?,
     ): Message {
         val turnOrder: Long = loadMessagePort.countBySession(session.sessionId) + firstTurnOffset
         val message: Message = Message.childUtterance(
@@ -216,6 +217,7 @@ class SubmitUtteranceApplicationService(
             text = text,
             sttRawText = sttRawText,
             at = LocalDateTime.now(clock),
+            audioUrl = audioUrl,
         )
 
         return commandMessagePort.save(message)

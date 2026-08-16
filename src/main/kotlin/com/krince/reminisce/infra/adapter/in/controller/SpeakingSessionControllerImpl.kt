@@ -176,19 +176,27 @@ class SpeakingSessionControllerImpl(
         return ResponseEntity.status(responseBody.code).body(responseBody)
     }
 
-    @PostMapping("/{sessionId}/utterances")
+    @PostMapping("/{sessionId}/utterances", consumes = [MULTIPART_FORM_DATA_VALUE])
     override fun submitUtterance(
         @PathVariable sessionId: String,
-        @Valid @RequestBody request: SubmitUtteranceRequest,
+        @Valid @RequestPart("request") request: SubmitUtteranceRequest,
+        @RequestPart("audio", required = false) audio: MultipartFile?,
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<UtteranceResponse>> {
+        val utteranceAudioUrl: String? = audio?.let { storeFilePort.saveAudioOrThrows(it) }
         val command = SubmitUtteranceCommand(
             sessionId = sessionId,
             guardianId = userDetails.getId(),
             text = request.text,
             sttRawText = request.sttRawText,
+            audioUrl = utteranceAudioUrl,
         )
-        val result: UtteranceResult = submitUtteranceUseCase.execute(command)
+        val result: UtteranceResult = try {
+            submitUtteranceUseCase.execute(command)
+        } catch (exception: Exception) {
+            utteranceAudioUrl?.let { storeFilePort.deleteFile(it) }
+            throw exception
+        }
         val response: UtteranceResponse = utteranceResponse(result)
         val responseBody: SuccessResponse<UtteranceResponse> =
             successResponse(responseCode = CREATED, data = response)

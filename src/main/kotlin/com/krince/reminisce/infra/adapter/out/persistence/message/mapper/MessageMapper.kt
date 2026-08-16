@@ -16,6 +16,7 @@ object MessageMapper {
         turnOrder = ormEntity.turnOrder,
         text = ormEntity.text,
         sttRawText = ormEntity.sttRawText,
+        audioUrl = ormEntity.audioUrl,
         createdAt = ormEntity.createdAt,
     )
 
@@ -27,6 +28,7 @@ object MessageMapper {
         turnOrder = domain.turnOrder,
         text = domain.text,
         sttRawText = domain.sttRawText,
+        audioUrl = domain.audioUrl,
         createdAt = domain.createdAt,
     )
 }

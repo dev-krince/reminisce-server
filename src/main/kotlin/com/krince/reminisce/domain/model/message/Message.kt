@@ -15,6 +15,7 @@ class Message(
     val turnOrder: Long,
     val text: String,
     val sttRawText: String?,
+    val audioUrl: String?,
     val createdAt: LocalDateTime,
 ) {
     companion object {
@@ -25,6 +26,7 @@ class Message(
             text: String,
             sttRawText: String?,
             at: LocalDateTime,
+            audioUrl: String? = null,
         ): Message = Message(
             messageId = MessageId(UuidGenerator.generate()),
             sessionId = sessionId,
@@ -33,6 +35,7 @@ class Message(
             turnOrder = turnOrder,
             text = text,
             sttRawText = sttRawText,
+            audioUrl = audioUrl,
             createdAt = at,
         )
 
@@ -50,6 +53,7 @@ class Message(
             turnOrder = turnOrder,
             text = text,
             sttRawText = null,
+            audioUrl = null,
             createdAt = at,
         )
     }

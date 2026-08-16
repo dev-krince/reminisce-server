@@ -128,7 +128,7 @@ interface SpeakingSessionController {
 
     @Operation(
         summary = "아이 발화 제출",
-        description = "로그인한 보호자가 본인 아이의 진행 중 세션에서 현재 대화(DIALOGUE) 장면에 기기 STT로 확정한 발화 텍스트를 제출합니다. 아이 메시지 1건을 저장합니다.",
+        description = "로그인한 보호자가 본인 아이의 진행 중 세션에서 현재 대화(DIALOGUE) 장면에 기기 STT로 확정한 발화 텍스트를 제출합니다. multipart/form-data로 request 파트(JSON: 발화 텍스트)와 선택 audio 파트(발화 녹음 음성 파일)를 받습니다. audio 파트가 없으면 음성 URL은 null입니다.",
     )
     @SwaggerSuccessResponse(responseCode = CREATED, description = "아이 발화 저장 성공")
     @SwaggerExceptionResponse(
@@ -144,7 +144,8 @@ interface SpeakingSessionController {
     )
     fun submitUtterance(
         @Parameter(description = "말하기 세션 고유 식별자", required = true) @PathVariable sessionId: String,
-        @Valid @RequestBody request: SubmitUtteranceRequest,
+        @Valid @RequestPart("request") request: SubmitUtteranceRequest,
+        @RequestPart("audio", required = false) audio: MultipartFile?,
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<UtteranceResponse>>
 

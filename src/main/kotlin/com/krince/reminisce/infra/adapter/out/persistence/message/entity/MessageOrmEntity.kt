@@ -45,6 +45,10 @@ class MessageOrmEntity(
     @Comment("아이 발화 STT 원문 (아이 발화에만 저장)")
     val sttRawText: String?,
 
+    @Column(name = "audio_url", columnDefinition = "text", updatable = false)
+    @Comment("아이 발화 음성 파일 URL (아이 발화에만 저장, 선택)")
+    val audioUrl: String? = null,
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @Comment("생성 시각")
     val createdAt: LocalDateTime,

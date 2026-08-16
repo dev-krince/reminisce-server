@@ -102,12 +102,13 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
     val characterLineSceneIdStr = "scene-uuid-3"
     val validText = "며느리가 참 힘들었겠어요"
 
-    fun command(text: String = validText, sttRawText: String? = null): SubmitUtteranceCommand =
+    fun command(text: String = validText, sttRawText: String? = null, audioUrl: String? = null): SubmitUtteranceCommand =
         SubmitUtteranceCommand(
             sessionId = sessionIdStr,
             guardianId = guardianIdStr,
             text = text,
             sttRawText = sttRawText,
+            audioUrl = audioUrl,
         )
 
     fun session(
@@ -385,6 +386,43 @@ class SubmitUtteranceApplicationServiceTest : FunSpec({
             val childMessage = savedSlot.first()
             childMessage.text shouldBe text
             childMessage.sttRawText shouldBe null
+        }
+
+        test("audioUrl을 제공하면 저장된 아이 메시지의 audioUrl이 그 값이다") {
+            val text = "며느리가 참 힘들었겠어요"
+            val givenAudioUrl = "/files/utterance-audio.m4a"
+            every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(dialogueSceneIdStr)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
+            every { loadMessagePort.countBySession(SpeakingSessionId(sessionIdStr)) } returns 0L
+            val savedSlot = mutableListOf<Message>()
+            every { commandMessagePort.save(capture(savedSlot)) } answers { savedSlot.last() }
+            every { speechAnalysisPort.analyze(text) } returns rawAnalysis(emptyList())
+            every { commandUtteranceAnalysisPort.save(any()) } answers { firstArg() }
+            every { commandSpeakingSessionPort.save(any()) } answers { firstArg() }
+            every { characterReplyPort.generate(any()) } returns "표시명: 스텁 대사"
+
+            service.execute(command(text = text, audioUrl = givenAudioUrl))
+
+            savedSlot.first().audioUrl shouldBe givenAudioUrl
+        }
+
+        test("audioUrl 미제공이면 저장된 아이 메시지의 audioUrl은 null이다") {
+            val text = "며느리가 참 힘들었겠어요"
+            every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session(dialogueSceneIdStr)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { storyAccessPort.findScene(storyId, dialogueSceneIdStr) } returns dialogueScene()
+            every { loadMessagePort.countBySession(SpeakingSessionId(sessionIdStr)) } returns 0L
+            val savedSlot = mutableListOf<Message>()
+            every { commandMessagePort.save(capture(savedSlot)) } answers { savedSlot.last() }
+            every { speechAnalysisPort.analyze(text) } returns rawAnalysis(emptyList())
+            every { commandUtteranceAnalysisPort.save(any()) } answers { firstArg() }
+            every { commandSpeakingSessionPort.save(any()) } answers { firstArg() }
+            every { characterReplyPort.generate(any()) } returns "표시명: 스텁 대사"
+
+            service.execute(command(text = text, audioUrl = null))
+
+            savedSlot.first().audioUrl shouldBe null
         }
 
         test("근거 없는 요소는 폐기되어 누적되지 않는다") {
