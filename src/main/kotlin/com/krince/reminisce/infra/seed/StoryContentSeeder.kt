@@ -111,7 +111,7 @@ class StoryContentSeeder(
                 sceneOrder = 1,
                 chapter = 1,
                 sceneDescription = BANGGUI_INTRO,
-                imageNumber = 1,
+                imageNumber = 1358,
             ),
             narrationScene(
                 sceneId = "sc_banggui_02",
@@ -120,7 +120,7 @@ class StoryContentSeeder(
                 sceneDescription = "그래서 며느리는 방귀가 나오려고 할 때마다 꾹꾹 참았습니다. " +
                     "하루도 참고, 이틀도 참고, 그렇게 오래 참다 보니 배는 점점 빵빵하게 부풀어 올랐고 얼굴은 노랗게 변했습니다. " +
                     "몸도 마음도 너무 힘들었지만, 며느리는 차마 가족들에게 솔직하게 말하지 못했습니다.",
-                imageNumber = 2,
+                imageNumber = 1359,
             ),
             characterLineScene(
                 sceneId = "sc_banggui_03",
@@ -131,7 +131,7 @@ class StoryContentSeeder(
                 characterDisplayName = DAUGHTER_IN_LAW_DISPLAY_NAME,
                 characterLine = "ㅇㅇ아, 내 방귀가 너무 크다는 걸 알면 가족들이 나를 이상하게 생각하지 않을까?",
                 characterVoice = DAUGHTER_IN_LAW_VOICE,
-                imageNumber = 3,
+                imageNumber = 1361,
             ),
             dialogueScene(
                 sceneId = "sc_banggui_04",
@@ -149,7 +149,7 @@ class StoryContentSeeder(
                 ),
                 maxTurns = 4,
                 characterVoice = DAUGHTER_IN_LAW_VOICE,
-                imageNumber = 3,
+                imageNumber = 1361,
             ),
             characterLineScene(
                 sceneId = "sc_banggui_05",
@@ -160,7 +160,7 @@ class StoryContentSeeder(
                 characterDisplayName = DAUGHTER_IN_LAW_DISPLAY_NAME,
                 characterLine = "그래도 아직은 못 말하겠어. 조금만 더 참아 볼게.",
                 characterVoice = DAUGHTER_IN_LAW_VOICE,
-                imageNumber = 3,
+                imageNumber = 1361,
             ),
         )
     }
@@ -180,7 +180,7 @@ class StoryContentSeeder(
                     "며느리는 조심스럽게 가족들에게 말했습니다. \"저… 사실은 방귀를 너무 오래 참아서 배가 아파요. 조금만 뀌어도 될까요?\" " +
                     "며느리는 아주 살짝만 뀌려고 했습니다. 하지만 그동안 너무 오래 참았던 탓에 방귀는 생각보다 훨씬 크게 터져 나왔습니다. " +
                     "마당의 먼지가 휘리릭 날아가고, 기왓장이 달그락거리고, 시아버지의 갓까지 휙 날아가 버렸습니다.",
-                imageNumber = 4,
+                imageNumber = 1362,
             ),
             characterLineScene(
                 sceneId = "sc_banggui_07",
@@ -191,7 +191,7 @@ class StoryContentSeeder(
                 characterDisplayName = FATHER_IN_LAW_DISPLAY_NAME,
                 characterLine = "아이고, 이게 무슨 일이냐! 우리 집안이 다 흔들리는구나! 이렇게 창피한 며느리와 함께 못 살겠다! ㅇㅇ도 그렇게 생각하지 않니?",
                 characterVoice = FATHER_IN_LAW_VOICE,
-                imageNumber = 5,
+                imageNumber = 1363,
             ),
             dialogueScene(
                 sceneId = "sc_banggui_08",
@@ -209,7 +209,7 @@ class StoryContentSeeder(
                 ),
                 maxTurns = 5,
                 characterVoice = FATHER_IN_LAW_VOICE,
-                imageNumber = 5,
+                imageNumber = 1363,
             ),
             characterLineScene(
                 sceneId = "sc_banggui_09",
@@ -220,7 +220,7 @@ class StoryContentSeeder(
                 characterDisplayName = FATHER_IN_LAW_DISPLAY_NAME,
                 characterLine = "흥, 그래도 도저히 이런 며느리와는 함께 살 수 없으니 친정으로 데려다줘야겠다.",
                 characterVoice = FATHER_IN_LAW_VOICE,
-                imageNumber = 5,
+                imageNumber = 1363,
             ),
         )
     }
@@ -241,7 +241,7 @@ class StoryContentSeeder(
                     "시아버지는 배를 보자 군침이 돌았습니다. \"참 맛있어 보이는 배로구나. 그런데 너무 높아서 딸 수가 없겠네.\" " +
                     "마을 사람들도 그 배를 먹고 싶어 했지만, 나무가 너무 높아 아무도 딸 수 없었습니다. " +
                     "긴 장대를 가져와도 닿지 않았고, 나무에 올라가려 해도 가지가 너무 높았습니다.",
-                imageNumber = 6,
+                imageNumber = 1365,
             ),
             characterLineScene(
                 sceneId = "sc_banggui_11",
@@ -252,7 +252,7 @@ class StoryContentSeeder(
                 characterDisplayName = VILLAGE_CHIEF_DISPLAY_NAME,
                 characterLine = "이 배나무는 해마다 탐스러운 배가 열리지만, 너무 높아서 아무도 딸 수가 없단다. 무슨 뾰족한 방법이 없겠는가?",
                 characterVoice = VILLAGE_CHIEF_VOICE,
-                imageNumber = 7,
+                imageNumber = 1367,
             ),
             dialogueScene(
                 sceneId = "sc_banggui_12",
@@ -274,7 +274,7 @@ class StoryContentSeeder(
                     examples = PEAR_DROP_MISSION_EXAMPLES,
                 ),
                 characterVoice = VILLAGE_CHIEF_VOICE,
-                imageNumber = 7,
+                imageNumber = 1367,
             ),
             characterLineScene(
                 sceneId = "sc_banggui_13",
@@ -285,7 +285,7 @@ class StoryContentSeeder(
                 characterDisplayName = VILLAGE_CHIEF_DISPLAY_NAME,
                 characterLine = "아이고, 방귀 뀌는 며느리 덕분에 온 마을이 배 잔치를 할 수 있겠구려, 고맙소!",
                 characterVoice = VILLAGE_CHIEF_VOICE,
-                imageNumber = 7,
+                imageNumber = 1367,
             ),
         )
     }
@@ -303,7 +303,7 @@ class StoryContentSeeder(
                 chapter = 4,
                 sceneDescription = "시아버지는 며느리에게 미안한 마음이 들었습니다. " +
                     "\"내가 네 모습을 제대로 보지 못했구나. 남들과 다르다고 해서 부끄러운 것이 아닌데, 내가 너무 성급하게 생각했다.\"",
-                imageNumber = 8,
+                imageNumber = 1369,
             ),
             characterLineScene(
                 sceneId = "sc_banggui_15",
@@ -315,7 +315,7 @@ class StoryContentSeeder(
                 characterLine = "ㅇㅇ이 덕분에 내 방귀가 누군가에게 도움이 될 수 있다는 걸 처음 알았어. " +
                     "이제는 방귀 소리가 큰 걸 부끄러워하지 않아도 될까?",
                 characterVoice = DAUGHTER_IN_LAW_VOICE,
-                imageNumber = 9,
+                imageNumber = 1373,
             ),
             dialogueScene(
                 sceneId = "sc_banggui_16",
@@ -337,7 +337,7 @@ class StoryContentSeeder(
                     examples = STRENGTH_REFRAME_MISSION_EXAMPLES,
                 ),
                 characterVoice = DAUGHTER_IN_LAW_VOICE,
-                imageNumber = 9,
+                imageNumber = 1373,
             ),
             characterLineScene(
                 sceneId = "sc_banggui_17",
@@ -348,7 +348,7 @@ class StoryContentSeeder(
                 characterDisplayName = DAUGHTER_IN_LAW_DISPLAY_NAME,
                 characterLine = "이제는 부끄러워하며 숨기지 않고, 조심해서 좋은 일에 써 볼게.",
                 characterVoice = DAUGHTER_IN_LAW_VOICE,
-                imageNumber = 9,
+                imageNumber = 1373,
             ),
         )
     }
@@ -426,7 +426,7 @@ class StoryContentSeeder(
     )
 
     private fun sceneImageUrl(imageNumber: Int): String =
-        SCENE_IMAGE_URL_PREFIX + imageNumber.toString().padStart(SCENE_IMAGE_NUMBER_PAD_WIDTH, '0') + SCENE_IMAGE_URL_SUFFIX
+        SCENE_IMAGE_URL_PREFIX + imageNumber + SCENE_IMAGE_URL_SUFFIX
 
     private fun characterAvatarUrl(characterName: String): String =
         CHARACTER_AVATAR_URL_PREFIX + characterName + SCENE_IMAGE_URL_SUFFIX
@@ -438,9 +438,8 @@ class StoryContentSeeder(
         const val BANGGUI_STORY_ID = "s_banggui_daughter_in_law_001"
 
         const val BANGGUI_COVER_IMAGE_URL = "/files/banggui-cover.png"
-        const val SCENE_IMAGE_URL_PREFIX = "/files/banggui-scene-"
+        const val SCENE_IMAGE_URL_PREFIX = "/files/image_"
         const val SCENE_IMAGE_URL_SUFFIX = ".png"
-        const val SCENE_IMAGE_NUMBER_PAD_WIDTH = 2
         const val CHARACTER_AVATAR_URL_PREFIX = "/files/char-"
         const val CARD_IMAGE_URL_PREFIX = "/files/banggui-card-"
 
