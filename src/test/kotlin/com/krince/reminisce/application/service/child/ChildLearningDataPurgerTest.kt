@@ -12,6 +12,7 @@ import com.krince.reminisce.application.port.out.report.CommandReportPort
 import com.krince.reminisce.application.port.out.savedstory.CommandSavedStoryPort
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
+import com.krince.reminisce.application.port.out.storyprofile.CommandStoryProfilePort
 import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
 import com.krince.reminisce.application.port.out.wordbook.CommandSavedWordPort
 import com.krince.reminisce.domain.model.child.vo.ChildId
@@ -43,6 +44,7 @@ class ChildLearningDataPurgerTest : FunSpec({
     val loadProfileInterviewPort = mockk<LoadProfileInterviewPort>()
     val commandProfileInterviewPort = mockk<CommandProfileInterviewPort>()
     val commandInterviewMessagePort = mockk<CommandInterviewMessagePort>()
+    val commandStoryProfilePort = mockk<CommandStoryProfilePort>()
     val purger = ChildLearningDataPurger(
         loadSpeakingSessionPort = loadSpeakingSessionPort,
         loadMessagePort = loadMessagePort,
@@ -58,6 +60,7 @@ class ChildLearningDataPurgerTest : FunSpec({
         loadProfileInterviewPort = loadProfileInterviewPort,
         commandProfileInterviewPort = commandProfileInterviewPort,
         commandInterviewMessagePort = commandInterviewMessagePort,
+        commandStoryProfilePort = commandStoryProfilePort,
     )
 
     beforeEach { clearAllMocks() }
@@ -81,6 +84,7 @@ class ChildLearningDataPurgerTest : FunSpec({
             every { commandSpeakingSessionPort.deleteAllByChildIds(childIds) } returns Unit
             every { loadProfileInterviewPort.findInterviewIdsByChildIds(childIds) } returns interviewIds
             every { commandInterviewMessagePort.deleteAllByInterviewIds(interviewIds) } returns Unit
+            every { commandStoryProfilePort.deleteAllByChildIds(childIds) } returns Unit
             every { commandProfileInterviewPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandSavedStoryPort.deleteAllByChildIds(childIds) } returns Unit
@@ -96,6 +100,7 @@ class ChildLearningDataPurgerTest : FunSpec({
                 commandMissionResultPort.deleteAllBySessionIds(sessionIds)
                 commandSpeakingSessionPort.deleteAllByChildIds(childIds)
                 commandInterviewMessagePort.deleteAllByInterviewIds(interviewIds)
+                commandStoryProfilePort.deleteAllByChildIds(childIds)
                 commandProfileInterviewPort.deleteAllByChildIds(childIds)
                 commandSavedWordPort.deleteAllByChildIds(childIds)
                 commandSavedStoryPort.deleteAllByChildIds(childIds)
@@ -105,6 +110,7 @@ class ChildLearningDataPurgerTest : FunSpec({
         test("세션이 없으면 세션 계열 삭제를 전혀 호출하지 않고 인터뷰·단어·찜만 삭제한다") {
             every { loadSpeakingSessionPort.findSessionIdsByChildIds(childIds) } returns emptyList()
             every { loadProfileInterviewPort.findInterviewIdsByChildIds(childIds) } returns emptyList()
+            every { commandStoryProfilePort.deleteAllByChildIds(childIds) } returns Unit
             every { commandProfileInterviewPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandSavedStoryPort.deleteAllByChildIds(childIds) } returns Unit
@@ -135,6 +141,7 @@ class ChildLearningDataPurgerTest : FunSpec({
             every { commandMissionResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
             every { commandSpeakingSessionPort.deleteAllByChildIds(childIds) } returns Unit
             every { loadProfileInterviewPort.findInterviewIdsByChildIds(childIds) } returns emptyList()
+            every { commandStoryProfilePort.deleteAllByChildIds(childIds) } returns Unit
             every { commandProfileInterviewPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandSavedStoryPort.deleteAllByChildIds(childIds) } returns Unit

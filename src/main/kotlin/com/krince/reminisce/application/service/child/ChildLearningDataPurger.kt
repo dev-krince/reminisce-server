@@ -12,6 +12,7 @@ import com.krince.reminisce.application.port.out.report.CommandReportPort
 import com.krince.reminisce.application.port.out.savedstory.CommandSavedStoryPort
 import com.krince.reminisce.application.port.out.speakingsession.CommandSpeakingSessionPort
 import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSessionPort
+import com.krince.reminisce.application.port.out.storyprofile.CommandStoryProfilePort
 import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
 import com.krince.reminisce.application.port.out.wordbook.CommandSavedWordPort
 import com.krince.reminisce.domain.model.child.vo.ChildId
@@ -33,6 +34,7 @@ class ChildLearningDataPurger(
     private val loadProfileInterviewPort: LoadProfileInterviewPort,
     private val commandProfileInterviewPort: CommandProfileInterviewPort,
     private val commandInterviewMessagePort: CommandInterviewMessagePort,
+    private val commandStoryProfilePort: CommandStoryProfilePort,
 ) {
 
     fun purge(childIds: List<ChildId>): List<String> {
@@ -52,6 +54,7 @@ class ChildLearningDataPurger(
         if (interviewIds.isNotEmpty()) {
             commandInterviewMessagePort.deleteAllByInterviewIds(interviewIds)
         }
+        commandStoryProfilePort.deleteAllByChildIds(childIds)
         commandProfileInterviewPort.deleteAllByChildIds(childIds)
     }
 
