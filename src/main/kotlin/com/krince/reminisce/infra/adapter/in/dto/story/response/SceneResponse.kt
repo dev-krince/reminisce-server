@@ -37,6 +37,12 @@ class MissionResponse(
 
     @field:Schema(description = "단어카드 목록 (WORD_ORDER 전용 선택)", required = false)
     val wordCards: List<WordCardResponse>?,
+
+    @field:Schema(description = "미션 화면 표시용 제목", example = "안전하게 배를 떨어뜨려요", required = false)
+    val title: String?,
+
+    @field:Schema(description = "미션 화면 표시용 안내 문구", example = "배가 떨어질 때 사람들이 다치지 않도록, 먼저 준비할 일을 말해보세요.", required = false)
+    val description: String?,
 )
 
 @Schema(title = "SceneResponse", description = "이야기 장면 응답")
@@ -134,6 +140,8 @@ fun sceneResponse(result: SceneResult): SceneResponse = SceneResponse(
             wordCards = it.wordCards?.map { wordCard ->
                 WordCardResponse(text = wordCard.text, correctOrder = wordCard.correctOrder)
             },
+            title = it.title,
+            description = it.description,
         )
     },
     characterVoice = result.characterVoice?.let {

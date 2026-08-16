@@ -126,4 +126,34 @@ class MissionConverterTest : FunSpec({
             restored.wordCards shouldBe null
         }
     }
+
+    context("title·description 비파괴 확장") {
+        val displayMission = Mission(
+            goal = "안전하게 배 떨어뜨리기",
+            examples = listOf("무엇을 사용할지"),
+            title = "안전하게 배를 떨어뜨려요",
+            description = "배가 떨어질 때 사람들이 다치지 않도록, 먼저 준비할 일을 말해보세요.",
+        )
+
+        test("title·description이 있는 미션을 직렬화 후 복원하면 그대로 보존된다") {
+            val restored = converter.convertToEntityAttribute(converter.convertToDatabaseColumn(displayMission))
+
+            restored shouldBe displayMission
+        }
+
+        test("title·description 키가 없는 기존 JSON을 복원하면 둘 다 null이다") {
+            val legacyJson = """
+                {
+                  "goal": "목표",
+                  "examples": ["힌트 1"],
+                  "type": "SPEAKING"
+                }
+            """.trimIndent()
+
+            val restored = converter.convertToEntityAttribute(legacyJson).shouldNotBeNull()
+
+            restored.title shouldBe null
+            restored.description shouldBe null
+        }
+    }
 })

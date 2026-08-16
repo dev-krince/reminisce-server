@@ -25,6 +25,8 @@ class MissionConverter : AttributeConverter<Mission?, String?> {
         attribute.examples.forEach { examplesNode.add(it) }
         rootNode.put(TYPE_FIELD, attribute.type.name)
         writeWordCards(rootNode, attribute.wordCards)
+        attribute.title?.let { rootNode.put(TITLE_FIELD, it) }
+        attribute.description?.let { rootNode.put(DESCRIPTION_FIELD, it) }
 
         return objectMapper.writeValueAsString(rootNode)
     }
@@ -43,7 +45,18 @@ class MissionConverter : AttributeConverter<Mission?, String?> {
             examples = examples,
             type = readType(rootNode),
             wordCards = readWordCards(rootNode),
+            title = readNullableText(rootNode, TITLE_FIELD),
+            description = readNullableText(rootNode, DESCRIPTION_FIELD),
         )
+    }
+
+    private fun readNullableText(rootNode: JsonNode, field: String): String? {
+        val node: JsonNode = rootNode.path(field)
+        if (node.isMissingNode || node.isNull) {
+            return null
+        }
+
+        return node.asText().ifBlank { null }
     }
 
     private fun writeWordCards(rootNode: ObjectNode, wordCards: List<WordCard>?) {
@@ -87,6 +100,8 @@ class MissionConverter : AttributeConverter<Mission?, String?> {
         const val EXAMPLES_FIELD = "examples"
         const val TYPE_FIELD = "type"
         const val WORD_CARDS_FIELD = "wordCards"
+        const val TITLE_FIELD = "title"
+        const val DESCRIPTION_FIELD = "description"
         const val WORD_CARD_TEXT_FIELD = "text"
         const val WORD_CARD_ORDER_FIELD = "correctOrder"
     }

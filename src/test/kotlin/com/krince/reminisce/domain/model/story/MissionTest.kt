@@ -69,4 +69,30 @@ class MissionTest : FunSpec({
             mission.wordCards shouldBe null
         }
     }
+
+    context("explanationText") {
+        test("title과 description이 있으면 공백으로 이어 붙인 설명 문구를 만든다") {
+            val mission = Mission(
+                goal = "목표",
+                examples = listOf("예시"),
+                title = "안전하게 배를 떨어뜨려요",
+                description = "배가 떨어질 때 사람들이 다치지 않도록, 먼저 준비할 일을 말해보세요.",
+            )
+
+            mission.explanationText() shouldBe
+                "안전하게 배를 떨어뜨려요 배가 떨어질 때 사람들이 다치지 않도록, 먼저 준비할 일을 말해보세요."
+        }
+
+        test("title·description이 모두 없으면 null이다") {
+            val mission = Mission(goal = "목표", examples = listOf("예시"))
+
+            mission.explanationText() shouldBe null
+        }
+
+        test("description만 있으면 description만 반환한다") {
+            val mission = Mission(goal = "목표", examples = listOf("예시"), description = "카드를 순서대로 놓아 문장을 만들어보세요")
+
+            mission.explanationText() shouldBe "카드를 순서대로 놓아 문장을 만들어보세요"
+        }
+    }
 })

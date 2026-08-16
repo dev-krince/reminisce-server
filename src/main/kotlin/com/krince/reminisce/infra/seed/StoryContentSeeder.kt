@@ -269,6 +269,8 @@ class StoryContentSeeder(
                     goal = PEAR_DROP_MISSION_GOAL,
                     examples = PEAR_DROP_MISSION_EXAMPLES,
                     type = MissionType.SPEAKING,
+                    title = PEAR_DROP_MISSION_TITLE,
+                    description = PEAR_DROP_MISSION_DESCRIPTION,
                 ),
                 characterVoice = VILLAGE_CHIEF_VOICE,
                 imageNumber = 1367,
@@ -332,6 +334,8 @@ class StoryContentSeeder(
                     examples = STRENGTH_REFRAME_MISSION_EXAMPLES,
                     type = MissionType.WORD_ORDER,
                     wordCards = STRENGTH_REFRAME_MISSION_WORD_CARDS,
+                    title = STRENGTH_REFRAME_MISSION_TITLE,
+                    description = STRENGTH_REFRAME_MISSION_DESCRIPTION,
                 ),
                 characterVoice = DAUGHTER_IN_LAW_VOICE,
                 imageNumber = 1373,
@@ -471,6 +475,8 @@ class StoryContentSeeder(
             "시댁 식구들이 자신을 이상하게 볼까 봐 걱정했기 때문입니다."
 
         const val PEAR_DROP_MISSION_GOAL = "높은 배나무의 배를 떨어뜨리기 위해 며느리의 방귀를 안전하게 사용할 수 있는 방법 찾기"
+        const val PEAR_DROP_MISSION_TITLE = "안전하게 배를 떨어뜨려요"
+        const val PEAR_DROP_MISSION_DESCRIPTION = "배가 떨어질 때 사람들이 다치지 않도록, 먼저 준비할 일을 말해보세요."
         val PEAR_DROP_MISSION_EXAMPLES = listOf(
             "무엇을 사용할 것인지",
             "주변 사람들과 시아버지는 어디로 피해야 할지",
@@ -479,6 +485,8 @@ class StoryContentSeeder(
         )
 
         const val STRENGTH_REFRAME_MISSION_GOAL = "처음에는 단점처럼 보였지만 좋은 일에 쓸 수 있는 특징 찾기"
+        const val STRENGTH_REFRAME_MISSION_TITLE = "용기를 주는 말을 완료해요"
+        const val STRENGTH_REFRAME_MISSION_DESCRIPTION = "카드를 순서대로 놓아 문장을 만들어보세요"
         val STRENGTH_REFRAME_MISSION_EXAMPLES = listOf(
             "목소리가 큰 친구는 멀리 있는 사람을 부를 수 있어요",
             "질문이 많은 친구는 새로운 생각을 찾을 수 있어요",
