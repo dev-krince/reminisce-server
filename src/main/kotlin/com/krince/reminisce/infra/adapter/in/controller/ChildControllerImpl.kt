@@ -1,9 +1,11 @@
 package com.krince.reminisce.infra.adapter.`in`.controller
 
+import com.krince.reminisce.application.port.`in`.child.command.DeleteChildCommand
 import com.krince.reminisce.application.port.`in`.child.command.GetChildCommand
 import com.krince.reminisce.application.port.`in`.child.command.GetChildrenCommand
 import com.krince.reminisce.application.port.`in`.child.command.RegisterChildCommand
 import com.krince.reminisce.application.port.`in`.child.result.ChildResult
+import com.krince.reminisce.application.port.`in`.child.usecase.DeleteChildUseCase
 import com.krince.reminisce.application.port.`in`.child.usecase.GetChildUseCase
 import com.krince.reminisce.application.port.`in`.child.usecase.GetChildrenUseCase
 import com.krince.reminisce.application.port.`in`.child.usecase.RegisterChildUseCase
@@ -13,12 +15,14 @@ import com.krince.reminisce.infra.adapter.`in`.dto.child.response.childResponse
 import com.krince.reminisce.infra.security.CustomUserDetails
 import com.krince.reminisce.shared.response.SuccessResponse
 import com.krince.reminisce.shared.response.SuccessResponseCode.CREATED
+import com.krince.reminisce.shared.response.SuccessResponseCode.NO_CONTENT
 import com.krince.reminisce.shared.response.SuccessResponseCode.OK
 import com.krince.reminisce.shared.response.successResponse
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -33,6 +37,7 @@ class ChildControllerImpl(
     private val registerChildUseCase: RegisterChildUseCase,
     private val getChildrenUseCase: GetChildrenUseCase,
     private val getChildUseCase: GetChildUseCase,
+    private val deleteChildUseCase: DeleteChildUseCase,
 ) : ChildController {
 
     @PostMapping
@@ -76,5 +81,16 @@ class ChildControllerImpl(
         val responseBody: SuccessResponse<ChildResponse> = successResponse(responseCode = OK, data = response)
 
         return ResponseEntity.status(responseBody.code).body(responseBody)
+    }
+
+    @DeleteMapping("/{childId}")
+    override fun deleteChild(
+        @PathVariable childId: String,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<Void> {
+        val command = DeleteChildCommand(guardianId = userDetails.getId(), childId = childId)
+        deleteChildUseCase.execute(command)
+
+        return ResponseEntity.status(NO_CONTENT.code).build()
     }
 }

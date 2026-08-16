@@ -33,6 +33,10 @@ class ChildOrmAdapter(
         return ChildMapper.toDomain(savedEntity)
     }
 
+    override fun deleteById(childId: ChildId) {
+        repository.deleteById(childId.value)
+    }
+
     override fun deleteAllByGuardianId(guardianId: UserId) {
         repository.deleteAllByGuardianId(guardianId.value)
     }

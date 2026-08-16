@@ -16,6 +16,7 @@ import com.krince.reminisce.shared.response.ExceptionResponseCode.INVALID_TOKEN
 import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND_CHILD
 import com.krince.reminisce.shared.response.SuccessResponse
 import com.krince.reminisce.shared.response.SuccessResponseCode.CREATED
+import com.krince.reminisce.shared.response.SuccessResponseCode.NO_CONTENT
 import com.krince.reminisce.shared.response.SuccessResponseCode.OK
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -80,4 +81,26 @@ interface ChildController {
         childId: String,
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<ChildResponse>>
+
+    @Operation(
+        summary = "아이 프로필 삭제",
+        description = "로그인한 보호자의 아이 프로필과 그 아이의 모든 관련 데이터(말하기 세션·대화·발화분석·리포트·후활동·미션 결과·찜·단어장·동의 기록)를 영구 삭제합니다. 되돌릴 수 없습니다.",
+    )
+    @SwaggerSuccessResponse(responseCode = NO_CONTENT, description = "아이 삭제 성공")
+    @SwaggerExceptionResponse(
+        examples = [
+            ExceptionExample(code = EMPTY_TOKEN, name = "토큰 없음", message = "토큰이 없습니다.", description = "인증 토큰이 제공되지 않은 경우"),
+            ExceptionExample(code = INVALID_TOKEN, name = "유효하지 않은 토큰", message = "유효하지 않은 토큰입니다.", description = "토큰이 유효하지 않거나 서명이 잘못된 경우"),
+            ExceptionExample(code = EXPIRED_TOKEN, name = "만료된 토큰", message = "만료된 토큰입니다.", description = "토큰의 유효기간이 만료된 경우"),
+            ExceptionExample(code = NOT_FOUND_CHILD, name = "아이 없음", message = "아이가 존재하지 않습니다.", description = "삭제하려는 아이가 없거나 다른 보호자의 아이인 경우"),
+            ExceptionExample(code = INTERNAL_SERVER_ERROR, name = "서버 오류", message = "서버 에러입니다. 개발자에게 문의해주세요.", description = "예상치 못한 서버 오류가 발생한 경우"),
+        ]
+    )
+    fun deleteChild(
+        @Parameter(description = "아이 고유 식별자", example = "e443e5c3-0243-4d28-ba79-37cf3b923023", required = true)
+        @NotBlank(message = "아이 식별자는 비어있을 수 없습니다.")
+        @PathVariable
+        childId: String,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<Void>
 }

@@ -350,4 +350,64 @@ class ChildControllerImplTest(
             }
         }
     }
+
+    context("deleteChild") {
+        context("성공") {
+            test("본인 아이를 삭제하면 204를 반환하고 DB에서 그 아이가 사라진다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+                val childId = "mine-$guardianId"
+                testChildFixture.saveChild(childEntity(childId, guardianId, "토토"))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .delete("/children/$childId")
+                    .then()
+                    .statusCode(204)
+
+                testChildFixture.findAllByGuardianId(guardianId).size shouldBe 0
+            }
+        }
+        context("예외케이스") {
+            test("타 보호자의 아이 id로 삭제하면 404와 NOT_FOUND_CHILD로 은닉하고 그 아이는 남는다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                val otherGuardianId = "other-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                testUserFixture.saveUser(userEntity(otherGuardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+                val otherChildId = "theirs-$otherGuardianId"
+                testChildFixture.saveChild(childEntity(otherChildId, otherGuardianId, "루루"))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .delete("/children/$otherChildId")
+                    .then()
+                    .statusCode(404)
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND_CHILD.detailCode))
+                    .body("message", equalTo("아이가 존재하지 않습니다."))
+
+                testChildFixture.findAllByGuardianId(otherGuardianId).size shouldBe 1
+            }
+
+            test("존재하지 않는 아이 id로 삭제하면 404와 NOT_FOUND_CHILD를 반환한다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .delete("/children/non-existent-${uniqueSuffix()}")
+                    .then()
+                    .statusCode(404)
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND_CHILD.detailCode))
+            }
+        }
+    }
 })
