@@ -12,6 +12,8 @@ interface LoadSpeakingSessionPort {
 
     fun findResumableByChild(childId: ChildId): List<SpeakingSession>
 
+    fun findLatestCompletedByChild(childId: ChildId): SpeakingSession?
+
     fun findStartedStoryIdsByChild(childId: ChildId): List<String>
 
     fun findSessionIdsByChildIds(childIds: List<ChildId>): List<String>

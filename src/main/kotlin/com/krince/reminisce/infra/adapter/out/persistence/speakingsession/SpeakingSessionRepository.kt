@@ -15,6 +15,11 @@ interface SpeakingSessionRepository : JpaRepository<SpeakingSessionOrmEntity, St
 
     fun findBySessionId(sessionId: String): SpeakingSessionOrmEntity?
 
+    fun findFirstByChildIdAndStatusOrderByLastActivityAtDesc(
+        childId: String,
+        status: String,
+    ): SpeakingSessionOrmEntity?
+
     fun findAllByChildIdAndStatusInOrderByLastActivityAtDesc(
         childId: String,
         statuses: List<String>,

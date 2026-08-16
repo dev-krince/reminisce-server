@@ -12,8 +12,11 @@ import com.krince.reminisce.application.port.`in`.postactivity.result.CardOrderR
 import com.krince.reminisce.application.port.`in`.postactivity.result.RetellingResult
 import com.krince.reminisce.application.port.`in`.postactivity.usecase.SubmitCardOrderUseCase
 import com.krince.reminisce.application.port.`in`.postactivity.usecase.SubmitRetellingUseCase
+import com.krince.reminisce.application.port.`in`.report.command.GetLatestSessionReportCommand
 import com.krince.reminisce.application.port.`in`.report.command.GetSessionReportCommand
+import com.krince.reminisce.application.port.`in`.report.result.LatestSessionReportResult
 import com.krince.reminisce.application.port.`in`.report.result.SessionReportResult
+import com.krince.reminisce.application.port.`in`.report.usecase.GetLatestSessionReportUseCase
 import com.krince.reminisce.application.port.`in`.report.usecase.GetSessionReportUseCase
 import com.krince.reminisce.application.port.`in`.speakingsession.command.AdvanceSpeakingSceneCommand
 import com.krince.reminisce.application.port.`in`.speakingsession.command.GetResumableSessionsCommand
@@ -48,7 +51,9 @@ import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.CardOrd
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.RetellingResultResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.cardOrderResultResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.retellingResultResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.report.response.LatestSessionReportResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.report.response.SessionReportResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.report.response.latestSessionReportResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.report.response.sessionReportResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.request.StartSpeakingSessionRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingHintResponse
@@ -99,6 +104,7 @@ class SpeakingSessionControllerImpl(
     private val submitMissionAnswerUseCase: SubmitMissionAnswerUseCase,
     private val submitRetellingUseCase: SubmitRetellingUseCase,
     private val getSessionReportUseCase: GetSessionReportUseCase,
+    private val getLatestSessionReportUseCase: GetLatestSessionReportUseCase,
     private val storeFilePort: StoreFilePort,
 ) : SpeakingSessionController {
 
@@ -312,6 +318,20 @@ class SpeakingSessionControllerImpl(
         val result: SessionReportResult = getSessionReportUseCase.execute(command)
         val response: SessionReportResponse = sessionReportResponse(result)
         val responseBody: SuccessResponse<SessionReportResponse> =
+            successResponse(responseCode = OK, data = response)
+
+        return ResponseEntity.status(responseBody.code).body(responseBody)
+    }
+
+    @GetMapping("/reports/latest")
+    override fun getLatestSessionReport(
+        @RequestParam childId: String,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<SuccessResponse<LatestSessionReportResponse>> {
+        val command = GetLatestSessionReportCommand(childId = childId, guardianId = userDetails.getId())
+        val result: LatestSessionReportResult = getLatestSessionReportUseCase.execute(command)
+        val response: LatestSessionReportResponse = latestSessionReportResponse(result = result)
+        val responseBody: SuccessResponse<LatestSessionReportResponse> =
             successResponse(responseCode = OK, data = response)
 
         return ResponseEntity.status(responseBody.code).body(responseBody)

@@ -8,6 +8,7 @@ import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.request.SubmitCa
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.request.SubmitRetellingRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.CardOrderResultResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.RetellingResultResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.report.response.LatestSessionReportResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.report.response.SessionReportResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.request.StartSpeakingSessionRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.speakingsession.response.SpeakingHintResponse
@@ -319,4 +320,24 @@ interface SpeakingSessionController {
         @Parameter(description = "말하기 세션 고유 식별자", required = true) @PathVariable sessionId: String,
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<SessionReportResponse>>
+
+    @Operation(
+        summary = "최신 완료 세션 리포트 조회",
+        description = "아이의 가장 최근에 완료된 말하기 세션을 찾아 그 리포트를 반환합니다. 리포트가 아직 없으면 이 요청에서 생성하므로 첫 응답은 몇 초 걸릴 수 있습니다. 완료된 세션이 없으면 404를 반환합니다.",
+    )
+    @SwaggerSuccessResponse(responseCode = OK, description = "최신 리포트 조회 성공")
+    @SwaggerExceptionResponse(
+        examples = [
+            ExceptionExample(code = EMPTY_TOKEN, name = "토큰 없음", message = "토큰이 없습니다.", description = "인증 토큰이 제공되지 않은 경우"),
+            ExceptionExample(code = INVALID_TOKEN, name = "유효하지 않은 토큰", message = "유효하지 않은 토큰입니다.", description = "토큰이 유효하지 않거나 서명이 잘못된 경우"),
+            ExceptionExample(code = EXPIRED_TOKEN, name = "만료된 토큰", message = "만료된 토큰입니다.", description = "토큰의 유효기간이 만료된 경우"),
+            ExceptionExample(code = NOT_FOUND_CHILD, name = "아이 없음", message = "아이가 존재하지 않습니다.", description = "아이가 없거나 다른 보호자의 아이인 경우"),
+            ExceptionExample(code = NOT_FOUND, name = "완료 세션 없음", message = "리소스가 존재하지 않습니다.", description = "완료된 세션이 없어 리포트를 만들 수 없는 경우"),
+            ExceptionExample(code = INTERNAL_SERVER_ERROR, name = "서버 오류", message = "서버 에러입니다. 개발자에게 문의해주세요.", description = "리포트 생성에 실패했거나 예상치 못한 서버 오류가 발생한 경우"),
+        ]
+    )
+    fun getLatestSessionReport(
+        @Parameter(description = "아이 고유 식별자", required = true) @RequestParam childId: String,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<SuccessResponse<LatestSessionReportResponse>>
 }

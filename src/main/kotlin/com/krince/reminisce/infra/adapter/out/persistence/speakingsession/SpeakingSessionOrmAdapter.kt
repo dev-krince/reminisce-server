@@ -45,6 +45,15 @@ class SpeakingSessionOrmAdapter(
             RESUMABLE_STATUS_NAMES,
         ).map { SpeakingSessionMapper.toDomain(it) }
 
+    override fun findLatestCompletedByChild(childId: ChildId): SpeakingSession? {
+        val entity: SpeakingSessionOrmEntity = repository.findFirstByChildIdAndStatusOrderByLastActivityAtDesc(
+            childId.value,
+            SessionStatus.COMPLETED.name,
+        ) ?: return null
+
+        return SpeakingSessionMapper.toDomain(entity)
+    }
+
     override fun findStartedStoryIdsByChild(childId: ChildId): List<String> =
         repository.findDistinctStoryIdsByChildId(childId.value)
 
