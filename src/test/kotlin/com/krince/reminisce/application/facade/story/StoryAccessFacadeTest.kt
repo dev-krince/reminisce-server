@@ -87,19 +87,24 @@ class StoryAccessFacadeTest : FunSpec({
         characterImageUrl = "/files/char-$characterName.png",
     )
 
-    fun story(scenes: List<Scene>): Story = Story(
+    fun story(
+        scenes: List<Scene>,
+        difficulty: Difficulty = Difficulty("보통"),
+        representativeImageUrl: String? = null,
+        topics: List<String> = emptyList(),
+    ): Story = Story(
         storyId = storyId,
         title = "방귀 뀌는 며느리",
         summary = "이야기 요약",
         intro = "이야기 도입",
         situation = null,
         childRole = null,
-        difficulty = Difficulty("보통"),
+        difficulty = difficulty,
         estimatedMinutes = 20,
-        representativeImageUrl = null,
+        representativeImageUrl = representativeImageUrl,
         status = StoryStatus.PUBLISHED,
         postActivityConfig = null,
-        topics = emptyList(),
+        topics = topics,
         scenes = scenes,
     )
 
@@ -174,6 +179,59 @@ class StoryAccessFacadeTest : FunSpec({
 
                 facade.findPrecedingCharacterLine(storyId, "unknown-scene") shouldBe null
             }
+        }
+    }
+
+    context("findResumableDisplayInfo") {
+        test("currentSceneId가 2번째 챕터 신이면 currentChapter=2·totalChapters=최대 챕터로 계산한다") {
+            every { loadStoryPort.findByIdWithScenesPublished(storyId) } returns story(
+                scenes = listOf(
+                    narrationScene("sc-1", 1, chapter = 1),
+                    narrationScene("sc-2", 2, chapter = 2),
+                    dialogueScene("sc-3", 3, chapter = 3),
+                ),
+            )
+
+            val result = facade.findResumableDisplayInfo(storyId, "sc-2")
+
+            result?.currentChapter shouldBe 2
+            result?.totalChapters shouldBe 3
+        }
+
+        test("currentSceneId가 null이면 currentChapter를 기본값 0으로 채운다") {
+            every { loadStoryPort.findByIdWithScenesPublished(storyId) } returns story(
+                scenes = listOf(
+                    narrationScene("sc-1", 1, chapter = 1),
+                    narrationScene("sc-2", 2, chapter = 2),
+                ),
+            )
+
+            val result = facade.findResumableDisplayInfo(storyId, null)
+
+            result?.currentChapter shouldBe 0
+            result?.totalChapters shouldBe 2
+        }
+
+        test("title·representativeImageUrl·difficulty·topics를 Story 값 그대로 매핑한다") {
+            every { loadStoryPort.findByIdWithScenesPublished(storyId) } returns story(
+                scenes = listOf(narrationScene("sc-1", 1, chapter = 1)),
+                difficulty = Difficulty("어려움"),
+                representativeImageUrl = "/files/cover.png",
+                topics = listOf("공감", "존중"),
+            )
+
+            val result = facade.findResumableDisplayInfo(storyId, "sc-1")
+
+            result?.title shouldBe "방귀 뀌는 며느리"
+            result?.representativeImageUrl shouldBe "/files/cover.png"
+            result?.difficulty shouldBe "어려움"
+            result?.topics shouldBe listOf("공감", "존중")
+        }
+
+        test("공개 이야기가 없으면 null을 반환한다") {
+            every { loadStoryPort.findByIdWithScenesPublished(storyId) } returns null
+
+            facade.findResumableDisplayInfo(storyId, "sc-1") shouldBe null
         }
     }
 })

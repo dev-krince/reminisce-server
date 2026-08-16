@@ -1,5 +1,6 @@
 package com.krince.reminisce.application.facade.story
 
+import com.krince.reminisce.application.port.access.story.ResumableStoryDisplayInfo
 import com.krince.reminisce.application.port.access.story.StoryAccessPort
 import com.krince.reminisce.application.port.out.story.LoadStoryPort
 import com.krince.reminisce.domain.model.story.Scene
@@ -68,5 +69,30 @@ class StoryAccessFacade(
         val story: Story = loadStoryPort.findByIdWithScenesPublished(storyId) ?: return null
 
         return story.postActivityConfig
+    }
+
+    override fun findResumableDisplayInfo(storyId: StoryId, currentSceneId: String?): ResumableStoryDisplayInfo? {
+        val story: Story = loadStoryPort.findByIdWithScenesPublished(storyId) ?: return null
+
+        return ResumableStoryDisplayInfo(
+            title = story.title,
+            representativeImageUrl = story.representativeImageUrl,
+            difficulty = story.difficulty.value,
+            topics = story.topics,
+            currentChapter = currentChapterOf(story, currentSceneId),
+            totalChapters = story.scenes.maxOfOrNull { it.chapter } ?: NO_CHAPTER,
+        )
+    }
+
+    private fun currentChapterOf(story: Story, currentSceneId: String?): Int {
+        if (currentSceneId == null) {
+            return NO_CHAPTER
+        }
+
+        return story.scenes.firstOrNull { it.sceneId.value == currentSceneId }?.chapter ?: NO_CHAPTER
+    }
+
+    companion object {
+        private const val NO_CHAPTER: Int = 0
     }
 }

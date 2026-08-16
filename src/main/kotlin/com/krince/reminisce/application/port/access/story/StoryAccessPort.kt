@@ -20,4 +20,6 @@ interface StoryAccessPort {
     fun findPrecedingCharacterLine(storyId: StoryId, currentSceneId: String): Scene?
 
     fun findPostActivityConfig(storyId: StoryId): PostActivityConfig?
+
+    fun findResumableDisplayInfo(storyId: StoryId, currentSceneId: String?): ResumableStoryDisplayInfo?
 }

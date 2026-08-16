@@ -26,6 +26,24 @@ class SpeakingSessionSummaryResponse(
     @field:JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     @field:Schema(description = "마지막 활동 시각", example = "2026-01-09 15:00:00", required = true)
     val lastActivityAt: LocalDateTime,
+
+    @field:Schema(description = "이야기 제목", example = "방귀 뀌는 며느리", required = true)
+    val title: String,
+
+    @field:Schema(description = "이야기 대표 이미지 URL", example = "/files/story-1.png", required = false)
+    val representativeImageUrl: String?,
+
+    @field:Schema(description = "이야기 난이도", example = "보통", required = true)
+    val difficulty: String,
+
+    @field:Schema(description = "이야기 주제 목록", required = true)
+    val topics: List<String>,
+
+    @field:Schema(description = "현재 챕터", example = "2", required = true)
+    val currentChapter: Int,
+
+    @field:Schema(description = "전체 챕터 수", example = "3", required = true)
+    val totalChapters: Int,
 )
 
 fun speakingSessionSummaryResponse(result: SpeakingSessionSummaryResult): SpeakingSessionSummaryResponse =
@@ -36,6 +54,12 @@ fun speakingSessionSummaryResponse(result: SpeakingSessionSummaryResult): Speaki
         currentSceneId = result.currentSceneId,
         startedAt = result.startedAt,
         lastActivityAt = result.lastActivityAt,
+        title = result.title,
+        representativeImageUrl = result.representativeImageUrl,
+        difficulty = result.difficulty,
+        topics = result.topics,
+        currentChapter = result.currentChapter,
+        totalChapters = result.totalChapters,
     )
 
 fun speakingSessionSummaryResponses(results: List<SpeakingSessionSummaryResult>): List<SpeakingSessionSummaryResponse> =

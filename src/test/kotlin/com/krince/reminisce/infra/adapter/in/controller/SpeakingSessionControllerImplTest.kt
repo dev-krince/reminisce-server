@@ -21,6 +21,7 @@ import com.krince.reminisce.infra.adapter.out.persistence.message.entity.Message
 import com.krince.reminisce.infra.adapter.out.persistence.speakingsession.entity.SpeakingSessionOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.entity.SceneOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.entity.StoryOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.story.entity.StoryTopicOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.user.entity.UserOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.utteranceanalysis.entity.UtteranceAnalysisOrmEntity
 import com.krince.reminisce.shared.response.ExceptionResponseCode
@@ -48,6 +49,7 @@ import io.restassured.http.ContentType
 import io.restassured.parsing.Parser
 import io.restassured.specification.MultiPartSpecification
 import java.nio.charset.StandardCharsets
+import org.hamcrest.Matchers.containsInAnyOrder
 import org.hamcrest.Matchers.empty
 import org.hamcrest.Matchers.emptyOrNullString
 import org.hamcrest.Matchers.equalTo
@@ -911,11 +913,12 @@ class SpeakingSessionControllerImplTest(
             storyId: String,
             status: SessionStatus = SessionStatus.IN_PROGRESS,
             lastActivityAt: LocalDateTime,
+            currentSceneId: String? = null,
         ): SpeakingSessionOrmEntity = SpeakingSessionOrmEntity(
             sessionId = sessionId,
             childId = childId,
             storyId = storyId,
-            currentSceneId = null,
+            currentSceneId = currentSceneId,
             status = status.name,
             startedAt = LocalDateTime.now().minusMinutes(10),
             lastActivityAt = lastActivityAt,
@@ -925,7 +928,75 @@ class SpeakingSessionControllerImplTest(
             sceneEndReason = null,
         )
 
+        fun topicEntity(storyId: String, topic: String): StoryTopicOrmEntity = StoryTopicOrmEntity(
+            id = "topic-$topic-$storyId",
+            storyId = storyId,
+            topic = topic,
+        )
+
         context("성공") {
+            test("이어하기 응답에 스토리 표시정보와 진행도가 채워지고 세션마다 올바른 스토리로 매칭된다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyIdA = "story-a-${uniqueSuffix()}"
+                val storyIdB = "story-b-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyIdA))
+                testStoryFixture.saveStory(storyEntity(storyIdB))
+                testStoryFixture.saveScene(narrationEntity(storyIdA, 1, chapter = 1))
+                testStoryFixture.saveScene(narrationEntity(storyIdA, 2, chapter = 2))
+                testStoryFixture.saveScene(dialogueEntity(storyIdA, 3, chapter = 3))
+                testStoryFixture.saveScene(narrationEntity(storyIdB, 1, chapter = 1))
+                testStoryFixture.saveTopic(topicEntity(storyIdA, "공감"))
+                testStoryFixture.saveTopic(topicEntity(storyIdA, "존중"))
+                val sceneIdChapterTwo = "sc-2-$storyIdA"
+                val recentAt = LocalDateTime.now().minusMinutes(1)
+                val olderAt = LocalDateTime.now().minusMinutes(3)
+                val sessionIdA = "session-a-${uniqueSuffix()}"
+                val sessionIdB = "session-b-${uniqueSuffix()}"
+                testSpeakingSessionFixture.save(
+                    sessionEntityWithLastActivity(
+                        sessionIdA,
+                        childId,
+                        storyIdA,
+                        lastActivityAt = recentAt,
+                        currentSceneId = sceneIdChapterTwo,
+                    ),
+                )
+                testSpeakingSessionFixture.save(
+                    sessionEntityWithLastActivity(
+                        sessionIdB,
+                        childId,
+                        storyIdB,
+                        lastActivityAt = olderAt,
+                        currentSceneId = null,
+                    ),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .`when`()
+                    .get("/speaking-sessions?childId=$childId")
+                    .then()
+                    .statusCode(200)
+                    .body("data.size()", equalTo(2))
+                    .body("data[0].sessionId", equalTo(sessionIdA))
+                    .body("data[0].storyId", equalTo(storyIdA))
+                    .body("data[0].status", equalTo(SessionStatus.IN_PROGRESS.name))
+                    .body("data[0].currentSceneId", equalTo(sceneIdChapterTwo))
+                    .body("data[0].title", equalTo("제목-$storyIdA"))
+                    .body("data[0].representativeImageUrl", equalTo("/files/$storyIdA.png"))
+                    .body("data[0].difficulty", equalTo("보통"))
+                    .body("data[0].topics", containsInAnyOrder("공감", "존중"))
+                    .body("data[0].currentChapter", equalTo(2))
+                    .body("data[0].totalChapters", equalTo(3))
+                    .body("data[1].sessionId", equalTo(sessionIdB))
+                    .body("data[1].storyId", equalTo(storyIdB))
+                    .body("data[1].title", equalTo("제목-$storyIdB"))
+                    .body("data[1].currentChapter", equalTo(0))
+                    .body("data[1].totalChapters", equalTo(1))
+            }
+
             test("in_progress 2건과 completed 1건이 있을 때 GET ?childId는 200과 in_progress 2건만 lastActivityAt 최근순으로 반환한다") {
                 val (guardianId, token) = authorizedGuardian()
                 val childId = "child-${uniqueSuffix()}"
