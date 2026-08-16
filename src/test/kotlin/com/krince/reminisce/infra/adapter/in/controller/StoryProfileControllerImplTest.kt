@@ -1,5 +1,6 @@
 package com.krince.reminisce.infra.adapter.`in`.controller
 
+import com.krince.reminisce.domain.model.profileinterview.vo.InterviewStage
 import com.krince.reminisce.infra.adapter.out.persistence.child.entity.ChildOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.childconsent.entity.ChildConsentOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.user.entity.UserOrmEntity
@@ -75,7 +76,7 @@ class StoryProfileControllerImplTest(
             .statusCode(201)
             .extract()
             .path("data.interviewId")
-        repeat(18) { turn ->
+        repeat(InterviewStage.entries.sumOf { it.targetChildTurns }) { turn ->
             RestAssured.given()
                 .header("Authorization", token)
                 .contentType(ContentType.JSON)

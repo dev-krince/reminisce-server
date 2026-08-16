@@ -26,29 +26,29 @@ class ProfileInterviewTest : FunSpec({
         interview.startedAt shouldBe startedAt
     }
 
-    test("자유대화 단계에서 아이가 3번 답하면 경험 단계로 넘어가고 단계 턴 수가 초기화된다") {
+    test("자유대화 단계에서 아이가 2번 답하면 경험 단계로 넘어가고 단계 턴 수가 초기화된다") {
         var interview = ProfileInterview.start(childId, startedAt)
 
-        repeat(2) { interview = interview.advanceOnChildTurn(startedAt.plusMinutes(1)) }
+        interview = interview.advanceOnChildTurn(startedAt.plusMinutes(1))
         interview.currentStage shouldBe InterviewStage.FREE_TALK
-        interview.stageChildTurnCount shouldBe 2
+        interview.stageChildTurnCount shouldBe 1
 
         interview = interview.advanceOnChildTurn(startedAt.plusMinutes(2))
 
         interview.currentStage shouldBe InterviewStage.EXPERIENCE
         interview.stageChildTurnCount shouldBe 0
-        interview.totalChildTurnCount shouldBe 3
+        interview.totalChildTurnCount shouldBe 2
     }
 
-    test("단계별 목표 턴을 모두 채우면 마무리 단계에 도달한다 (총 18턴)") {
+    test("단계별 목표 턴을 모두 채우면 마무리 단계에 도달한다 (총 10턴)") {
         var interview = ProfileInterview.start(childId, startedAt)
         val totalTurns = InterviewStage.entries.sumOf { it.targetChildTurns }
 
         repeat(totalTurns) { interview = interview.advanceOnChildTurn(startedAt.plusMinutes(it + 1L)) }
 
-        totalTurns shouldBe 18
+        totalTurns shouldBe 10
         interview.currentStage shouldBe InterviewStage.CLOSING
-        interview.totalChildTurnCount shouldBe 18
+        interview.totalChildTurnCount shouldBe 10
         interview.status shouldBe ProfileInterviewStatus.IN_PROGRESS
     }
 

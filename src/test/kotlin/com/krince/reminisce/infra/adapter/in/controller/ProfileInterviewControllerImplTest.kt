@@ -1,5 +1,6 @@
 package com.krince.reminisce.infra.adapter.`in`.controller
 
+import com.krince.reminisce.domain.model.profileinterview.vo.InterviewStage
 import com.krince.reminisce.infra.adapter.out.persistence.child.entity.ChildOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.childconsent.entity.ChildConsentOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.user.entity.UserOrmEntity
@@ -241,7 +242,7 @@ class ProfileInterviewControllerImplTest(
                 messages.map { it.speaker } shouldBe listOf("QUMI", "CHILD", "QUMI")
             }
 
-            test("18번 답하면 단계가 순서대로 진행되고 인터뷰가 COMPLETED로 끝나며, 끝난 뒤 제출은 422다") {
+            test("단계별 목표 턴을 모두 답하면 인터뷰가 COMPLETED로 끝나며, 끝난 뒤 제출은 422다") {
                 val guardianId = "guardian-${uniqueSuffix()}"
                 testUserFixture.saveUser(userEntity(guardianId))
                 val token = testJwtTokenFixture.generateAccessToken(guardianId)
@@ -250,9 +251,10 @@ class ProfileInterviewControllerImplTest(
                 testChildConsentFixture.saveConsent(consentEntity(childId))
                 val interviewId = startInterview(token, childId)
 
+                val totalTurns = InterviewStage.entries.sumOf { it.targetChildTurns }
                 var lastStatus = ""
                 var lastStage = ""
-                repeat(18) { turn ->
+                repeat(totalTurns) { turn ->
                     val response = RestAssured.given()
                         .header("Authorization", token)
                         .contentType(ContentType.JSON)
@@ -268,7 +270,7 @@ class ProfileInterviewControllerImplTest(
 
                 lastStatus shouldBe "COMPLETED"
                 lastStage shouldBe "CLOSING"
-                testProfileInterviewFixture.findMessagesByInterviewId(interviewId).size shouldBe 37
+                testProfileInterviewFixture.findMessagesByInterviewId(interviewId).size shouldBe 1 + totalTurns * 2
 
                 RestAssured.given()
                     .header("Authorization", token)

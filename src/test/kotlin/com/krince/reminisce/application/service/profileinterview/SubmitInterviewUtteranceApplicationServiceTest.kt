@@ -113,8 +113,8 @@ class SubmitInterviewUtteranceApplicationServiceTest : FunSpec({
 
         test("단계 목표 턴을 채우는 답이면 다음 단계로 넘어가고 stageOpening으로 응답을 생성한다") {
             var interview = inProgressInterview()
-            repeat(2) { interview = interview.advanceOnChildTurn(startedAt.plusMinutes(1)) }
-            stubHappyPath(interview, messageCount = 5, reply = "재미있다! 그럼 토끼를 실제로 본 적 있어?")
+            interview = interview.advanceOnChildTurn(startedAt.plusMinutes(1))
+            stubHappyPath(interview, messageCount = 3, reply = "재미있다! 그럼 토끼를 실제로 본 적 있어?")
             val contextSlot = slot<InterviewReplyContext>()
             every { interviewReplyPort.generate(capture(contextSlot)) } returns "재미있다! 그럼 토끼를 실제로 본 적 있어?"
 
@@ -128,9 +128,9 @@ class SubmitInterviewUtteranceApplicationServiceTest : FunSpec({
 
         test("마지막 단계 답을 제출하면 큐미 마무리 인사와 함께 COMPLETED로 끝난다") {
             var interview = inProgressInterview()
-            repeat(17) { interview = interview.advanceOnChildTurn(startedAt.plusMinutes(1)) }
+            repeat(9) { interview = interview.advanceOnChildTurn(startedAt.plusMinutes(1)) }
             interview.currentStage shouldBe InterviewStage.CHILD_QUESTION
-            stubHappyPath(interview, messageCount = 35, reply = "오늘 정말 즐거웠어! 다음에 또 만나자!")
+            stubHappyPath(interview, messageCount = 19, reply = "오늘 정말 즐거웠어! 다음에 또 만나자!")
             val savedInterview = slot<ProfileInterview>()
             every { commandProfileInterviewPort.save(capture(savedInterview)) } answers { savedInterview.captured }
 
