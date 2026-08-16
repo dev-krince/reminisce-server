@@ -5,4 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface MissionResultRepository : JpaRepository<MissionResultOrmEntity, String> {
     fun findBySessionIdAndSceneId(sessionId: String, sceneId: String): MissionResultOrmEntity?
+
+    fun deleteAllBySessionIdIn(sessionIds: List<String>)
 }

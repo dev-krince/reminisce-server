@@ -4,4 +4,6 @@ import com.krince.reminisce.domain.model.missionresult.MissionResult
 
 interface CommandMissionResultPort {
     fun save(result: MissionResult): MissionResult
+
+    fun deleteAllBySessionIds(sessionIds: List<String>)
 }

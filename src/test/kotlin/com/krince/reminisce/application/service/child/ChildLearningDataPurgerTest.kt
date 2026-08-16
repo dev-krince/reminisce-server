@@ -2,6 +2,7 @@ package com.krince.reminisce.application.service.child
 
 import com.krince.reminisce.application.port.out.message.CommandMessagePort
 import com.krince.reminisce.application.port.out.message.LoadMessagePort
+import com.krince.reminisce.application.port.out.missionresult.CommandMissionResultPort
 import com.krince.reminisce.application.port.out.postactivityresult.CommandPostActivityResultPort
 import com.krince.reminisce.application.port.out.postactivityresult.LoadPostActivityResultPort
 import com.krince.reminisce.application.port.out.report.CommandReportPort
@@ -32,6 +33,7 @@ class ChildLearningDataPurgerTest : FunSpec({
     val commandMessagePort = mockk<CommandMessagePort>()
     val commandReportPort = mockk<CommandReportPort>()
     val commandPostActivityResultPort = mockk<CommandPostActivityResultPort>()
+    val commandMissionResultPort = mockk<CommandMissionResultPort>()
     val commandUtteranceAnalysisPort = mockk<CommandUtteranceAnalysisPort>()
     val commandSavedWordPort = mockk<CommandSavedWordPort>()
     val commandSavedStoryPort = mockk<CommandSavedStoryPort>()
@@ -43,6 +45,7 @@ class ChildLearningDataPurgerTest : FunSpec({
         commandMessagePort = commandMessagePort,
         commandReportPort = commandReportPort,
         commandPostActivityResultPort = commandPostActivityResultPort,
+        commandMissionResultPort = commandMissionResultPort,
         commandUtteranceAnalysisPort = commandUtteranceAnalysisPort,
         commandSavedWordPort = commandSavedWordPort,
         commandSavedStoryPort = commandSavedStoryPort,
@@ -56,7 +59,7 @@ class ChildLearningDataPurgerTest : FunSpec({
     val audioUrls = listOf("/files/retelling-1.m4a", "/files/retelling-2.webm")
 
     context("세션 계열·단어장 파기") {
-        test("발화분석→메시지→리포트→후속활동→세션→단어→찜 순으로 leaf→root 파기하고 재구성 음성 URL을 반환한다") {
+        test("발화분석→메시지→리포트→후속활동→미션결과→세션→단어→찜 순으로 leaf→root 파기하고 재구성 음성 URL을 반환한다") {
             every { loadSpeakingSessionPort.findSessionIdsByChildIds(childIds) } returns sessionIds
             every { loadPostActivityResultPort.findRetellingAudioUrlsBySessionIds(sessionIds) } returns audioUrls
             every { loadMessagePort.findMessageIdsBySessionIds(sessionIds) } returns messageIds
@@ -64,6 +67,7 @@ class ChildLearningDataPurgerTest : FunSpec({
             every { commandMessagePort.deleteAllBySessionIds(sessionIds) } returns Unit
             every { commandReportPort.deleteAllBySessionIds(sessionIds) } returns Unit
             every { commandPostActivityResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
+            every { commandMissionResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
             every { commandSpeakingSessionPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandSavedStoryPort.deleteAllByChildIds(childIds) } returns Unit
@@ -76,6 +80,7 @@ class ChildLearningDataPurgerTest : FunSpec({
                 commandMessagePort.deleteAllBySessionIds(sessionIds)
                 commandReportPort.deleteAllBySessionIds(sessionIds)
                 commandPostActivityResultPort.deleteAllBySessionIds(sessionIds)
+                commandMissionResultPort.deleteAllBySessionIds(sessionIds)
                 commandSpeakingSessionPort.deleteAllByChildIds(childIds)
                 commandSavedWordPort.deleteAllByChildIds(childIds)
                 commandSavedStoryPort.deleteAllByChildIds(childIds)
@@ -95,6 +100,7 @@ class ChildLearningDataPurgerTest : FunSpec({
             verify(exactly = 0) { commandMessagePort.deleteAllBySessionIds(any()) }
             verify(exactly = 0) { commandReportPort.deleteAllBySessionIds(any()) }
             verify(exactly = 0) { commandPostActivityResultPort.deleteAllBySessionIds(any()) }
+            verify(exactly = 0) { commandMissionResultPort.deleteAllBySessionIds(any()) }
             verify(exactly = 0) { commandSpeakingSessionPort.deleteAllByChildIds(any()) }
             verify(exactly = 1) { commandSavedWordPort.deleteAllByChildIds(childIds) }
             verify(exactly = 1) { commandSavedStoryPort.deleteAllByChildIds(childIds) }
@@ -107,6 +113,7 @@ class ChildLearningDataPurgerTest : FunSpec({
             every { commandMessagePort.deleteAllBySessionIds(sessionIds) } returns Unit
             every { commandReportPort.deleteAllBySessionIds(sessionIds) } returns Unit
             every { commandPostActivityResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
+            every { commandMissionResultPort.deleteAllBySessionIds(sessionIds) } returns Unit
             every { commandSpeakingSessionPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandSavedWordPort.deleteAllByChildIds(childIds) } returns Unit
             every { commandSavedStoryPort.deleteAllByChildIds(childIds) } returns Unit
