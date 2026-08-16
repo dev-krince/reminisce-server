@@ -83,14 +83,27 @@ class SpeakingSessionTransitionTest : FunSpec({
         entered.currentSceneId shouldBe original.currentSceneId
     }
 
-    test("stop은 status를 STOPPED로 바꾸고 lastActivityAt을 갱신하며 진행 필드를 보존한다") {
+    test("pause는 IN_PROGRESS status를 유지하고 lastActivityAt만 갱신하며 진행 필드를 보존한다") {
         val original = advancedSceneSession()
 
-        val stopped = original.stop(transitionAt)
+        val paused = original.pause(transitionAt)
 
-        stopped.status shouldBe SessionStatus.STOPPED
-        stopped.lastActivityAt shouldBe transitionAt
-        stopped.currentSceneId shouldBe original.currentSceneId
-        stopped.currentChildTurnCount shouldBe original.currentChildTurnCount
+        paused.status shouldBe SessionStatus.IN_PROGRESS
+        paused.lastActivityAt shouldBe transitionAt
+        paused.currentSceneId shouldBe original.currentSceneId
+        paused.currentChildTurnCount shouldBe original.currentChildTurnCount
+        paused.accumulatedElements shouldBe original.accumulatedElements
+        paused.sceneEndReason shouldBe original.sceneEndReason
+    }
+
+    test("pause는 POST_ACTIVITY status를 유지하고 lastActivityAt만 갱신하며 진행 필드를 보존한다") {
+        val original = advancedSceneSession().copy(status = SessionStatus.POST_ACTIVITY)
+
+        val paused = original.pause(transitionAt)
+
+        paused.status shouldBe SessionStatus.POST_ACTIVITY
+        paused.lastActivityAt shouldBe transitionAt
+        paused.currentSceneId shouldBe original.currentSceneId
+        paused.currentChildTurnCount shouldBe original.currentChildTurnCount
     }
 })

@@ -23,7 +23,7 @@ class GetResumableSessionsApplicationService(
         val childId = ChildId(command.childId)
         verifyOwnership(childId, UserId(command.guardianId))
 
-        return loadSpeakingSessionPort.findInProgressByChild(childId)
+        return loadSpeakingSessionPort.findResumableByChild(childId)
             .map { SpeakingSessionSummaryResult.from(it) }
     }
 

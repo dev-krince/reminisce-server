@@ -70,7 +70,7 @@ class StopSpeakingSessionApplicationServiceTest : FunSpec({
     )
 
     context("성공") {
-        test("IN_PROGRESS 세션이면 STOPPED로 저장하고 SpeakingSessionResult를 반환한다") {
+        test("IN_PROGRESS 세션이면 상태를 IN_PROGRESS로 유지하고 lastActivityAt만 갱신해 반환한다") {
             every {
                 loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr))
             } returns session(SessionStatus.IN_PROGRESS)
@@ -80,14 +80,14 @@ class StopSpeakingSessionApplicationServiceTest : FunSpec({
 
             val result = service.execute(command())
 
-            result.status shouldBe SessionStatus.STOPPED.name
+            result.status shouldBe SessionStatus.IN_PROGRESS.name
             result.created shouldBe false
-            savedSlot.captured.status shouldBe SessionStatus.STOPPED
+            savedSlot.captured.status shouldBe SessionStatus.IN_PROGRESS
             savedSlot.captured.lastActivityAt shouldBe LocalDateTime.now(fixedClock)
             verify(exactly = 1) { commandSpeakingSessionPort.save(any()) }
         }
 
-        test("POST_ACTIVITY 세션이면 STOPPED로 저장한다") {
+        test("POST_ACTIVITY 세션이면 상태를 POST_ACTIVITY로 유지하고 lastActivityAt만 갱신한다") {
             every {
                 loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr))
             } returns session(SessionStatus.POST_ACTIVITY)
@@ -97,8 +97,9 @@ class StopSpeakingSessionApplicationServiceTest : FunSpec({
 
             val result = service.execute(command())
 
-            result.status shouldBe SessionStatus.STOPPED.name
-            savedSlot.captured.status shouldBe SessionStatus.STOPPED
+            result.status shouldBe SessionStatus.POST_ACTIVITY.name
+            savedSlot.captured.status shouldBe SessionStatus.POST_ACTIVITY
+            savedSlot.captured.lastActivityAt shouldBe LocalDateTime.now(fixedClock)
             verify(exactly = 1) { commandSpeakingSessionPort.save(any()) }
         }
     }

@@ -967,6 +967,100 @@ class SpeakingSessionControllerImplTest(
                     .body("data[1].sessionId", equalTo(sessionIdOlder))
             }
 
+            test("in_progress·post_activity·completed가 섞이면 GET ?childId는 in_progress·post_activity만 반환하고 completed는 제외한다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                val recentAt = LocalDateTime.now().minusMinutes(1)
+                val olderAt = LocalDateTime.now().minusMinutes(3)
+                val sessionIdInProgress = "session-a-${uniqueSuffix()}"
+                val sessionIdPostActivity = "session-b-${uniqueSuffix()}"
+                val sessionIdCompleted = "session-c-${uniqueSuffix()}"
+                testSpeakingSessionFixture.save(
+                    sessionEntityWithLastActivity(sessionIdInProgress, childId, storyId, lastActivityAt = recentAt),
+                )
+                testSpeakingSessionFixture.save(
+                    sessionEntityWithLastActivity(
+                        sessionIdPostActivity,
+                        childId,
+                        storyId,
+                        status = SessionStatus.POST_ACTIVITY,
+                        lastActivityAt = olderAt,
+                    ),
+                )
+                testSpeakingSessionFixture.save(
+                    sessionEntityWithLastActivity(
+                        sessionIdCompleted,
+                        childId,
+                        storyId,
+                        status = SessionStatus.COMPLETED,
+                        lastActivityAt = LocalDateTime.now(),
+                    ),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .`when`()
+                    .get("/speaking-sessions?childId=$childId")
+                    .then()
+                    .statusCode(200)
+                    .body("data.size()", equalTo(2))
+                    .body("data[0].sessionId", equalTo(sessionIdInProgress))
+                    .body("data[0].status", equalTo(SessionStatus.IN_PROGRESS.name))
+                    .body("data[1].sessionId", equalTo(sessionIdPostActivity))
+                    .body("data[1].status", equalTo(SessionStatus.POST_ACTIVITY.name))
+            }
+
+            test("나간(stop) IN_PROGRESS 세션이 이어하기 목록에 뜨고, 그 세션에 발화 제출이 재활성화 없이 201로 통과한다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                val dialogueSceneId = "sc-3-$storyId"
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, currentSceneId = dialogueSceneId),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/stop")
+                    .then()
+                    .statusCode(200)
+                    .body("data.status", equalTo(SessionStatus.IN_PROGRESS.name))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .`when`()
+                    .get("/speaking-sessions?childId=$childId")
+                    .then()
+                    .statusCode(200)
+                    .body("data.size()", equalTo(1))
+                    .body("data[0].sessionId", equalTo(sessionId))
+                    .body("data[0].status", equalTo(SessionStatus.IN_PROGRESS.name))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("text" to "며느리가 참 힘들었겠어요"))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/utterances")
+                    .then()
+                    .statusCode(201)
+                    .body("data.speakerType", equalTo("CHILD"))
+                    .body("data.sceneId", equalTo(dialogueSceneId))
+                    .body("data.turnOrder", equalTo(1))
+
+                val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
+                storedSession?.status shouldBe SessionStatus.IN_PROGRESS.name
+            }
+
             test("in_progress 세션이 없으면 200과 빈 배열을 반환한다") {
                 val (guardianId, token) = authorizedGuardian()
                 val childId = "child-${uniqueSuffix()}"
@@ -2283,7 +2377,7 @@ class SpeakingSessionControllerImplTest(
 
     context("stopSpeakingSession") {
         context("성공") {
-            test("IN_PROGRESS 세션 stop은 200과 status=STOPPED를 반환하고 저장 상태도 STOPPED다") {
+            test("IN_PROGRESS 세션 stop은 200과 status=IN_PROGRESS를 반환하고 저장 상태도 IN_PROGRESS로 유지된다") {
                 val (guardianId, token) = authorizedGuardian()
                 val childId = "child-${uniqueSuffix()}"
                 val storyId = "story-${uniqueSuffix()}"
@@ -2306,10 +2400,42 @@ class SpeakingSessionControllerImplTest(
                     .body("code", equalTo(200))
                     .body("message", equalTo(SuccessResponseCode.OK.message))
                     .body("data.sessionId", equalTo(sessionId))
-                    .body("data.status", equalTo(SessionStatus.STOPPED.name))
+                    .body("data.status", equalTo(SessionStatus.IN_PROGRESS.name))
 
                 val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
-                storedSession?.status shouldBe SessionStatus.STOPPED.name
+                storedSession?.status shouldBe SessionStatus.IN_PROGRESS.name
+            }
+
+            test("POST_ACTIVITY 세션 stop은 200과 status=POST_ACTIVITY를 반환하고 저장 상태도 POST_ACTIVITY로 유지된다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testSpeakingSessionFixture.save(
+                    sessionEntity(
+                        sessionId,
+                        childId,
+                        storyId,
+                        currentSceneId = "sc-1-$storyId",
+                        status = SessionStatus.POST_ACTIVITY,
+                    ),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/stop")
+                    .then()
+                    .statusCode(200)
+                    .body("data.sessionId", equalTo(sessionId))
+                    .body("data.status", equalTo(SessionStatus.POST_ACTIVITY.name))
+
+                val storedSession = testSpeakingSessionFixture.findBySessionId(sessionId)
+                storedSession?.status shouldBe SessionStatus.POST_ACTIVITY.name
             }
         }
 

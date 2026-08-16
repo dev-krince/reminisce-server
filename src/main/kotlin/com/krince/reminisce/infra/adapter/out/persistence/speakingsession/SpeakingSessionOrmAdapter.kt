@@ -39,10 +39,10 @@ class SpeakingSessionOrmAdapter(
         return SpeakingSessionMapper.toDomain(ormEntity)
     }
 
-    override fun findInProgressByChild(childId: ChildId): List<SpeakingSession> =
-        repository.findAllByChildIdAndStatusOrderByLastActivityAtDesc(
+    override fun findResumableByChild(childId: ChildId): List<SpeakingSession> =
+        repository.findAllByChildIdAndStatusInOrderByLastActivityAtDesc(
             childId.value,
-            SessionStatus.IN_PROGRESS.name,
+            RESUMABLE_STATUS_NAMES,
         ).map { SpeakingSessionMapper.toDomain(it) }
 
     override fun findStartedStoryIdsByChild(childId: ChildId): List<String> =
@@ -62,5 +62,12 @@ class SpeakingSessionOrmAdapter(
         }
 
         repository.deleteAllByChildIdIn(childIds.map { it.value })
+    }
+
+    companion object {
+        private val RESUMABLE_STATUS_NAMES: List<String> = listOf(
+            SessionStatus.IN_PROGRESS.name,
+            SessionStatus.POST_ACTIVITY.name,
+        )
     }
 }

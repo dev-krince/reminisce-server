@@ -15,9 +15,9 @@ interface SpeakingSessionRepository : JpaRepository<SpeakingSessionOrmEntity, St
 
     fun findBySessionId(sessionId: String): SpeakingSessionOrmEntity?
 
-    fun findAllByChildIdAndStatusOrderByLastActivityAtDesc(
+    fun findAllByChildIdAndStatusInOrderByLastActivityAtDesc(
         childId: String,
-        status: String,
+        statuses: List<String>,
     ): List<SpeakingSessionOrmEntity>
 
     @Query("SELECT DISTINCT s.storyId FROM SpeakingSessionOrmEntity s WHERE s.childId = :childId")

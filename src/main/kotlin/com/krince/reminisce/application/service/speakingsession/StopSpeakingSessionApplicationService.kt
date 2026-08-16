@@ -33,9 +33,9 @@ class StopSpeakingSessionApplicationService(
         if (session.status !in STOPPABLE_STATUSES) {
             throw BusinessRuleViolationException(BUSINESS_RULE_VIOLATION, BUSINESS_RULE_VIOLATION.message)
         }
-        val stopped: SpeakingSession = commandSpeakingSessionPort.save(session.stop(LocalDateTime.now(clock)))
+        val paused: SpeakingSession = commandSpeakingSessionPort.save(session.pause(LocalDateTime.now(clock)))
 
-        return SpeakingSessionResult.from(stopped, created = false)
+        return SpeakingSessionResult.from(paused, created = false)
     }
 
     private fun loadOwnedSession(sessionId: String, guardianId: String): SpeakingSession {

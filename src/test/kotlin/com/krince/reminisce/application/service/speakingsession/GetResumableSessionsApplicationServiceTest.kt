@@ -46,11 +46,15 @@ class GetResumableSessionsApplicationServiceTest : FunSpec({
     fun command(): GetResumableSessionsCommand =
         GetResumableSessionsCommand(childId = childIdStr, guardianId = guardianIdStr)
 
-    fun session(sessionId: String, lastActivityAt: LocalDateTime): SpeakingSession = SpeakingSession(
+    fun session(
+        sessionId: String,
+        lastActivityAt: LocalDateTime,
+        status: SessionStatus = SessionStatus.IN_PROGRESS,
+    ): SpeakingSession = SpeakingSession(
         sessionId = SpeakingSessionId(sessionId),
         childId = childId,
         storyId = storyId,
-        status = SessionStatus.IN_PROGRESS,
+        status = status,
         currentSceneId = null,
         startedAt = LocalDateTime.now().minusMinutes(10),
         lastActivityAt = lastActivityAt,
@@ -79,7 +83,7 @@ class GetResumableSessionsApplicationServiceTest : FunSpec({
             val recentSession = session("session-recent", recentAt)
             val olderSession = session("session-older", olderAt)
             every { childAccessPort.findGuardianId(childId) } returns guardianId
-            every { loadSpeakingSessionPort.findInProgressByChild(childId) } returns listOf(recentSession, olderSession)
+            every { loadSpeakingSessionPort.findResumableByChild(childId) } returns listOf(recentSession, olderSession)
 
             val results = service.execute(command())
 
@@ -92,6 +96,23 @@ class GetResumableSessionsApplicationServiceTest : FunSpec({
             results[0].lastActivityAt shouldBe recentAt
             results[1].sessionId shouldBe "session-older"
             results[1].lastActivityAt shouldBe olderAt
+        }
+
+        test("포트가 반환한 IN_PROGRESS·POST_ACTIVITY 세션을 상태 그대로 요약 매핑해 반환한다") {
+            val inProgressSession = session("session-in-progress", recentAt, SessionStatus.IN_PROGRESS)
+            val postActivitySession = session("session-post-activity", olderAt, SessionStatus.POST_ACTIVITY)
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every {
+                loadSpeakingSessionPort.findResumableByChild(childId)
+            } returns listOf(inProgressSession, postActivitySession)
+
+            val results = service.execute(command())
+
+            results.size shouldBe 2
+            results[0].sessionId shouldBe "session-in-progress"
+            results[0].status shouldBe SessionStatus.IN_PROGRESS.name
+            results[1].sessionId shouldBe "session-post-activity"
+            results[1].status shouldBe SessionStatus.POST_ACTIVITY.name
         }
     }
 })
