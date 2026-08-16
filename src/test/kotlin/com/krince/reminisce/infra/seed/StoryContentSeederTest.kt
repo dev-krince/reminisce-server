@@ -1,5 +1,6 @@
 package com.krince.reminisce.infra.seed
 
+import com.krince.reminisce.domain.model.story.vo.MissionType
 import com.krince.reminisce.infra.adapter.out.persistence.story.SceneRepository
 import com.krince.reminisce.infra.adapter.out.persistence.story.StoryRepository
 import com.krince.reminisce.infra.adapter.out.persistence.story.StoryTopicRepository
@@ -139,6 +140,21 @@ class StoryContentSeederTest : FunSpec({
 
             scenes.filter { it.mission != null }.map { it.chapter.toInt() } shouldContainExactly listOf(3, 4)
             scenes.filter { it.mission != null }.all { it.sceneType == dialogueType }.shouldBeTrue()
+        }
+
+        test("sc_banggui_12는 SPEAKING 미션이고 sc_banggui_16은 4개 단어카드를 정답순서로 갖는 WORD_ORDER 미션이다") {
+            val scenes = seedScenes()
+
+            val pearDrop = scenes.first { it.sceneId == "sc_banggui_12" }.mission.shouldNotBeNull()
+            pearDrop.type shouldBe MissionType.SPEAKING
+            pearDrop.wordCards shouldBe null
+
+            val reframe = scenes.first { it.sceneId == "sc_banggui_16" }.mission.shouldNotBeNull()
+            reframe.type shouldBe MissionType.WORD_ORDER
+            reframe.wordCards.shouldNotBeNull() shouldHaveSize 4
+            reframe.wordCards.sortedBy { it.correctOrder }.map { it.text } shouldContainExactly listOf(
+                "남들과", "달라도", "특별한 힘이", "될 수 있어요",
+            )
         }
     }
 

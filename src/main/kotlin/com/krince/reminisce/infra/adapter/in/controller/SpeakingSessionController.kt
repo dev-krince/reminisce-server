@@ -2,6 +2,8 @@ package com.krince.reminisce.infra.adapter.`in`.controller
 
 import com.krince.reminisce.infra.adapter.`in`.dto.message.request.SubmitUtteranceRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.message.response.UtteranceResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.mission.request.SubmitMissionAnswerRequest
+import com.krince.reminisce.infra.adapter.`in`.dto.mission.response.MissionAnswerResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.request.SubmitCardOrderRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.request.SubmitRetellingRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.CardOrderResultResponse
@@ -186,6 +188,28 @@ interface SpeakingSessionController {
         @Valid @RequestBody request: SubmitCardOrderRequest,
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<CardOrderResultResponse>>
+
+    @Operation(
+        summary = "미션 답안 제출",
+        description = "로그인한 보호자가 본인 아이의 세션에서 미션이 있는 대화(DIALOGUE) 장면에 답안을 제출합니다. WORD_ORDER는 제출한 단어카드 순서가 정답 순서와 정확히 일치할 때 완료되고, SPEAKING은 발화 판정으로 완료 여부를 정합니다. 미완료면 힌트를 반환하고 무제한 재시도할 수 있으며 시도 횟수가 증가합니다.",
+    )
+    @SwaggerSuccessResponse(responseCode = OK, description = "미션 답안 제출 성공")
+    @SwaggerExceptionResponse(
+        examples = [
+            ExceptionExample(code = EMPTY_TOKEN, name = "토큰 없음", message = "토큰이 없습니다.", description = "인증 토큰이 제공되지 않은 경우"),
+            ExceptionExample(code = INVALID_TOKEN, name = "유효하지 않은 토큰", message = "유효하지 않은 토큰입니다.", description = "토큰이 유효하지 않거나 서명이 잘못된 경우"),
+            ExceptionExample(code = EXPIRED_TOKEN, name = "만료된 토큰", message = "만료된 토큰입니다.", description = "토큰의 유효기간이 만료된 경우"),
+            ExceptionExample(code = NOT_FOUND, name = "세션 없음", message = "리소스가 존재하지 않습니다.", description = "세션이 없거나 다른 보호자의 아이 세션인 경우"),
+            ExceptionExample(code = BUSINESS_RULE_VIOLATION, name = "미션 제출 불가", message = "도메인 정책에 의해 실행할 수 없습니다.", description = "미션이 없는 장면이거나 대화(DIALOGUE) 장면이 아닌 경우"),
+            ExceptionExample(code = INTERNAL_SERVER_ERROR, name = "서버 오류", message = "서버 에러입니다. 개발자에게 문의해주세요.", description = "예상치 못한 서버 오류가 발생한 경우"),
+        ]
+    )
+    fun submitMissionAnswer(
+        @Parameter(description = "말하기 세션 고유 식별자", required = true) @PathVariable sessionId: String,
+        @Parameter(description = "미션 장면 고유 식별자", required = true) @PathVariable sceneId: String,
+        @Valid @RequestBody request: SubmitMissionAnswerRequest,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<SuccessResponse<MissionAnswerResponse>>
 
     @Operation(
         summary = "이야기 재구성 발화 제출",

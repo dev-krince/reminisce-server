@@ -2,6 +2,8 @@ package com.krince.reminisce.infra.adapter.out.persistence.story.converter
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.krince.reminisce.domain.model.story.Mission
+import com.krince.reminisce.domain.model.story.vo.MissionType
+import com.krince.reminisce.domain.model.story.vo.WordCard
 import io.kotest.core.annotation.DisplayName
 import io.kotest.core.annotation.Tags
 import io.kotest.core.spec.style.FunSpec
@@ -67,6 +69,61 @@ class MissionConverterTest : FunSpec({
             val restored = converter.convertToEntityAttribute(converter.convertToDatabaseColumn(emptyExamples))
 
             restored shouldBe emptyExamples
+        }
+    }
+
+    context("type·wordCards 비파괴 확장") {
+        val wordOrderMission = Mission(
+            goal = "문장 완성하기",
+            examples = listOf("힌트 1"),
+            type = MissionType.WORD_ORDER,
+            wordCards = listOf(
+                WordCard(text = "남들과", correctOrder = 1),
+                WordCard(text = "달라도", correctOrder = 2),
+            ),
+        )
+
+        test("type·wordCards가 있는 미션을 직렬화 후 복원하면 그대로 보존된다") {
+            val restored = converter.convertToEntityAttribute(converter.convertToDatabaseColumn(wordOrderMission))
+
+            restored shouldBe wordOrderMission
+        }
+
+        test("기본값 SPEAKING·wordCards null 미션도 왕복 보존된다") {
+            val speakingMission = mission()
+
+            val restored = converter.convertToEntityAttribute(converter.convertToDatabaseColumn(speakingMission))
+
+            restored.shouldNotBeNull().type shouldBe MissionType.SPEAKING
+            restored.wordCards shouldBe null
+        }
+
+        test("type 키가 없는 기존 JSON을 복원하면 SPEAKING 기본값이 된다") {
+            val legacyJson = """
+                {
+                  "goal": "목표",
+                  "examples": ["힌트 1"]
+                }
+            """.trimIndent()
+
+            val restored = converter.convertToEntityAttribute(legacyJson).shouldNotBeNull()
+
+            restored.type shouldBe MissionType.SPEAKING
+            restored.wordCards shouldBe null
+        }
+
+        test("wordCards 키가 없는 기존 JSON을 복원하면 wordCards가 null이다") {
+            val legacyJson = """
+                {
+                  "goal": "목표",
+                  "examples": ["힌트 1"],
+                  "type": "SPEAKING"
+                }
+            """.trimIndent()
+
+            val restored = converter.convertToEntityAttribute(legacyJson).shouldNotBeNull()
+
+            restored.wordCards shouldBe null
         }
     }
 })

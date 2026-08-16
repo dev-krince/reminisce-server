@@ -3,6 +3,9 @@ package com.krince.reminisce.infra.adapter.`in`.controller
 import com.krince.reminisce.application.port.`in`.message.command.SubmitUtteranceCommand
 import com.krince.reminisce.application.port.`in`.message.result.UtteranceResult
 import com.krince.reminisce.application.port.`in`.message.usecase.SubmitUtteranceUseCase
+import com.krince.reminisce.application.port.`in`.mission.command.SubmitMissionAnswerCommand
+import com.krince.reminisce.application.port.`in`.mission.result.MissionAnswerResult
+import com.krince.reminisce.application.port.`in`.mission.usecase.SubmitMissionAnswerUseCase
 import com.krince.reminisce.application.port.`in`.postactivity.command.SubmitCardOrderCommand
 import com.krince.reminisce.application.port.`in`.postactivity.command.SubmitRetellingCommand
 import com.krince.reminisce.application.port.`in`.postactivity.result.CardOrderResult
@@ -34,6 +37,9 @@ import com.krince.reminisce.application.port.out.file.StoreFilePort
 import com.krince.reminisce.infra.adapter.`in`.dto.message.request.SubmitUtteranceRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.message.response.UtteranceResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.message.response.utteranceResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.mission.request.SubmitMissionAnswerRequest
+import com.krince.reminisce.infra.adapter.`in`.dto.mission.response.MissionAnswerResponse
+import com.krince.reminisce.infra.adapter.`in`.dto.mission.response.missionAnswerResponse
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.request.SubmitCardOrderRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.request.SubmitRetellingRequest
 import com.krince.reminisce.infra.adapter.`in`.dto.postactivity.response.CardOrderResultResponse
@@ -85,6 +91,7 @@ class SpeakingSessionControllerImpl(
     private val submitUtteranceUseCase: SubmitUtteranceUseCase,
     private val getResumableSessionsUseCase: GetResumableSessionsUseCase,
     private val submitCardOrderUseCase: SubmitCardOrderUseCase,
+    private val submitMissionAnswerUseCase: SubmitMissionAnswerUseCase,
     private val submitRetellingUseCase: SubmitRetellingUseCase,
     private val getSessionReportUseCase: GetSessionReportUseCase,
     private val storeFilePort: StoreFilePort,
@@ -217,6 +224,28 @@ class SpeakingSessionControllerImpl(
         val result: CardOrderResult = submitCardOrderUseCase.execute(command)
         val response: CardOrderResultResponse = cardOrderResultResponse(result)
         val responseBody: SuccessResponse<CardOrderResultResponse> =
+            successResponse(responseCode = OK, data = response)
+
+        return ResponseEntity.status(responseBody.code).body(responseBody)
+    }
+
+    @PostMapping("/{sessionId}/missions/{sceneId}/answer")
+    override fun submitMissionAnswer(
+        @PathVariable sessionId: String,
+        @PathVariable sceneId: String,
+        @Valid @RequestBody request: SubmitMissionAnswerRequest,
+        @AuthenticationPrincipal userDetails: CustomUserDetails,
+    ): ResponseEntity<SuccessResponse<MissionAnswerResponse>> {
+        val command = SubmitMissionAnswerCommand(
+            sessionId = sessionId,
+            guardianId = userDetails.getId(),
+            sceneId = sceneId,
+            submittedOrder = request.submittedOrder,
+            text = request.text,
+        )
+        val result: MissionAnswerResult = submitMissionAnswerUseCase.execute(command)
+        val response: MissionAnswerResponse = missionAnswerResponse(result)
+        val responseBody: SuccessResponse<MissionAnswerResponse> =
             successResponse(responseCode = OK, data = response)
 
         return ResponseEntity.status(responseBody.code).body(responseBody)

@@ -7,6 +7,7 @@ import com.krince.reminisce.domain.model.story.Story
 import com.krince.reminisce.domain.model.story.VoiceAgeGroup
 import com.krince.reminisce.domain.model.story.VoiceGender
 import com.krince.reminisce.domain.model.story.vo.Difficulty
+import com.krince.reminisce.domain.model.story.vo.MissionType
 import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.SceneId
 import com.krince.reminisce.domain.model.story.vo.SceneType
@@ -251,6 +252,7 @@ class StoryMapperTest : FunSpec({
                 val dialogue = StoryMapper.toDomain(aggregateEntity).scenes.first()
 
                 dialogue.mission shouldBe mission
+                dialogue.mission?.type shouldBe MissionType.SPEAKING
             }
 
             test("음성 메타가 있는 대화 장면 엔티티의 characterVoice를 도메인으로 옮긴다") {

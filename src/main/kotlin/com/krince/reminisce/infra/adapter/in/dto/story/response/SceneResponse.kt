@@ -15,6 +15,15 @@ class CharacterVoiceResponse(
     val voiceProfile: String,
 )
 
+@Schema(title = "WordCardResponse", description = "단어카드 응답")
+class WordCardResponse(
+    @field:Schema(description = "카드 단어", required = true)
+    val text: String,
+
+    @field:Schema(description = "정답 순서", required = true)
+    val correctOrder: Int,
+)
+
 @Schema(title = "MissionResponse", description = "장면 미션 응답")
 class MissionResponse(
     @field:Schema(description = "미션 목표", required = true)
@@ -22,6 +31,12 @@ class MissionResponse(
 
     @field:Schema(description = "미션 예시 힌트 목록", required = true)
     val examples: List<String>,
+
+    @field:Schema(description = "미션 유형", example = "SPEAKING", required = true)
+    val type: String,
+
+    @field:Schema(description = "단어카드 목록 (WORD_ORDER 전용 선택)", required = false)
+    val wordCards: List<WordCardResponse>?,
 )
 
 @Schema(title = "SceneResponse", description = "이야기 장면 응답")
@@ -111,7 +126,16 @@ fun sceneResponse(result: SceneResult): SceneResponse = SceneResponse(
     requiredElements = result.requiredElements?.map { it.name },
     preferredTurns = result.preferredTurns,
     maxTurns = result.maxTurns,
-    mission = result.mission?.let { MissionResponse(goal = it.goal, examples = it.examples) },
+    mission = result.mission?.let {
+        MissionResponse(
+            goal = it.goal,
+            examples = it.examples,
+            type = it.type.name,
+            wordCards = it.wordCards?.map { wordCard ->
+                WordCardResponse(text = wordCard.text, correctOrder = wordCard.correctOrder)
+            },
+        )
+    },
     characterVoice = result.characterVoice?.let {
         CharacterVoiceResponse(gender = it.gender.name, ageGroup = it.ageGroup.name, voiceProfile = it.voiceProfile)
     },

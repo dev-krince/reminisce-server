@@ -3,10 +3,13 @@ package com.krince.reminisce.infra.adapter.`in`.controller
 import com.krince.reminisce.domain.model.speakingsession.vo.SceneEndReason
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
 import com.krince.reminisce.domain.model.story.CharacterVoice
+import com.krince.reminisce.domain.model.story.Mission
 import com.krince.reminisce.domain.model.story.VoiceAgeGroup
 import com.krince.reminisce.domain.model.story.VoiceGender
+import com.krince.reminisce.domain.model.story.vo.MissionType
 import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.SceneType
+import com.krince.reminisce.domain.model.story.vo.WordCard
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
 import com.krince.reminisce.domain.model.story.vo.ThinkingElement
 import com.krince.reminisce.domain.model.utteranceanalysis.DetectedElement
@@ -27,6 +30,7 @@ import com.krince.reminisce.testutil.fixture.TestChildConsentFixture
 import com.krince.reminisce.testutil.fixture.TestChildFixture
 import com.krince.reminisce.testutil.fixture.TestJwtTokenFixture
 import com.krince.reminisce.testutil.fixture.TestMessageFixture
+import com.krince.reminisce.testutil.fixture.TestMissionResultFixture
 import com.krince.reminisce.testutil.fixture.TestPostActivityResultFixture
 import com.krince.reminisce.testutil.fixture.TestReportFixture
 import com.krince.reminisce.testutil.fixture.TestSpeakingSessionFixture
@@ -71,6 +75,7 @@ class SpeakingSessionControllerImplTest(
     private val testMessageFixture: TestMessageFixture,
     private val testUtteranceAnalysisFixture: TestUtteranceAnalysisFixture,
     private val testPostActivityResultFixture: TestPostActivityResultFixture,
+    private val testMissionResultFixture: TestMissionResultFixture,
     private val testReportFixture: TestReportFixture,
     private val testJwtTokenFixture: TestJwtTokenFixture,
 ) : FunSpec({
@@ -175,6 +180,32 @@ class SpeakingSessionControllerImplTest(
         characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
     )
 
+    fun dialogueEntityWithMission(storyId: String, sceneOrder: Short, mission: Mission): SceneOrmEntity = SceneOrmEntity(
+        sceneId = "sc-$sceneOrder-$storyId",
+        storyId = storyId,
+        sceneOrder = sceneOrder,
+        chapter = 1,
+        sceneType = SceneType.DIALOGUE.name,
+        sceneDescription = "대화 설명 $sceneOrder",
+        characterName = "ch_banggui_daughter_in_law",
+        characterDisplayName = "방귀쟁이 며느리",
+        characterOpening = null,
+        characterClosing = null,
+        conflict = null,
+        sceneGoal = "다름을 긍정적으로 받아들인다",
+        requiredElements = listOf(ThinkingElement.EMOTION, ThinkingElement.PERSPECTIVE),
+        preferredTurns = null,
+        maxTurns = 4,
+        mission = mission,
+        characterVoice = CharacterVoice(
+            gender = VoiceGender.FEMALE,
+            ageGroup = VoiceAgeGroup.ADULT,
+            voiceProfile = "young_woman_gentle",
+        ),
+        imageUrl = sceneImageUrl(storyId, sceneOrder),
+        characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
+    )
+
     fun characterLineEntity(
         storyId: String,
         sceneOrder: Short,
@@ -239,6 +270,7 @@ class SpeakingSessionControllerImplTest(
         testReportFixture.deleteAllBatch()
         testUtteranceAnalysisFixture.deleteAllBatch()
         testMessageFixture.deleteAllBatch()
+        testMissionResultFixture.deleteAllBatch()
         testPostActivityResultFixture.deleteAllBatch()
         testSpeakingSessionFixture.deleteAllBatch()
         testChildConsentFixture.deleteAllBatch()
@@ -1532,6 +1564,169 @@ class SpeakingSessionControllerImplTest(
                     .statusCode(401)
                     .body("detailCode", equalTo(ExceptionResponseCode.EMPTY_TOKEN.detailCode))
                     .body("message", equalTo("토큰이 없습니다."))
+            }
+        }
+    }
+
+    context("submitMissionAnswer") {
+        val wordOrderMission = Mission(
+            goal = "문장 완성하기",
+            examples = listOf("남들과 다른 점을 좋은 힘으로 바꿔 보세요"),
+            type = MissionType.WORD_ORDER,
+            wordCards = listOf(
+                WordCard(text = "남들과", correctOrder = 1),
+                WordCard(text = "달라도", correctOrder = 2),
+                WordCard(text = "특별한 힘이", correctOrder = 3),
+                WordCard(text = "될 수 있어요", correctOrder = 4),
+            ),
+        )
+        val correctPayload = listOf("남들과", "달라도", "특별한 힘이", "될 수 있어요")
+        val wrongPayload = listOf("달라도", "남들과", "특별한 힘이", "될 수 있어요")
+
+        context("성공") {
+            test("정답 순서를 제출하면 200과 completed=true를 반환하고 mission_results 1건이 완료로 저장돼 재조회 시 인지된다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                val sceneId = "sc-2-$storyId"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(dialogueEntityWithMission(storyId, 2, wordOrderMission))
+                testSpeakingSessionFixture.save(sessionEntity(sessionId, childId, storyId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("submittedOrder" to correctPayload))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/missions/$sceneId/answer")
+                    .then()
+                    .statusCode(200)
+                    .body("success", equalTo(true))
+                    .body("data.completed", equalTo(true))
+                    .body("data.attemptCount", equalTo(1))
+
+                testMissionResultFixture.count() shouldBe 1L
+                val stored = testMissionResultFixture.findBySessionIdAndSceneId(sessionId, sceneId)
+                stored?.completed shouldBe true
+                stored?.attemptCount shouldBe 1
+            }
+
+            test("오답 재제출 뒤 정답을 맞추면 completed=true·attempt_count=2가 되고 mission_results는 여전히 1건이다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                val sceneId = "sc-2-$storyId"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(dialogueEntityWithMission(storyId, 2, wordOrderMission))
+                testSpeakingSessionFixture.save(sessionEntity(sessionId, childId, storyId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("submittedOrder" to wrongPayload))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/missions/$sceneId/answer")
+                    .then()
+                    .statusCode(200)
+                    .body("data.completed", equalTo(false))
+                    .body("data.attemptCount", equalTo(1))
+                    .body("data.hints", equalTo(wordOrderMission.examples))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("submittedOrder" to correctPayload))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/missions/$sceneId/answer")
+                    .then()
+                    .statusCode(200)
+                    .body("data.completed", equalTo(true))
+                    .body("data.attemptCount", equalTo(2))
+
+                testMissionResultFixture.count() shouldBe 1L
+                val stored = testMissionResultFixture.findBySessionIdAndSceneId(sessionId, sceneId)
+                stored?.completed shouldBe true
+                stored?.attemptCount shouldBe 2
+            }
+        }
+
+        context("예외케이스") {
+            test("미션이 없는 대화 장면에 제출하면 422와 BUSINESS_RULE_VIOLATION을 반환하고 저장되지 않는다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                val sceneId = "sc-2-$storyId"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 2))
+                testSpeakingSessionFixture.save(sessionEntity(sessionId, childId, storyId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("submittedOrder" to correctPayload))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/missions/$sceneId/answer")
+                    .then()
+                    .statusCode(422)
+                    .body("detailCode", equalTo(ExceptionResponseCode.BUSINESS_RULE_VIOLATION.detailCode))
+
+                testMissionResultFixture.count() shouldBe 0L
+            }
+
+            test("비-DIALOGUE 신에 제출하면 422와 BUSINESS_RULE_VIOLATION을 반환하고 저장되지 않는다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                val sceneId = "sc-1-$storyId"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testSpeakingSessionFixture.save(sessionEntity(sessionId, childId, storyId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("submittedOrder" to correctPayload))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/missions/$sceneId/answer")
+                    .then()
+                    .statusCode(422)
+                    .body("detailCode", equalTo(ExceptionResponseCode.BUSINESS_RULE_VIOLATION.detailCode))
+
+                testMissionResultFixture.count() shouldBe 0L
+            }
+
+            test("남의 아이 세션에 제출하면 404와 NOT_FOUND로 은닉하고 저장되지 않는다") {
+                val (_, token) = authorizedGuardian()
+                val otherGuardianId = "other-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(otherGuardianId))
+                val otherChildId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                val sceneId = "sc-2-$storyId"
+                testChildFixture.saveChild(childEntity(otherChildId, otherGuardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(dialogueEntityWithMission(storyId, 2, wordOrderMission))
+                testSpeakingSessionFixture.save(sessionEntity(sessionId, otherChildId, storyId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("submittedOrder" to correctPayload))
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/missions/$sceneId/answer")
+                    .then()
+                    .statusCode(404)
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND.detailCode))
+
+                testMissionResultFixture.count() shouldBe 0L
             }
         }
     }

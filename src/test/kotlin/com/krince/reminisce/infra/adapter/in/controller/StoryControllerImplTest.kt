@@ -4,11 +4,13 @@ import com.krince.reminisce.domain.model.story.CharacterVoice
 import com.krince.reminisce.domain.model.story.Mission
 import com.krince.reminisce.domain.model.story.VoiceAgeGroup
 import com.krince.reminisce.domain.model.story.VoiceGender
+import com.krince.reminisce.domain.model.story.vo.MissionType
 import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryGenre
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
 import com.krince.reminisce.domain.model.story.vo.ThinkingElement
+import com.krince.reminisce.domain.model.story.vo.WordCard
 import com.krince.reminisce.infra.adapter.out.persistence.child.entity.ChildOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.savedstory.entity.SavedStoryOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.speakingsession.entity.SpeakingSessionOrmEntity
@@ -799,7 +801,7 @@ class StoryControllerImplTest(
                     .body("data.scenes[3].characterOpening", equalTo("그래, 이야기해 줘서 고마워."))
             }
 
-            test("미션이 있는 대화 장면은 mission.goal·examples를 담아 반환하고 미션 없는 장면은 mission이 null이다") {
+            test("미션이 있는 대화 장면은 mission.goal·examples·type을 담아 반환하고 미션 없는 장면은 mission이 null이다") {
                 val token = authorizedToken()
                 val storyId = "mission-${uniqueSuffix()}"
                 val mission = Mission(
@@ -821,6 +823,39 @@ class StoryControllerImplTest(
                     .body("data.scenes[0].mission", nullValue())
                     .body("data.scenes[1].mission.goal", equalTo("높은 배나무의 배를 떨어뜨리기 위해 며느리의 방귀를 안전하게 사용할 수 있는 방법 찾기"))
                     .body("data.scenes[1].mission.examples", contains("무엇을 사용할 것인지", "주변 사람들과 시아버지는 어디로 피해야 할지"))
+                    .body("data.scenes[1].mission.type", equalTo(MissionType.SPEAKING.name))
+                    .body("data.scenes[1].mission.wordCards", nullValue())
+            }
+
+            test("WORD_ORDER 미션 대화 장면은 mission.type과 wordCards(text·correctOrder)를 픽스처 값으로 노출한다") {
+                val token = authorizedToken()
+                val storyId = "word-order-mission-${uniqueSuffix()}"
+                val mission = Mission(
+                    goal = "문장 완성하기",
+                    examples = listOf("남들과 다른 점을 좋은 힘으로 바꿔 보세요"),
+                    type = MissionType.WORD_ORDER,
+                    wordCards = listOf(
+                        WordCard(text = "남들과", correctOrder = 1),
+                        WordCard(text = "달라도", correctOrder = 2),
+                        WordCard(text = "특별한 힘이", correctOrder = 3),
+                        WordCard(text = "될 수 있어요", correctOrder = 4),
+                    ),
+                )
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(narrationEntity(storyId, 1))
+                testStoryFixture.saveScene(dialogueEntityWithMission(storyId, 2, mission))
+                testStoryFixture.saveTopic(topicEntity(storyId, "다름"))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/stories/$storyId")
+                    .then()
+                    .statusCode(200)
+                    .body("data.scenes[1].mission.type", equalTo(MissionType.WORD_ORDER.name))
+                    .body("data.scenes[1].mission.wordCards.text", contains("남들과", "달라도", "특별한 힘이", "될 수 있어요"))
+                    .body("data.scenes[1].mission.wordCards.correctOrder", contains(1, 2, 3, 4))
             }
 
             test("음성 메타가 있는 대화 장면은 characterVoice를 담아 반환하고 내레이션은 characterVoice가 null이다") {

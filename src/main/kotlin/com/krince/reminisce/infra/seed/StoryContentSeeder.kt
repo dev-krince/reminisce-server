@@ -7,6 +7,7 @@ import com.krince.reminisce.domain.model.story.Story
 import com.krince.reminisce.domain.model.story.VoiceAgeGroup
 import com.krince.reminisce.domain.model.story.VoiceGender
 import com.krince.reminisce.domain.model.story.vo.Difficulty
+import com.krince.reminisce.domain.model.story.vo.MissionType
 import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.SceneId
 import com.krince.reminisce.domain.model.story.vo.SceneType
@@ -14,6 +15,7 @@ import com.krince.reminisce.domain.model.story.vo.StoryGenre
 import com.krince.reminisce.domain.model.story.vo.StoryId
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
 import com.krince.reminisce.domain.model.story.vo.ThinkingElement
+import com.krince.reminisce.domain.model.story.vo.WordCard
 import com.krince.reminisce.infra.adapter.out.persistence.story.SceneRepository
 import com.krince.reminisce.infra.adapter.out.persistence.story.StoryRepository
 import com.krince.reminisce.infra.adapter.out.persistence.story.StoryTopicRepository
@@ -272,6 +274,7 @@ class StoryContentSeeder(
                 mission = Mission(
                     goal = PEAR_DROP_MISSION_GOAL,
                     examples = PEAR_DROP_MISSION_EXAMPLES,
+                    type = MissionType.SPEAKING,
                 ),
                 characterVoice = VILLAGE_CHIEF_VOICE,
                 imageNumber = 1367,
@@ -335,6 +338,8 @@ class StoryContentSeeder(
                 mission = Mission(
                     goal = STRENGTH_REFRAME_MISSION_GOAL,
                     examples = STRENGTH_REFRAME_MISSION_EXAMPLES,
+                    type = MissionType.WORD_ORDER,
+                    wordCards = STRENGTH_REFRAME_MISSION_WORD_CARDS,
                 ),
                 characterVoice = DAUGHTER_IN_LAW_VOICE,
                 imageNumber = 1373,
@@ -487,6 +492,12 @@ class StoryContentSeeder(
             "질문이 많은 친구는 새로운 생각을 찾을 수 있어요",
             "힘이 센 친구는 무거운 물건을 옮길 때 도울 수 있어요",
             "조용한 친구는 다른 사람의 말을 잘 들어 줄 수 있어요",
+        )
+        val STRENGTH_REFRAME_MISSION_WORD_CARDS = listOf(
+            WordCard(text = "남들과", correctOrder = 1),
+            WordCard(text = "달라도", correctOrder = 2),
+            WordCard(text = "특별한 힘이", correctOrder = 3),
+            WordCard(text = "될 수 있어요", correctOrder = 4),
         )
     }
 }
