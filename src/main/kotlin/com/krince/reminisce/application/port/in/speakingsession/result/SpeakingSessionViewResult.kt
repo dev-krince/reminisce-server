@@ -22,11 +22,18 @@ class SpeakingSessionViewResult(
             characterOpeningAudio: String?,
             characterClosingAudio: String?,
             narrationAudio: String?,
+            missionExplanationAudio: String?,
         ): SpeakingSessionViewResult = SpeakingSessionViewResult(
             viewType = SpeakingSessionViewType.SCENE,
             intro = null,
             introAudio = null,
-            scene = SceneResult.from(scene, characterOpeningAudio, characterClosingAudio, narrationAudio),
+            scene = SceneResult.from(
+                scene,
+                characterOpeningAudio,
+                characterClosingAudio,
+                narrationAudio,
+                missionExplanationAudio,
+            ),
         )
 
         fun postActivity(): SpeakingSessionViewResult = SpeakingSessionViewResult(

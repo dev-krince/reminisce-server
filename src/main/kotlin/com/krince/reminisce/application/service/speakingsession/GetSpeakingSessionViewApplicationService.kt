@@ -66,8 +66,9 @@ class GetSpeakingSessionViewApplicationService(
         val openingAudio: String? = scene.characterOpening?.let { ttsPort.synthesize(it, scene.characterVoice?.voiceProfile) }
         val closingAudio: String? = scene.characterClosing?.let { ttsPort.synthesize(it, scene.characterVoice?.voiceProfile) }
         val narrationAudio: String? = narrationAudio(scene)
+        val missionExplanationAudio: String? = missionExplanationAudio(scene)
 
-        return SpeakingSessionViewResult.scene(scene, openingAudio, closingAudio, narrationAudio)
+        return SpeakingSessionViewResult.scene(scene, openingAudio, closingAudio, narrationAudio, missionExplanationAudio)
     }
 
     private fun narrationAudio(scene: Scene): String? =
@@ -76,4 +77,7 @@ class GetSpeakingSessionViewApplicationService(
         } else {
             null
         }
+
+    private fun missionExplanationAudio(scene: Scene): String? =
+        scene.mission?.explanationText()?.let { ttsPort.synthesize(it, NARRATOR_VOICE_PROFILE) }
 }

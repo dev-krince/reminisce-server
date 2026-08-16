@@ -9,11 +9,13 @@ import com.krince.reminisce.application.port.out.tts.NARRATOR_VOICE_PROFILE
 import com.krince.reminisce.application.port.out.tts.TtsPort
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.story.CharacterVoice
+import com.krince.reminisce.domain.model.story.Mission
 import com.krince.reminisce.domain.model.story.Scene
 import com.krince.reminisce.domain.model.story.Story
 import com.krince.reminisce.domain.model.story.VoiceAgeGroup
 import com.krince.reminisce.domain.model.story.VoiceGender
 import com.krince.reminisce.domain.model.story.vo.Difficulty
+import com.krince.reminisce.domain.model.story.vo.MissionType
 import com.krince.reminisce.domain.model.story.vo.PostActivityConfig
 import com.krince.reminisce.domain.model.story.vo.SceneId
 import com.krince.reminisce.domain.model.story.vo.SceneType
@@ -99,6 +101,32 @@ class StoryQueryServiceTest : FunSpec({
             ageGroup = VoiceAgeGroup.ADULT,
             voiceProfile = "young_woman_gentle",
         ),
+    )
+
+    fun missionScene(sceneId: String, sceneOrder: Int): Scene = Scene(
+        sceneId = SceneId(sceneId),
+        storyId = StoryId(storyIdStr),
+        sceneOrder = sceneOrder,
+        sceneType = SceneType.DIALOGUE,
+        sceneDescription = "대화 설명 $sceneOrder",
+        characterName = "ch_banggui_daughter_in_law",
+        characterDisplayName = "방귀쟁이 며느리",
+        sceneGoal = "장면 발화 목표",
+        requiredElements = listOf(ThinkingElement.PERSPECTIVE, ThinkingElement.EMOTION),
+        maxTurns = 4,
+        mission = Mission(
+            goal = "안전하게 배 떨어뜨리기",
+            examples = listOf("무엇을 사용할지"),
+            type = MissionType.SPEAKING,
+            title = "안전하게 배를 떨어뜨려요",
+            description = "배가 떨어질 때 사람들이 다치지 않도록, 먼저 준비할 일을 말해보세요.",
+        ),
+        characterVoice = CharacterVoice(
+            gender = VoiceGender.FEMALE,
+            ageGroup = VoiceAgeGroup.ADULT,
+            voiceProfile = "young_woman_gentle",
+        ),
+        characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
     )
 
     fun story(scenes: List<Scene>): Story = Story(
@@ -423,6 +451,23 @@ class StoryQueryServiceTest : FunSpec({
                 verify(exactly = 0) {
                     ttsPort.synthesize(match { it.contains("ㅇㅇ") }, any())
                 }
+            }
+
+            test("미션이 있는 장면은 제목+안내를 나레이터 음성으로 합성해 missionExplanationAudio를 채운다") {
+                every { loadStoryPort.findByIdWithScenesPublished(StoryId(storyIdStr)) } returns story(
+                    scenes = listOf(missionScene("sc-1", 1)),
+                )
+                every {
+                    ttsPort.synthesize(
+                        "안전하게 배를 떨어뜨려요 배가 떨어질 때 사람들이 다치지 않도록, 먼저 준비할 일을 말해보세요.",
+                        NARRATOR_VOICE_PROFILE,
+                    )
+                } returns "audio://mission-explanation"
+
+                val result = service.execute(GetStoryCommand(storyId = storyIdStr))
+
+                result.scenes[0].missionExplanationAudio shouldBe "audio://mission-explanation"
+                result.scenes[0].mission.shouldNotBeNull().title shouldBe "안전하게 배를 떨어뜨려요"
             }
         }
         context("실패") {

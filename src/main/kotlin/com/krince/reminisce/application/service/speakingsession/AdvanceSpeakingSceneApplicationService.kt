@@ -81,8 +81,15 @@ class AdvanceSpeakingSceneApplicationService(
         val closingAudio: String? =
             personalized.characterClosing?.let { ttsPort.synthesize(it, personalized.characterVoice?.voiceProfile) }
         val narrationAudio: String? = narrationAudio(personalized)
+        val missionExplanationAudio: String? = missionExplanationAudio(personalized)
 
-        return SpeakingSessionViewResult.scene(personalized, openingAudio, closingAudio, narrationAudio)
+        return SpeakingSessionViewResult.scene(
+            personalized,
+            openingAudio,
+            closingAudio,
+            narrationAudio,
+            missionExplanationAudio,
+        )
     }
 
     private fun narrationAudio(scene: Scene): String? =
@@ -91,6 +98,9 @@ class AdvanceSpeakingSceneApplicationService(
         } else {
             null
         }
+
+    private fun missionExplanationAudio(scene: Scene): String? =
+        scene.mission?.explanationText()?.let { ttsPort.synthesize(it, NARRATOR_VOICE_PROFILE) }
 
     private fun verifyLeavable(session: SpeakingSession, currentScene: Scene) {
         if (currentScene.sceneType != SceneType.DIALOGUE) {

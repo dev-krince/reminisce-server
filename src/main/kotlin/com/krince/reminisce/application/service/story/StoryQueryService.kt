@@ -78,15 +78,16 @@ class StoryQueryService(
 
     private fun sceneResult(scene: Scene, childName: String?): SceneResult {
         val narrationAudio: String? = narrationAudio(scene)
+        val missionExplanationAudio: String? = missionExplanationAudio(scene)
         if (childName == null) {
-            return SceneResult.from(scene, null, null, narrationAudio)
+            return SceneResult.from(scene, null, null, narrationAudio, missionExplanationAudio)
         }
         val personalized: Scene = scene.personalizedFor(childName)
         val voiceProfile: String? = personalized.characterVoice?.voiceProfile
         val openingAudio: String? = personalized.characterOpening?.let { ttsPort.synthesize(it, voiceProfile) }
         val closingAudio: String? = personalized.characterClosing?.let { ttsPort.synthesize(it, voiceProfile) }
 
-        return SceneResult.from(personalized, openingAudio, closingAudio, narrationAudio)
+        return SceneResult.from(personalized, openingAudio, closingAudio, narrationAudio, missionExplanationAudio)
     }
 
     private fun narrationAudio(scene: Scene): String? {
@@ -96,4 +97,7 @@ class StoryQueryService(
 
         return ttsPort.synthesize(scene.sceneDescription, NARRATOR_VOICE_PROFILE)
     }
+
+    private fun missionExplanationAudio(scene: Scene): String? =
+        scene.mission?.explanationText()?.let { ttsPort.synthesize(it, NARRATOR_VOICE_PROFILE) }
 }

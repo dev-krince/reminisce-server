@@ -43,6 +43,9 @@ class MissionResponse(
 
     @field:Schema(description = "미션 화면 표시용 안내 문구", example = "배가 떨어질 때 사람들이 다치지 않도록, 먼저 준비할 일을 말해보세요.", required = false)
     val description: String?,
+
+    @field:Schema(description = "미션 설명(제목+안내) 나레이터 음성 참조. '설명 다시 듣기' 재생용", required = false)
+    val explanationAudio: String?,
 )
 
 @Schema(title = "SceneResponse", description = "이야기 장면 응답")
@@ -142,6 +145,7 @@ fun sceneResponse(result: SceneResult): SceneResponse = SceneResponse(
             },
             title = it.title,
             description = it.description,
+            explanationAudio = result.missionExplanationAudio,
         )
     },
     characterVoice = result.characterVoice?.let {
