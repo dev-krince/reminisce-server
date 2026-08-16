@@ -4,11 +4,15 @@ import com.krince.reminisce.application.port.access.child.ChildAccessPort
 import com.krince.reminisce.application.port.access.speakingsession.SpeakingSessionAccessPort
 import com.krince.reminisce.application.port.`in`.story.command.GetRecommendedStoriesCommand
 import com.krince.reminisce.application.port.out.story.LoadStoryPort
+import com.krince.reminisce.application.port.out.storyprofile.LoadStoryProfilePort
 import com.krince.reminisce.domain.model.child.vo.ChildId
+import com.krince.reminisce.domain.model.profileinterview.vo.ProfileInterviewId
 import com.krince.reminisce.domain.model.story.Story
 import com.krince.reminisce.domain.model.story.vo.Difficulty
 import com.krince.reminisce.domain.model.story.vo.StoryId
 import com.krince.reminisce.domain.model.story.vo.StoryStatus
+import com.krince.reminisce.domain.model.storyprofile.InterestTopic
+import com.krince.reminisce.domain.model.storyprofile.StoryProfile
 import com.krince.reminisce.domain.model.user.vo.UserId
 import com.krince.reminisce.shared.exception.NotFoundException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND
@@ -29,13 +33,18 @@ class RecommendStoriesApplicationServiceTest : FunSpec({
     val loadStoryPort = mockk<LoadStoryPort>()
     val speakingSessionAccessPort = mockk<SpeakingSessionAccessPort>()
     val childAccessPort = mockk<ChildAccessPort>()
+    val loadStoryProfilePort = mockk<LoadStoryProfilePort>()
     val service = RecommendStoriesApplicationService(
         loadStoryPort = loadStoryPort,
         speakingSessionAccessPort = speakingSessionAccessPort,
         childAccessPort = childAccessPort,
+        loadStoryProfilePort = loadStoryProfilePort,
     )
 
-    beforeEach { clearAllMocks() }
+    beforeEach {
+        clearAllMocks()
+        every { loadStoryProfilePort.findByChild(any()) } returns null
+    }
 
     val childIdStr = "child-uuid-1"
     val guardianIdStr = "guardian-uuid-1"
@@ -46,7 +55,7 @@ class RecommendStoriesApplicationServiceTest : FunSpec({
     fun command(): GetRecommendedStoriesCommand =
         GetRecommendedStoriesCommand(childId = childIdStr, guardianId = guardianIdStr)
 
-    fun story(storyIdStr: String, difficulty: String): Story = Story(
+    fun story(storyIdStr: String, difficulty: String, topics: List<String> = emptyList()): Story = Story(
         storyId = StoryId(storyIdStr),
         title = "제목-$storyIdStr",
         summary = "요약",
@@ -58,8 +67,18 @@ class RecommendStoriesApplicationServiceTest : FunSpec({
         representativeImageUrl = null,
         status = StoryStatus.PUBLISHED,
         postActivityConfig = null,
-        topics = emptyList(),
+        topics = topics,
         scenes = emptyList(),
+    )
+
+    fun profileWithInterests(interestTopics: List<InterestTopic>): StoryProfile = StoryProfile.create(
+        childId = childId,
+        interviewId = ProfileInterviewId("interview-1"),
+        interestTopics = interestTopics,
+        strengths = emptyList(),
+        practicePoints = emptyList(),
+        speechAnalyses = emptyList(),
+        at = java.time.LocalDateTime.of(2026, 8, 17, 12, 0),
     )
 
     context("소유권 실패") {
@@ -131,6 +150,40 @@ class RecommendStoriesApplicationServiceTest : FunSpec({
             val results = service.execute(command())
 
             results shouldHaveSize 0
+        }
+    }
+
+    context("이야기 프로필 반영") {
+        test("프로필 관심 태그·카테고리와 topics가 겹치는 이야기를 난이도보다 우선 추천한다") {
+            val matchingHard = story("story-match-hard", "다", topics = listOf("관계", "우정"))
+            val doubleMatchHard = story("story-double-hard", "다", topics = listOf("동물", "자연"))
+            val plainEasy = story("story-plain-easy", "가", topics = listOf("용기"))
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { speakingSessionAccessPort.findStartedStoryIds(childId) } returns emptyList()
+            every { loadStoryPort.findAllPublished() } returns listOf(plainEasy, matchingHard, doubleMatchHard)
+            every { loadStoryProfilePort.findByChild(childId) } returns profileWithInterests(
+                listOf(
+                    InterestTopic(category = "관계", tags = listOf("친구")),
+                    InterestTopic(category = "자연", tags = listOf("동물")),
+                ),
+            )
+
+            val results = service.execute(command())
+
+            results.map { it.storyId } shouldBe listOf("story-double-hard", "story-match-hard", "story-plain-easy")
+        }
+
+        test("프로필이 없으면 기존처럼 난이도 오름차순만 적용한다") {
+            val storyA = story("story-a", "나", topics = listOf("관계"))
+            val storyB = story("story-b", "가")
+            every { childAccessPort.findGuardianId(childId) } returns guardianId
+            every { speakingSessionAccessPort.findStartedStoryIds(childId) } returns emptyList()
+            every { loadStoryPort.findAllPublished() } returns listOf(storyA, storyB)
+            every { loadStoryProfilePort.findByChild(childId) } returns null
+
+            val results = service.execute(command())
+
+            results.map { it.storyId } shouldBe listOf("story-b", "story-a")
         }
     }
 })
