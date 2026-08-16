@@ -1,6 +1,9 @@
 package com.krince.reminisce.infra.adapter.out.tts
 
 import com.krince.reminisce.application.port.out.file.StoreFilePort
+import com.krince.reminisce.application.port.out.tts.CommandTtsCachePort
+import com.krince.reminisce.application.port.out.tts.LoadTtsCachePort
+import com.krince.reminisce.domain.model.ttscache.TtsCache
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldNotBe
@@ -32,12 +35,24 @@ class TtsOpenAiManualTest : FunSpec({
             override fun deleteFile(fileUrl: String?) {}
         }
 
+        val cache = mutableMapOf<String, String>()
+        val loadCache = object : LoadTtsCachePort {
+            override fun findFileUrlByCacheKey(cacheKey: String): String? = cache[cacheKey]
+        }
+        val commandCache = object : CommandTtsCachePort {
+            override fun save(ttsCache: TtsCache) {
+                cache[ttsCache.cacheKey] = ttsCache.fileUrl
+            }
+        }
+
         val adapter = TtsOpenAiAdapter(
             apiKey = key,
             model = model,
             voice = voice,
             baseUrl = "https://api.openai.com",
             storeFilePort = store,
+            loadTtsCachePort = loadCache,
+            commandTtsCachePort = commandCache,
             restClientBuilder = RestClient.builder(),
         )
 

@@ -1,7 +1,10 @@
 package com.krince.reminisce.infra.adapter.out.tts
 
 import com.krince.reminisce.application.port.out.file.StoreFilePort
+import com.krince.reminisce.application.port.out.tts.CommandTtsCachePort
+import com.krince.reminisce.application.port.out.tts.LoadTtsCachePort
 import com.krince.reminisce.application.port.out.tts.TtsPort
+import com.krince.reminisce.domain.model.ttscache.TtsCache
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -19,6 +22,8 @@ class TtsOpenAiAdapter(
     @Value("\${tts.openai.voice:nova}") private val voice: String,
     @Value("\${tts.openai.base-url:https://api.openai.com}") private val baseUrl: String,
     private val storeFilePort: StoreFilePort,
+    private val loadTtsCachePort: LoadTtsCachePort,
+    private val commandTtsCachePort: CommandTtsCachePort,
     restClientBuilder: RestClient.Builder,
 ) : TtsPort {
 
@@ -29,6 +34,16 @@ class TtsOpenAiAdapter(
         if (trimmed.isBlank()) {
             return null
         }
+        val cacheKey: String = TtsCache.cacheKey(trimmed, voiceProfile)
+        loadTtsCachePort.findFileUrlByCacheKey(cacheKey)?.let { return it }
+
+        val fileUrl: String = synthesizeAndStore(trimmed, voiceProfile) ?: return null
+        commandTtsCachePort.save(TtsCache(cacheKey = cacheKey, voiceProfile = voiceProfile, fileUrl = fileUrl))
+
+        return fileUrl
+    }
+
+    private fun synthesizeAndStore(trimmed: String, voiceProfile: String?): String? {
         val selectedVoice: String = mapOpenAiVoice(voiceProfile, voice)
 
         return runCatching {
