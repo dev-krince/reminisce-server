@@ -42,6 +42,8 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import io.mockk.verifyOrder
+import org.springframework.transaction.PlatformTransactionManager
 import java.time.LocalDateTime
 
 @Tags("test", "unitTest")
@@ -54,6 +56,7 @@ class SubmitMissionAnswerApplicationServiceTest : FunSpec({
     val missionJudgePort = mockk<MissionJudgePort>()
     val loadMissionResultPort = mockk<LoadMissionResultPort>()
     val commandMissionResultPort = mockk<CommandMissionResultPort>()
+    val transactionManager = mockk<PlatformTransactionManager>(relaxed = true)
     val service = SubmitMissionAnswerApplicationService(
         loadSpeakingSessionPort = loadSpeakingSessionPort,
         childAccessPort = childAccessPort,
@@ -61,6 +64,7 @@ class SubmitMissionAnswerApplicationServiceTest : FunSpec({
         missionJudgePort = missionJudgePort,
         loadMissionResultPort = loadMissionResultPort,
         commandMissionResultPort = commandMissionResultPort,
+        transactionManager = transactionManager,
     )
 
     beforeEach { clearAllMocks() }
@@ -155,6 +159,10 @@ class SubmitMissionAnswerApplicationServiceTest : FunSpec({
         attemptCount = attemptCount,
     )
 
+    fun firstSubmissionExists() {
+        every { loadMissionResultPort.findBySessionAndScene(SpeakingSessionId(sessionIdStr), sceneIdStr) } returns null
+    }
+
     fun ownedSessionWithScene(scene: Scene) {
         every { loadSpeakingSessionPort.findById(SpeakingSessionId(sessionIdStr)) } returns session()
         every { childAccessPort.findGuardianId(childId) } returns guardianId
@@ -164,7 +172,7 @@ class SubmitMissionAnswerApplicationServiceTest : FunSpec({
     context("WORD_ORDER 미션") {
         test("정답 순서를 제출하면 completed=true로 저장하고 힌트가 비어 있다") {
             ownedSessionWithScene(dialogueScene(wordOrderMission))
-            every { loadMissionResultPort.findBySessionAndScene(SpeakingSessionId(sessionIdStr), sceneIdStr) } returns null
+            firstSubmissionExists()
             val savedSlot = slot<MissionResult>()
             every { commandMissionResultPort.save(capture(savedSlot)) } answers { savedResult(completed = true, attemptCount = 1) }
 
@@ -179,10 +187,16 @@ class SubmitMissionAnswerApplicationServiceTest : FunSpec({
         test("오답 순서를 제출하면 미완료로 저장하고 힌트를 돌려주며 attemptCount가 증가한다") {
             val wrongOrder = listOf("달라도", "남들과", "특별한 힘이", "될 수 있어요")
             ownedSessionWithScene(dialogueScene(wordOrderMission))
-            val existing = savedResult(completed = false, attemptCount = 1)
+            val existing = MissionResult(
+                id = MissionResultId("result-uuid-1"),
+                sessionId = SpeakingSessionId(sessionIdStr),
+                sceneId = sceneIdStr,
+                completed = false,
+                attemptCount = 1,
+            )
             every { loadMissionResultPort.findBySessionAndScene(SpeakingSessionId(sessionIdStr), sceneIdStr) } returns existing
             val savedSlot = slot<MissionResult>()
-            every { commandMissionResultPort.save(capture(savedSlot)) } answers { savedResult(completed = false, attemptCount = 2) }
+            every { commandMissionResultPort.save(capture(savedSlot)) } answers { firstArg() }
 
             val result = service.execute(command(submittedOrder = wrongOrder))
 
@@ -190,29 +204,33 @@ class SubmitMissionAnswerApplicationServiceTest : FunSpec({
             result.attemptCount shouldBe 2
             result.hints shouldContainExactly wordOrderMission.examples
             savedSlot.captured.completed shouldBe false
-            savedSlot.captured.attemptCount shouldBe 2
         }
 
         test("무제한 재시도를 위해 오답이어도 상한 없이 attemptCount를 계속 증가시킨다") {
             val wrongOrder = listOf("될 수 있어요", "특별한 힘이", "달라도", "남들과")
             ownedSessionWithScene(dialogueScene(wordOrderMission))
-            val existing = savedResult(completed = false, attemptCount = 9)
+            val existing = MissionResult(
+                id = MissionResultId("result-uuid-1"),
+                sessionId = SpeakingSessionId(sessionIdStr),
+                sceneId = sceneIdStr,
+                completed = false,
+                attemptCount = 9,
+            )
             every { loadMissionResultPort.findBySessionAndScene(SpeakingSessionId(sessionIdStr), sceneIdStr) } returns existing
-            val savedSlot = slot<MissionResult>()
-            every { commandMissionResultPort.save(capture(savedSlot)) } answers { savedResult(completed = false, attemptCount = 10) }
+            every { commandMissionResultPort.save(any()) } answers { firstArg() }
 
-            service.execute(command(submittedOrder = wrongOrder))
+            val result = service.execute(command(submittedOrder = wrongOrder))
 
-            savedSlot.captured.attemptCount shouldBe 10
+            result.attemptCount shouldBe 10
         }
     }
 
     context("SPEAKING 미션") {
         test("판정이 통과하면 미션 목표·기준·아이 답을 판정 포트에 넘기고 completed=true로 저장한다") {
             ownedSessionWithScene(dialogueScene(speakingMission))
+            firstSubmissionExists()
             val contextSlot = slot<MissionJudgeContext>()
             every { missionJudgePort.judge(capture(contextSlot)) } returns MissionJudgement(passed = true, hint = null)
-            every { loadMissionResultPort.findBySessionAndScene(SpeakingSessionId(sessionIdStr), sceneIdStr) } returns null
             val savedSlot = slot<MissionResult>()
             every { commandMissionResultPort.save(capture(savedSlot)) } answers { savedResult(completed = true, attemptCount = 1) }
 
@@ -227,12 +245,26 @@ class SubmitMissionAnswerApplicationServiceTest : FunSpec({
             contextSlot.captured.text shouldBe answerText
         }
 
+        test("판정이 결과 저장 트랜잭션 밖에서 먼저 호출된다") {
+            ownedSessionWithScene(dialogueScene(speakingMission))
+            firstSubmissionExists()
+            every { missionJudgePort.judge(any()) } returns MissionJudgement(passed = true, hint = null)
+            every { commandMissionResultPort.save(any()) } answers { firstArg() }
+
+            service.execute(command(text = "긴 막대기로 나무를 밀어서 배를 떨어뜨려요"))
+
+            verifyOrder {
+                missionJudgePort.judge(any())
+                commandMissionResultPort.save(any())
+            }
+        }
+
         test("판정이 미통과하면 completed=false로 저장하고 힌트를 돌려준다") {
             ownedSessionWithScene(dialogueScene(speakingMission))
+            firstSubmissionExists()
             every { missionJudgePort.judge(any()) } returns MissionJudgement(passed = false, hint = "무엇을 사용할지 말해 볼까요?")
-            every { loadMissionResultPort.findBySessionAndScene(SpeakingSessionId(sessionIdStr), sceneIdStr) } returns null
             val savedSlot = slot<MissionResult>()
-            every { commandMissionResultPort.save(capture(savedSlot)) } answers { savedResult(completed = false, attemptCount = 1) }
+            every { commandMissionResultPort.save(capture(savedSlot)) } answers { firstArg() }
 
             val result = service.execute(command(text = "몰라요"))
 
@@ -248,11 +280,11 @@ class SubmitMissionAnswerApplicationServiceTest : FunSpec({
                 type = MissionType.SPEAKING,
             )
             ownedSessionWithScene(dialogueScene(noExampleMission))
+            firstSubmissionExists()
             val judgeHint = "무엇을 사용해서 배를 떨어뜨릴지 이야기해 볼까요?"
             every { missionJudgePort.judge(any()) } returns MissionJudgement(passed = false, hint = judgeHint)
-            every { loadMissionResultPort.findBySessionAndScene(SpeakingSessionId(sessionIdStr), sceneIdStr) } returns null
             val savedSlot = slot<MissionResult>()
-            every { commandMissionResultPort.save(capture(savedSlot)) } answers { savedResult(completed = false, attemptCount = 1) }
+            every { commandMissionResultPort.save(capture(savedSlot)) } answers { firstArg() }
 
             val result = service.execute(command(text = "몰라요"))
 

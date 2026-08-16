@@ -24,7 +24,8 @@ import com.krince.reminisce.shared.exception.NotFoundException
 import com.krince.reminisce.shared.response.ExceptionResponseCode.BUSINESS_RULE_VIOLATION
 import com.krince.reminisce.shared.response.ExceptionResponseCode.NOT_FOUND
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import java.time.LocalDateTime
 
 @Service
@@ -35,15 +36,17 @@ class SubmitMissionAnswerApplicationService(
     private val missionJudgePort: MissionJudgePort,
     private val loadMissionResultPort: LoadMissionResultPort,
     private val commandMissionResultPort: CommandMissionResultPort,
+    transactionManager: PlatformTransactionManager,
 ) : SubmitMissionAnswerUseCase {
 
-    @Transactional
+    private val upsertTransaction: TransactionTemplate = TransactionTemplate(transactionManager)
+
     override fun execute(command: SubmitMissionAnswerCommand): MissionAnswerResult {
         val session: SpeakingSession = loadOwnedSession(command.sessionId, command.guardianId)
         val mission: Mission = missionOf(session, command.sceneId)
 
         val judgement: MissionJudgement = judge(mission, command.submittedOrder, command.text)
-        val saved: MissionResult = upsert(session.sessionId, command.sceneId, judgement.passed)
+        val saved: MissionResult = saveResult(session.sessionId, command.sceneId, judgement.passed)
 
         return MissionAnswerResult(
             completed = saved.completed,
@@ -80,19 +83,25 @@ class SubmitMissionAnswerApplicationService(
     private fun judgeWordOrder(mission: Mission, submittedOrder: List<String>?): MissionJudgement {
         val correctSequence: List<String> =
             mission.wordCards.orEmpty().sortedBy { it.correctOrder }.map { it.text }
+        if (correctSequence.isEmpty()) {
+            return MissionJudgement(passed = false, hint = null)
+        }
         val passed: Boolean = submittedOrder != null && submittedOrder == correctSequence
 
         return MissionJudgement(passed = passed, hint = null)
     }
 
-    private fun upsert(sessionId: SpeakingSessionId, sceneId: String, passed: Boolean): MissionResult {
-        val now: LocalDateTime = LocalDateTime.now()
-        val existing: MissionResult? = loadMissionResultPort.findBySessionAndScene(sessionId, sceneId)
-        val toSave: MissionResult = existing?.resubmit(passed, now)
-            ?: MissionResult.firstSubmission(sessionId, sceneId, passed, now)
+    private fun saveResult(sessionId: SpeakingSessionId, sceneId: String, passed: Boolean): MissionResult =
+        requireNotNull(
+            upsertTransaction.execute {
+                val now: LocalDateTime = LocalDateTime.now()
+                val existing: MissionResult? = loadMissionResultPort.findBySessionAndScene(sessionId, sceneId)
+                val toSave: MissionResult = existing?.resubmit(passed, now)
+                    ?: MissionResult.firstSubmission(sessionId, sceneId, passed, now)
 
-        return commandMissionResultPort.save(toSave)
-    }
+                commandMissionResultPort.save(toSave)
+            },
+        )
 
     private fun resolveHints(judgement: MissionJudgement, mission: Mission): List<String> {
         if (judgement.passed) {
