@@ -18,6 +18,7 @@ import com.krince.reminisce.domain.model.utteranceanalysis.vo.UtteranceValidity
 import com.krince.reminisce.infra.adapter.out.persistence.child.entity.ChildOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.childconsent.entity.ChildConsentOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.message.entity.MessageOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.postactivityresult.entity.PostActivityResultOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.speakingsession.entity.SpeakingSessionOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.entity.SceneOrmEntity
 import com.krince.reminisce.infra.adapter.out.persistence.story.entity.StoryOrmEntity
@@ -51,7 +52,6 @@ import io.restassured.parsing.Parser
 import io.restassured.specification.MultiPartSpecification
 import java.nio.charset.StandardCharsets
 import org.hamcrest.Matchers.containsInAnyOrder
-import org.hamcrest.Matchers.empty
 import org.hamcrest.Matchers.emptyOrNullString
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.not
@@ -2219,7 +2219,13 @@ class SpeakingSessionControllerImplTest(
     }
 
     context("getSessionReport") {
-        fun childMessage(sessionId: String, sceneId: String, messageId: String, turnOrder: Long): MessageOrmEntity =
+        fun childMessage(
+            sessionId: String,
+            sceneId: String,
+            messageId: String,
+            turnOrder: Long,
+            audioUrl: String? = null,
+        ): MessageOrmEntity =
             MessageOrmEntity(
                 id = messageId,
                 sessionId = sessionId,
@@ -2228,6 +2234,7 @@ class SpeakingSessionControllerImplTest(
                 turnOrder = turnOrder,
                 text = "아이 발화 $turnOrder",
                 sttRawText = "아이 발화 $turnOrder",
+                audioUrl = audioUrl,
                 createdAt = LocalDateTime.now().minusMinutes(10 - turnOrder),
             )
 
@@ -2253,24 +2260,62 @@ class SpeakingSessionControllerImplTest(
                 utteranceValidity = UtteranceValidity.VALID.name,
             )
 
+        fun dialogueEntityWithTitle(storyId: String, sceneOrder: Short, title: String): SceneOrmEntity =
+            SceneOrmEntity(
+                sceneId = "sc-$sceneOrder-$storyId",
+                storyId = storyId,
+                sceneOrder = sceneOrder,
+                chapter = 1,
+                sceneType = SceneType.DIALOGUE.name,
+                sceneDescription = "대화 설명 $sceneOrder",
+                title = title,
+                characterName = "ch_banggui_daughter_in_law",
+                characterDisplayName = "방귀쟁이 며느리",
+                characterOpening = null,
+                characterClosing = null,
+                conflict = null,
+                sceneGoal = "며느리의 입장을 이해하고 공감해준다",
+                requiredElements = listOf(ThinkingElement.PERSPECTIVE, ThinkingElement.EMOTION),
+                preferredTurns = null,
+                maxTurns = 4,
+                characterVoice = CharacterVoice(
+                    gender = VoiceGender.FEMALE,
+                    ageGroup = VoiceAgeGroup.ADULT,
+                    voiceProfile = "young_woman_gentle",
+                ),
+                imageUrl = sceneImageUrl(storyId, sceneOrder),
+                characterImageUrl = "/files/char-ch_banggui_daughter_in_law.png",
+            )
+
+        fun completedPostActivity(sessionId: String): PostActivityResultOrmEntity = PostActivityResultOrmEntity(
+            id = "post-$sessionId",
+            sessionId = sessionId,
+            submittedOrder = listOf("card_1", "card_2"),
+            isOrderCorrect = true,
+            attemptCount = 1,
+            retellingText = "며느리가 방귀로 마을 사람들을 도왔어요",
+            completedAt = LocalDateTime.now(),
+        )
+
         context("성공") {
-            test("완료 세션 GET report는 200을 반환하고 6섹션이 채워진 리포트 1건을 저장하며 장면 하이라이트는 장면별 마지막 아이 발화를 가리킨다") {
+            test("완료 세션 GET report는 200과 5개 탭을 반환하고 장면 카드가 마지막 아이 발화·직전 캐릭터 질문·오디오를 담는다") {
                 val (guardianId, token) = authorizedGuardian()
                 val childId = "child-${uniqueSuffix()}"
                 val storyId = "story-${uniqueSuffix()}"
                 val sessionId = "session-${uniqueSuffix()}"
                 testChildFixture.saveChild(childEntity(childId, guardianId))
                 testStoryFixture.saveStory(storyEntity(storyId))
-                testStoryFixture.saveScene(dialogueEntity(storyId, 1))
-                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                testStoryFixture.saveScene(dialogueEntityWithTitle(storyId, 1, "걱정하는 며느리"))
+                testStoryFixture.saveScene(dialogueEntityWithTitle(storyId, 3, "화가 난 시아버지"))
                 testSpeakingSessionFixture.save(
                     sessionEntity(sessionId, childId, storyId, status = SessionStatus.COMPLETED),
                 )
                 val firstSceneId = "sc-1-$storyId"
                 val secondSceneId = "sc-3-$storyId"
+                val audioUrl = "/files/utterance-msg-child-2.webm"
                 testMessageFixture.save(childMessage(sessionId, firstSceneId, "msg-child-1", 1))
                 testMessageFixture.save(characterMessage(sessionId, firstSceneId, "msg-char-1", 2))
-                testMessageFixture.save(childMessage(sessionId, firstSceneId, "msg-child-2", 3))
+                testMessageFixture.save(childMessage(sessionId, firstSceneId, "msg-child-2", 3, audioUrl = audioUrl))
                 testMessageFixture.save(childMessage(sessionId, secondSceneId, "msg-child-3", 4))
                 testUtteranceAnalysisFixture.save(
                     analysisEntity("msg-child-1", ThinkingElement.EMOTION, ThinkingElement.PERSPECTIVE),
@@ -2278,6 +2323,7 @@ class SpeakingSessionControllerImplTest(
                 testUtteranceAnalysisFixture.save(
                     analysisEntity("msg-child-2", ThinkingElement.EMOTION, ThinkingElement.DECISION),
                 )
+                testPostActivityResultFixture.save(completedPostActivity(sessionId))
 
                 RestAssured.given()
                     .header("Authorization", token)
@@ -2289,11 +2335,26 @@ class SpeakingSessionControllerImplTest(
                     .body("success", equalTo(true))
                     .body("code", equalTo(200))
                     .body("message", equalTo(SuccessResponseCode.OK.message))
-                    .body("data.summary", not(emptyOrNullString()))
-                    .body("data.representativeUtterance.text", not(emptyOrNullString()))
-                    .body("data.representativeUtterance.reason", not(emptyOrNullString()))
-                    .body("data.homeConversationGuide.storyThemeQuestions", not(empty<String>()))
-                    .body("data.homeConversationGuide.dailyLifeQuestions", not(empty<String>()))
+                    .body("data.summaryTab.storyTitle", equalTo("제목-$storyId"))
+                    .body("data.summaryTab.durationMinutes", equalTo(4))
+                    .body("data.summaryTab.postActivityCompleted.cardOrder", equalTo(true))
+                    .body("data.summaryTab.postActivityCompleted.retelling", equalTo(true))
+                    .body("data.summaryTab.overall.headline", not(emptyOrNullString()))
+                    .body("data.summaryTab.participation.size()", equalTo(3))
+                    .body("data.speechTab.areas.size()", equalTo(3))
+                    .body("data.sceneTab.cards.size()", equalTo(2))
+                    .body("data.sceneTab.cards[0].sceneId", equalTo(firstSceneId))
+                    .body("data.sceneTab.cards[0].title", equalTo("걱정하는 며느리"))
+                    .body("data.sceneTab.cards[0].characterQuestion", equalTo("캐릭터 응답 2"))
+                    .body("data.sceneTab.cards[0].childUtterance.text", equalTo("아이 발화 3"))
+                    .body("data.sceneTab.cards[0].childUtterance.audioUrl", equalTo(audioUrl))
+                    .body("data.sceneTab.cards[1].sceneId", equalTo(secondSceneId))
+                    .body("data.sceneTab.cards[1].title", equalTo("화가 난 시아버지"))
+                    .body("data.sceneTab.cards[1].childUtterance.text", equalTo("아이 발화 4"))
+                    .body("data.sceneTab.cards[1].childUtterance.audioUrl", nullValue())
+                    .body("data.representativeTab.text", not(emptyOrNullString()))
+                    .body("data.homeGuideTab.storyQuestions.size()", equalTo(3))
+                    .body("data.homeGuideTab.dailyQuestions.size()", equalTo(3))
                     .body("data.createdAt", not(emptyOrNullString()))
 
                 testReportFixture.count() shouldBe 1L
@@ -2330,7 +2391,7 @@ class SpeakingSessionControllerImplTest(
                     .get("/speaking-sessions/$sessionId/report")
                     .then()
                     .statusCode(200)
-                    .body("data.summary", not(emptyOrNullString()))
+                    .body("data.summaryTab.storyTitle", not(emptyOrNullString()))
                     .extract()
                     .path<String>("data.createdAt")
 
@@ -2370,7 +2431,7 @@ class SpeakingSessionControllerImplTest(
                     .get("/speaking-sessions/$sessionId/report")
                     .then()
                     .statusCode(200)
-                    .body("data.summary", not(emptyOrNullString()))
+                    .body("data.summaryTab.storyTitle", not(emptyOrNullString()))
 
                 testReportFixture.count() shouldBe 1L
                 val stored = testReportFixture.findBySessionId(sessionId).shouldNotBeNull()

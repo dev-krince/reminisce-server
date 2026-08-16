@@ -277,7 +277,12 @@ interface SpeakingSessionController {
 
     @Operation(
         summary = "말하기 세션 보호자 리포트 조회",
-        description = "로그인한 보호자가 본인 아이의 완료(COMPLETED) 세션 리포트를 조회합니다. 리포트가 없으면 세션 전체 발화 분석을 집계해 강점·다음 초점·요약을 생성·저장한 뒤 반환합니다.",
+        description = "로그인한 보호자가 본인 아이의 완료(COMPLETED) 세션 리포트를 5개 탭으로 조회합니다. " +
+            "탭은 총합 요약(summaryTab: 아이 이름·이야기 제목·활동 날짜·소요 시간·후활동 완료 여부·총평·참여), " +
+            "어휘·표현·논리(speechTab: 3영역), 장면별 발화(sceneTab: 대화 장면별 카드로 마지막 아이 발화·직전 캐릭터 질문·오디오), " +
+            "대표 발화(representativeTab: 발화·오디오·해설), 가정 대화 가이드(homeGuideTab)입니다. " +
+            "리포트가 없으면 세션 전체 발화 분석을 집계해 생성·저장한 뒤, 장면 카드와 총합 메타를 조회 시점에 조립해 반환합니다. " +
+            "오디오를 제출하지 않은 발화의 음성 URL은 null입니다.",
     )
     @SwaggerSuccessResponse(responseCode = OK, description = "말하기 세션 보호자 리포트 조회 성공")
     @SwaggerExceptionResponse(

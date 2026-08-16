@@ -94,8 +94,13 @@ class StoryAccessFacade(
             scenes = story.scenes.map { scene ->
                 StoryReportScene(
                     sceneId = scene.sceneId.value,
+                    sceneOrder = scene.sceneOrder,
+                    sceneType = scene.sceneType,
                     description = scene.sceneDescription,
                     goal = scene.sceneGoal,
+                    sceneTitle = scene.title,
+                    imageUrl = scene.imageUrl,
+                    characterDisplayName = scene.characterDisplayName,
                 )
             },
         )

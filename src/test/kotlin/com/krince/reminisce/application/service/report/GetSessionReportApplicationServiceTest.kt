@@ -6,6 +6,7 @@ import com.krince.reminisce.application.port.access.story.StoryReportScene
 import com.krince.reminisce.application.port.access.story.StoryReportSnapshot
 import com.krince.reminisce.application.port.`in`.report.command.GetSessionReportCommand
 import com.krince.reminisce.application.port.out.message.LoadMessagePort
+import com.krince.reminisce.application.port.out.postactivityresult.LoadPostActivityResultPort
 import com.krince.reminisce.application.port.out.report.CommandReportPort
 import com.krince.reminisce.application.port.out.report.LoadReportPort
 import com.krince.reminisce.application.port.out.report.ReportAnalysisContext
@@ -32,6 +33,7 @@ import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
 import com.krince.reminisce.domain.model.story.vo.SceneId
+import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.story.vo.StoryId
 import com.krince.reminisce.domain.model.story.vo.ThinkingElement
 import com.krince.reminisce.domain.model.user.vo.UserId
@@ -69,6 +71,7 @@ class GetSessionReportApplicationServiceTest : FunSpec({
     val loadReportPort = mockk<LoadReportPort>()
     val commandReportPort = mockk<CommandReportPort>()
     val loadMessagePort = mockk<LoadMessagePort>()
+    val loadPostActivityResultPort = mockk<LoadPostActivityResultPort>()
     val loadUtteranceAnalysisPort = mockk<LoadUtteranceAnalysisPort>()
     val reportAnalysisPort = mockk<ReportAnalysisPort>()
     val fixedInstant = Instant.parse("2026-01-09T14:30:25Z")
@@ -80,6 +83,7 @@ class GetSessionReportApplicationServiceTest : FunSpec({
         loadReportPort = loadReportPort,
         commandReportPort = commandReportPort,
         loadMessagePort = loadMessagePort,
+        loadPostActivityResultPort = loadPostActivityResultPort,
         loadUtteranceAnalysisPort = loadUtteranceAnalysisPort,
         reportAnalysisPort = reportAnalysisPort,
         clock = clock,
@@ -113,8 +117,26 @@ class GetSessionReportApplicationServiceTest : FunSpec({
     fun snapshot(): StoryReportSnapshot = StoryReportSnapshot(
         title = "방귀쟁이 며느리",
         scenes = listOf(
-            StoryReportScene(sceneId = sceneOneId, description = "며느리를 만나는 장면", goal = "며느리의 마음 이해하기"),
-            StoryReportScene(sceneId = sceneTwoId, description = "며느리를 돕는 장면", goal = null),
+            StoryReportScene(
+                sceneId = sceneOneId,
+                sceneOrder = 1,
+                sceneType = SceneType.DIALOGUE,
+                description = "며느리를 만나는 장면",
+                goal = "며느리의 마음 이해하기",
+                sceneTitle = "걱정하는 며느리",
+                imageUrl = "/files/scene-1.png",
+                characterDisplayName = "방귀쟁이 며느리",
+            ),
+            StoryReportScene(
+                sceneId = sceneTwoId,
+                sceneOrder = 2,
+                sceneType = SceneType.DIALOGUE,
+                description = "며느리를 돕는 장면",
+                goal = null,
+                sceneTitle = "달라진 며느리",
+                imageUrl = "/files/scene-2.png",
+                characterDisplayName = "방귀쟁이 며느리",
+            ),
         ),
     )
 
@@ -213,11 +235,16 @@ class GetSessionReportApplicationServiceTest : FunSpec({
         every { childAccessPort.findGuardianId(childId) } returns guardianId
     }
 
-    fun stubGenerationSources(messages: List<Message>, analyses: List<UtteranceAnalysis>) {
-        every { loadReportPort.findBySession(sessionId) } returns null
+    fun stubAssemblySources(messages: List<Message>) {
         every { storyAccessPort.findReportSnapshot(storyId) } returns snapshot()
         every { childAccessPort.findChildName(childId) } returns childName
         every { loadMessagePort.findAllBySession(sessionId) } returns messages
+        every { loadPostActivityResultPort.findBySession(sessionId) } returns null
+    }
+
+    fun stubGenerationSources(messages: List<Message>, analyses: List<UtteranceAnalysis>) {
+        every { loadReportPort.findBySession(sessionId) } returns null
+        stubAssemblySources(messages)
         every { loadUtteranceAnalysisPort.findByMessageIds(any()) } returns analyses
     }
 
@@ -249,16 +276,21 @@ class GetSessionReportApplicationServiceTest : FunSpec({
             result.speechAnalyses shouldBe speechAnalyses()
             result.homeGuide shouldBe homeGuide()
             result.createdAt shouldBe LocalDateTime.ofInstant(fixedInstant, ZoneOffset.UTC)
-            result.sceneHighlights.map { it.sceneId to it.messageId } shouldBe
-                listOf(sceneOneId to "msg-1", sceneTwoId to "msg-3")
-            result.representative.messageId shouldBe "msg-1"
+            result.summary.storyTitle shouldBe "방귀쟁이 며느리"
+            result.summary.childName shouldBe childName
+            result.sceneCards.map { it.sceneId to it.childUtterance.text } shouldBe
+                listOf(sceneOneId to "며느리가 힘들었을 것 같아요", sceneTwoId to "제가 도와줄래요")
+            result.sceneCards.first().characterQuestion shouldBe null
+            result.sceneCards.first().title shouldBe "걱정하는 며느리"
+            result.sceneCards.last().characterQuestion shouldBe "캐릭터 응답 2"
             result.representative.text shouldBe "며느리가 힘들었을 것 같아요"
             savedSlot.captured.sessionId shouldBe sessionId
             savedSlot.captured.overall shouldBe overall()
             savedSlot.captured.participation shouldBe participation()
             savedSlot.captured.speechAnalyses shouldBe speechAnalyses()
-            savedSlot.captured.sceneHighlights shouldBe result.sceneHighlights
-            savedSlot.captured.representative shouldBe result.representative
+            savedSlot.captured.sceneHighlights.map { it.sceneId to it.messageId } shouldBe
+                listOf(sceneOneId to "msg-1", sceneTwoId to "msg-3")
+            savedSlot.captured.representative.text shouldBe "며느리가 힘들었을 것 같아요"
             savedSlot.captured.homeGuide shouldBe homeGuide()
             verify(exactly = 1) { commandReportPort.save(any()) }
 
@@ -283,9 +315,9 @@ class GetSessionReportApplicationServiceTest : FunSpec({
 
             val result = service.execute(command())
 
-            result.sceneHighlights shouldBe emptyList()
-            result.representative.messageId shouldBe null
+            result.sceneCards shouldBe emptyList()
             result.representative.text shouldBe null
+            result.representative.audioUrl shouldBe null
             result.overall shouldBe overall()
             verify(exactly = 1) { commandReportPort.save(any()) }
         }
@@ -320,7 +352,6 @@ class GetSessionReportApplicationServiceTest : FunSpec({
 
             val result = service.execute(command())
 
-            result.representative.messageId shouldBe "msg-2"
             result.representative.text shouldBe "며느리 입장에서 생각하면 마음이 아파요"
             result.representative.reason shouldBe "선정 이유"
         }
@@ -342,7 +373,6 @@ class GetSessionReportApplicationServiceTest : FunSpec({
 
             val result = service.execute(command())
 
-            result.representative.messageId shouldBe "msg-1"
             result.representative.text shouldBe "첫 번째 발화"
         }
 
@@ -364,15 +394,20 @@ class GetSessionReportApplicationServiceTest : FunSpec({
 
             val result = service.execute(command())
 
-            result.sceneHighlights.map { it.messageId } shouldBe listOf("msg-3")
-            result.sceneHighlights.first().featureSentence shouldBe "$sceneOneId 특징 문장"
-            result.sceneHighlights.first().featureChips shouldBe listOf("$sceneOneId-칩")
+            savedSlot.captured.sceneHighlights.map { it.messageId } shouldBe listOf("msg-3")
+            result.sceneCards.map { it.childUtterance.text } shouldBe listOf("마지막 발화")
+            result.sceneCards.first().featureSentence shouldBe "$sceneOneId 특징 문장"
+            result.sceneCards.first().featureChips shouldBe listOf("$sceneOneId-칩")
         }
     }
 
     context("완료 세션 - 저장분 존재") {
-        test("새 구조 저장분이 있으면 그대로 반환하고 분석·저장을 하지 않는다") {
+        test("새 구조 저장분이 있으면 재사용하고 장면 카드·메타만 라이브로 조립하며 분석·저장을 하지 않는다") {
             stubOwnedCompletedSession()
+            val messages = listOf(
+                childMessage("msg-1", sceneOneId, 1, "기존 대표 발화"),
+            )
+            stubAssemblySources(messages)
             val existing = Report(
                 reportId = ReportId("report-uuid-1"),
                 sessionId = sessionId,
@@ -400,8 +435,9 @@ class GetSessionReportApplicationServiceTest : FunSpec({
             result.overall shouldBe existing.overall
             result.representative.text shouldBe "기존 대표 발화"
             result.createdAt shouldBe existing.createdAt
+            result.sceneCards.map { it.childUtterance.text } shouldBe listOf("기존 대표 발화")
+            result.summary.storyTitle shouldBe "방귀쟁이 며느리"
             verify(exactly = 0) { reportAnalysisPort.analyze(any()) }
-            verify(exactly = 0) { loadMessagePort.findAllBySession(any()) }
             verify(exactly = 0) { commandReportPort.save(any()) }
         }
     }
