@@ -1,0 +1,202 @@
+package com.krince.reminisce.infra.adapter.`in`.controller
+
+import com.krince.reminisce.infra.adapter.out.persistence.child.entity.ChildOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.childconsent.entity.ChildConsentOrmEntity
+import com.krince.reminisce.infra.adapter.out.persistence.user.entity.UserOrmEntity
+import com.krince.reminisce.shared.response.ExceptionResponseCode
+import com.krince.reminisce.testutil.fixture.TestChildConsentFixture
+import com.krince.reminisce.testutil.fixture.TestChildFixture
+import com.krince.reminisce.testutil.fixture.TestJwtTokenFixture
+import com.krince.reminisce.testutil.fixture.TestProfileInterviewFixture
+import com.krince.reminisce.testutil.fixture.TestUserFixture
+import io.kotest.core.annotation.DisplayName
+import io.kotest.core.annotation.Tags
+import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
+import io.restassured.RestAssured
+import io.restassured.http.ContentType
+import io.restassured.parsing.Parser
+import org.hamcrest.Matchers.equalTo
+import org.hamcrest.Matchers.notNullValue
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT
+import org.springframework.boot.test.web.server.LocalServerPort
+import org.springframework.test.context.ActiveProfiles
+import java.time.LocalDateTime
+
+@Tags("test", "integrationTest")
+@SpringBootTest(webEnvironment = RANDOM_PORT)
+@ActiveProfiles("localtest")
+@DisplayName("ProfileInterviewControllerImpl 통합테스트")
+class ProfileInterviewControllerImplTest(
+    @param:LocalServerPort private val port: Int,
+    private val testUserFixture: TestUserFixture,
+    private val testChildFixture: TestChildFixture,
+    private val testChildConsentFixture: TestChildConsentFixture,
+    private val testProfileInterviewFixture: TestProfileInterviewFixture,
+    private val testJwtTokenFixture: TestJwtTokenFixture,
+) : FunSpec({
+
+    fun userEntity(userId: String): UserOrmEntity =
+        UserOrmEntity(
+            userId = userId,
+            email = null,
+            nickname = "홍길동",
+            provider = "KAKAO",
+            role = "ROLE_USER",
+            providerId = "kakao-$userId",
+        )
+
+    fun childEntity(childId: String, guardianId: String, nickname: String = "토토"): ChildOrmEntity =
+        ChildOrmEntity(childId = childId, guardianId = guardianId, nickname = nickname, birthYear = 2019)
+
+    fun consentEntity(childId: String): ChildConsentOrmEntity =
+        ChildConsentOrmEntity(
+            consentId = "consent-$childId",
+            childId = childId,
+            consentVersion = "v1.0",
+            verificationMethod = "AUTHENTICATED_PARENT",
+            consentedAt = LocalDateTime.now().minusDays(1),
+            withdrawnAt = null,
+        )
+
+    fun uniqueSuffix(): String = "${System.currentTimeMillis()}-${System.nanoTime()}"
+
+    beforeSpec {
+        RestAssured.port = port
+        RestAssured.basePath = "/api"
+        RestAssured.defaultParser = Parser.JSON
+    }
+
+    beforeTest {
+        testProfileInterviewFixture.deleteAllBatch()
+        testChildConsentFixture.deleteAllBatch()
+        testChildFixture.deleteAllBatch()
+        testUserFixture.deleteAllBatch()
+    }
+
+    context("startProfileInterview") {
+        context("성공") {
+            test("동의 있는 내 아이로 시작하면 201과 이름이 들어간 첫 큐미 질문·음성을 반환하고 인터뷰·메시지가 저장된다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+                val childId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testChildConsentFixture.saveConsent(consentEntity(childId))
+
+                val interviewId = RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("childId" to childId))
+                    .`when`()
+                    .post("/profile-interviews")
+                    .then()
+                    .statusCode(201)
+                    .body("success", equalTo(true))
+                    .body("data.childId", equalTo(childId))
+                    .body("data.status", equalTo("IN_PROGRESS"))
+                    .body("data.stage", equalTo("FREE_TALK"))
+                    .body(
+                        "data.qumiText",
+                        equalTo("안녕 토토야! 나는 큐미야! 오늘은 토토랑 재미있는 이야기를 만들어 볼 거야. 토토는 어떤 이야기를 좋아해?"),
+                    )
+                    .body("data.qumiAudio", notNullValue())
+                    .extract()
+                    .path<String>("data.interviewId")
+
+                testProfileInterviewFixture.findAllInterviewsByChildId(childId).size shouldBe 1
+                val messages = testProfileInterviewFixture.findMessagesByInterviewId(interviewId)
+                messages.size shouldBe 1
+                messages.first().speaker shouldBe "QUMI"
+                messages.first().turnOrder shouldBe 1L
+            }
+
+            test("진행 중 인터뷰가 있으면 200과 같은 인터뷰를 반환하고 새로 만들지 않는다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+                val childId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testChildConsentFixture.saveConsent(consentEntity(childId))
+
+                val firstInterviewId = RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("childId" to childId))
+                    .`when`()
+                    .post("/profile-interviews")
+                    .then()
+                    .statusCode(201)
+                    .extract()
+                    .path<String>("data.interviewId")
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("childId" to childId))
+                    .`when`()
+                    .post("/profile-interviews")
+                    .then()
+                    .statusCode(200)
+                    .body("data.interviewId", equalTo(firstInterviewId))
+
+                testProfileInterviewFixture.findAllInterviewsByChildId(childId).size shouldBe 1
+            }
+        }
+
+        context("예외케이스") {
+            test("동의가 없으면 422와 CONSENT_REQUIRED를 반환하고 인터뷰를 만들지 않는다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+                val childId = "child-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("childId" to childId))
+                    .`when`()
+                    .post("/profile-interviews")
+                    .then()
+                    .statusCode(422)
+                    .body("detailCode", equalTo(ExceptionResponseCode.CONSENT_REQUIRED.detailCode))
+
+                testProfileInterviewFixture.findAllInterviewsByChildId(childId).size shouldBe 0
+            }
+
+            test("타 보호자의 아이면 404와 NOT_FOUND_CHILD로 은닉한다") {
+                val guardianId = "guardian-${uniqueSuffix()}"
+                val otherGuardianId = "other-${uniqueSuffix()}"
+                testUserFixture.saveUser(userEntity(guardianId))
+                testUserFixture.saveUser(userEntity(otherGuardianId))
+                val token = testJwtTokenFixture.generateAccessToken(guardianId)
+                val otherChildId = "theirs-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(otherChildId, otherGuardianId))
+                testChildConsentFixture.saveConsent(consentEntity(otherChildId))
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("childId" to otherChildId))
+                    .`when`()
+                    .post("/profile-interviews")
+                    .then()
+                    .statusCode(404)
+                    .body("detailCode", equalTo(ExceptionResponseCode.NOT_FOUND_CHILD.detailCode))
+            }
+
+            test("토큰이 없으면 401과 EMPTY_TOKEN을 반환한다") {
+                RestAssured.given()
+                    .contentType(ContentType.JSON)
+                    .body(mapOf("childId" to "any-child"))
+                    .`when`()
+                    .post("/profile-interviews")
+                    .then()
+                    .statusCode(401)
+                    .body("detailCode", equalTo(ExceptionResponseCode.EMPTY_TOKEN.detailCode))
+            }
+        }
+    }
+})
