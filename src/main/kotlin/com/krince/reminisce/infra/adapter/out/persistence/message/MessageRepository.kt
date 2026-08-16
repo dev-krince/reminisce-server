@@ -13,8 +13,6 @@ interface MessageRepository : JpaRepository<MessageOrmEntity, String> {
 
     fun findBySessionIdOrderByTurnOrderDesc(sessionId: String, pageable: Pageable): List<MessageOrmEntity>
 
-    fun findAllBySessionIdAndSpeakerType(sessionId: String, speakerType: String): List<MessageOrmEntity>
-
     @Query("SELECT m.id FROM MessageOrmEntity m WHERE m.sessionId IN :sessionIds")
     fun findMessageIdsBySessionIdIn(sessionIds: List<String>): List<String>
 

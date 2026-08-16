@@ -2,7 +2,14 @@ package com.krince.reminisce.infra.adapter.`in`.controller
 
 import com.krince.reminisce.domain.model.message.vo.SpeakerType
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
-import com.krince.reminisce.domain.model.story.vo.ThinkingElement
+import com.krince.reminisce.domain.model.report.GuideDirection
+import com.krince.reminisce.domain.model.report.GuideQuestion
+import com.krince.reminisce.domain.model.report.HomeGuide
+import com.krince.reminisce.domain.model.report.ParticipationItem
+import com.krince.reminisce.domain.model.report.ReportOverall
+import com.krince.reminisce.domain.model.report.ReportSpeechAnalysis
+import com.krince.reminisce.domain.model.report.RepresentativeUtterance
+import com.krince.reminisce.domain.model.report.SceneHighlight
 import com.krince.reminisce.domain.model.utteranceanalysis.vo.ChildIntent
 import com.krince.reminisce.domain.model.utteranceanalysis.vo.UtteranceValidity
 import com.krince.reminisce.infra.adapter.out.persistence.child.entity.ChildOrmEntity
@@ -20,7 +27,6 @@ import com.krince.reminisce.testutil.TestConfig
 import com.krince.reminisce.testutil.fixture.TestAuthUserFixture
 import com.krince.reminisce.testutil.fixture.TestChildConsentFixture
 import com.krince.reminisce.testutil.fixture.TestChildFixture
-import com.krince.reminisce.testutil.fixture.TestGuardianReportAreasFixture
 import com.krince.reminisce.testutil.fixture.TestJwtTokenFixture
 import com.krince.reminisce.testutil.fixture.TestMessageFixture
 import com.krince.reminisce.testutil.fixture.TestPostActivityResultFixture
@@ -135,12 +141,38 @@ class UserControllerImplTest(
         ReportOrmEntity(
             id = UuidGenerator.generate(),
             sessionId = sessionId,
-            summary = "요약",
-            strengths = listOf(ThinkingElement.EMOTION),
-            nextFocus = listOf(ThinkingElement.REASON),
-            competencyAnalysis = TestGuardianReportAreasFixture.competencyAnalysis(),
-            representativeUtterance = TestGuardianReportAreasFixture.representativeUtterance(),
-            homeConversationGuide = TestGuardianReportAreasFixture.homeConversationGuide(),
+            overall = ReportOverall(headline = "총평", description = "설명", chips = listOf("강점 칩", "확장 칩")),
+            participation = listOf(ParticipationItem(title = "참여", description = "설명")),
+            speechAnalyses = listOf(
+                ReportSpeechAnalysis(
+                    area = "어휘",
+                    summary = "요약",
+                    keywords = listOf("낱말"),
+                    feature = "특징",
+                    evidenceUtterance = null,
+                    strength = "잘한 점",
+                    improvement = "보완점",
+                ),
+            ),
+            sceneHighlights = listOf(
+                SceneHighlight(sceneId = "scene-1", messageId = "msg-1", featureSentence = "특징 문장", featureChips = listOf("칩")),
+            ),
+            representativeUtterance = RepresentativeUtterance(
+                messageId = "msg-1",
+                text = "대표 발화",
+                situation = "상황",
+                reason = "이유",
+                strengths = "강점",
+                practiceTip = "연습 팁",
+                commentary = "해설",
+                chips = listOf("칩"),
+            ),
+            homeGuide = HomeGuide(
+                direction = GuideDirection(headline = "방향", description = "설명"),
+                storyQuestions = listOf(GuideQuestion(label = "이야기", question = "질문?", helper = "도움말")),
+                dailyQuestions = listOf(GuideQuestion(label = "일상", question = "질문?", helper = "도움말")),
+                guardianTip = "팁",
+            ),
             createdAt = LocalDateTime.of(2026, 6, 1, 0, 40),
         )
 

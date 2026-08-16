@@ -22,4 +22,6 @@ interface StoryAccessPort {
     fun findPostActivityConfig(storyId: StoryId): PostActivityConfig?
 
     fun findResumableDisplayInfo(storyId: StoryId, currentSceneId: String?): ResumableStoryDisplayInfo?
+
+    fun findReportSnapshot(storyId: StoryId): StoryReportSnapshot?
 }

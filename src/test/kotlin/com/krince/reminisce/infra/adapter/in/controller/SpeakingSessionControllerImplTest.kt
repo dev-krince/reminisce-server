@@ -41,6 +41,7 @@ import com.krince.reminisce.testutil.fixture.TestUtteranceAnalysisFixture
 import io.kotest.core.annotation.DisplayName
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.restassured.RestAssured
@@ -2252,28 +2253,16 @@ class SpeakingSessionControllerImplTest(
                 utteranceValidity = UtteranceValidity.VALID.name,
             )
 
-        fun analysisEntityWithEvidence(
-            messageId: String,
-            evidence: String,
-            vararg types: ThinkingElement,
-        ): UtteranceAnalysisOrmEntity =
-            UtteranceAnalysisOrmEntity(
-                id = "analysis-$messageId",
-                messageId = messageId,
-                childIntent = ChildIntent.OPINION.name,
-                mainPoint = "핵심 $messageId",
-                detectedElements = types.map { DetectedElement(type = it, evidence = evidence) },
-                utteranceValidity = UtteranceValidity.VALID.name,
-            )
-
         context("성공") {
-            test("완료 세션 GET report는 200과 확인된 요소 strengths·상보 nextFocus를 반환하고 reports 1건을 저장한다") {
+            test("완료 세션 GET report는 200을 반환하고 6섹션이 채워진 리포트 1건을 저장하며 장면 하이라이트는 장면별 마지막 아이 발화를 가리킨다") {
                 val (guardianId, token) = authorizedGuardian()
                 val childId = "child-${uniqueSuffix()}"
                 val storyId = "story-${uniqueSuffix()}"
                 val sessionId = "session-${uniqueSuffix()}"
                 testChildFixture.saveChild(childEntity(childId, guardianId))
                 testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 1))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
                 testSpeakingSessionFixture.save(
                     sessionEntity(sessionId, childId, storyId, status = SessionStatus.COMPLETED),
                 )
@@ -2281,21 +2270,14 @@ class SpeakingSessionControllerImplTest(
                 val secondSceneId = "sc-3-$storyId"
                 testMessageFixture.save(childMessage(sessionId, firstSceneId, "msg-child-1", 1))
                 testMessageFixture.save(characterMessage(sessionId, firstSceneId, "msg-char-1", 2))
-                testMessageFixture.save(childMessage(sessionId, secondSceneId, "msg-child-2", 3))
+                testMessageFixture.save(childMessage(sessionId, firstSceneId, "msg-child-2", 3))
+                testMessageFixture.save(childMessage(sessionId, secondSceneId, "msg-child-3", 4))
                 testUtteranceAnalysisFixture.save(
                     analysisEntity("msg-child-1", ThinkingElement.EMOTION, ThinkingElement.PERSPECTIVE),
                 )
                 testUtteranceAnalysisFixture.save(
                     analysisEntity("msg-child-2", ThinkingElement.EMOTION, ThinkingElement.DECISION),
                 )
-                val expectedStrengths = listOf(
-                    ThinkingElement.EMOTION,
-                    ThinkingElement.PERSPECTIVE,
-                    ThinkingElement.DECISION,
-                ).map { it.name }
-                val expectedNextFocus = ThinkingElement.entries
-                    .filterNot { it.name in expectedStrengths }
-                    .map { it.name }
 
                 RestAssured.given()
                     .header("Authorization", token)
@@ -2308,83 +2290,22 @@ class SpeakingSessionControllerImplTest(
                     .body("code", equalTo(200))
                     .body("message", equalTo(SuccessResponseCode.OK.message))
                     .body("data.summary", not(emptyOrNullString()))
-                    .body("data.strengths", equalTo(expectedStrengths))
-                    .body("data.nextFocus", equalTo(expectedNextFocus))
-                    .body("data.createdAt", not(emptyOrNullString()))
-
-                testReportFixture.count() shouldBe 1L
-                val stored = testReportFixture.findBySessionId(sessionId)
-                stored?.strengths?.map { it.name } shouldBe expectedStrengths
-                stored?.nextFocus?.map { it.name } shouldBe expectedNextFocus
-            }
-
-            test("완료 세션 GET report는 200과 3영역(역량분석·대표발화·가정연계)을 채우고 내부 영문 태그를 노출하지 않는다") {
-                val (guardianId, token) = authorizedGuardian()
-                val childId = "child-${uniqueSuffix()}"
-                val storyId = "story-${uniqueSuffix()}"
-                val sessionId = "session-${uniqueSuffix()}"
-                testChildFixture.saveChild(childEntity(childId, guardianId))
-                testStoryFixture.saveStory(storyEntity(storyId))
-                testSpeakingSessionFixture.save(
-                    sessionEntity(sessionId, childId, storyId, status = SessionStatus.COMPLETED),
-                )
-                val firstSceneId = "sc-1-$storyId"
-                val secondSceneId = "sc-3-$storyId"
-                testMessageFixture.save(childMessage(sessionId, firstSceneId, "msg-child-1", 1))
-                testMessageFixture.save(childMessage(sessionId, secondSceneId, "msg-child-2", 3))
-                testUtteranceAnalysisFixture.save(
-                    analysisEntityWithEvidence(
-                        "msg-child-1",
-                        "며느리가 참 힘들었겠어요",
-                        ThinkingElement.EMOTION,
-                        ThinkingElement.PERSPECTIVE,
-                    ),
-                )
-                testUtteranceAnalysisFixture.save(
-                    analysisEntityWithEvidence(
-                        "msg-child-2",
-                        "며느리 입장에서 생각하면 마음이 아파요",
-                        ThinkingElement.PERSPECTIVE,
-                        ThinkingElement.EMPATHY,
-                        ThinkingElement.DECISION,
-                    ),
-                )
-
-                val extractable = RestAssured.given()
-                    .header("Authorization", token)
-                    .contentType(ContentType.JSON)
-                    .`when`()
-                    .get("/speaking-sessions/$sessionId/report")
-                    .then()
-                    .statusCode(200)
-                    .body("data.competencyAnalysis.vocabulary.label", equalTo("어휘"))
-                    .body("data.competencyAnalysis.perspectiveEmpathy.label", equalTo("관점·공감"))
-                    .body("data.competencyAnalysis.emotion.label", equalTo("감정"))
-                    .body("data.competencyAnalysis.interaction.label", equalTo("상호작용"))
-                    .body("data.competencyAnalysis.thoughtReason.label", equalTo("생각·이유"))
-                    .body("data.competencyAnalysis.resultSolution.label", equalTo("결과·해결"))
                     .body("data.representativeUtterance.text", not(emptyOrNullString()))
                     .body("data.representativeUtterance.reason", not(emptyOrNullString()))
                     .body("data.homeConversationGuide.storyThemeQuestions", not(empty<String>()))
                     .body("data.homeConversationGuide.dailyLifeQuestions", not(empty<String>()))
-                    .extract()
-                val competencyAnalysisBody = extractable.jsonPath().getString("data.competencyAnalysis")
-                val representativeUtteranceBody = extractable.jsonPath().getString("data.representativeUtterance")
-                val homeConversationGuideBody = extractable.jsonPath().getString("data.homeConversationGuide")
-                val threeAreasBody = competencyAnalysisBody + representativeUtteranceBody + homeConversationGuideBody
+                    .body("data.createdAt", not(emptyOrNullString()))
 
-                listOf(
-                    ThinkingElement.DECISION,
-                    ThinkingElement.REASON,
-                    ThinkingElement.PERSPECTIVE,
-                    ThinkingElement.SOLUTION,
-                    ThinkingElement.RESULT,
-                    ThinkingElement.EMOTION,
-                    ThinkingElement.EMPATHY,
-                    ThinkingElement.REQUEST,
-                ).forEach { element ->
-                    threeAreasBody.contains(element.name) shouldBe false
-                }
+                testReportFixture.count() shouldBe 1L
+                val stored = testReportFixture.findBySessionId(sessionId).shouldNotBeNull()
+                stored.overall.shouldNotBeNull()
+                stored.participation.shouldNotBeNull()
+                stored.speechAnalyses.shouldNotBeNull()
+                stored.representativeUtterance.shouldNotBeNull()
+                stored.homeGuide.shouldNotBeNull()
+                val storedHighlights = stored.sceneHighlights.shouldNotBeNull()
+                storedHighlights.map { it.sceneId to it.messageId } shouldBe
+                    listOf(firstSceneId to "msg-child-2", secondSceneId to "msg-child-3")
             }
 
             test("같은 완료 세션에 재요청하면 200과 동일 리포트를 반환하고 reports는 여전히 1건이다") {
@@ -2394,6 +2315,7 @@ class SpeakingSessionControllerImplTest(
                 val sessionId = "session-${uniqueSuffix()}"
                 testChildFixture.saveChild(childEntity(childId, guardianId))
                 testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 1))
                 testSpeakingSessionFixture.save(
                     sessionEntity(sessionId, childId, storyId, status = SessionStatus.COMPLETED),
                 )
@@ -2408,7 +2330,7 @@ class SpeakingSessionControllerImplTest(
                     .get("/speaking-sessions/$sessionId/report")
                     .then()
                     .statusCode(200)
-                    .body("data.strengths", equalTo(listOf(ThinkingElement.EMOTION.name)))
+                    .body("data.summary", not(emptyOrNullString()))
                     .extract()
                     .path<String>("data.createdAt")
 
@@ -2419,10 +2341,47 @@ class SpeakingSessionControllerImplTest(
                     .get("/speaking-sessions/$sessionId/report")
                     .then()
                     .statusCode(200)
-                    .body("data.strengths", equalTo(listOf(ThinkingElement.EMOTION.name)))
                     .body("data.createdAt", equalTo(firstCreatedAt))
 
                 testReportFixture.count() shouldBe 1L
+            }
+
+            test("옛 구조 저장 행(새 섹션 컬럼 null)은 첫 조회 때 같은 행 하나에 새 구조로 다시 생성된다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 1))
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, status = SessionStatus.COMPLETED),
+                )
+                val sceneId = "sc-1-$storyId"
+                testMessageFixture.save(childMessage(sessionId, sceneId, "msg-child-1", 1))
+                testMessageFixture.save(childMessage(sessionId, sceneId, "msg-child-2", 2))
+                testUtteranceAnalysisFixture.save(analysisEntity("msg-child-1", ThinkingElement.EMOTION))
+                val legacyRow = testReportFixture.saveLegacyStructureRow(sessionId)
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .contentType(ContentType.JSON)
+                    .`when`()
+                    .get("/speaking-sessions/$sessionId/report")
+                    .then()
+                    .statusCode(200)
+                    .body("data.summary", not(emptyOrNullString()))
+
+                testReportFixture.count() shouldBe 1L
+                val stored = testReportFixture.findBySessionId(sessionId).shouldNotBeNull()
+                stored.id shouldBe legacyRow.id
+                stored.overall.shouldNotBeNull()
+                stored.participation.shouldNotBeNull()
+                stored.speechAnalyses.shouldNotBeNull()
+                stored.representativeUtterance.shouldNotBeNull()
+                stored.homeGuide.shouldNotBeNull()
+                val storedHighlights = stored.sceneHighlights.shouldNotBeNull()
+                storedHighlights.map { it.messageId } shouldBe listOf("msg-child-2")
             }
         }
 

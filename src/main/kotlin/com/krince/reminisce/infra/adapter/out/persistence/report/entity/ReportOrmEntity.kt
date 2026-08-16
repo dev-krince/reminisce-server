@@ -1,13 +1,17 @@
 package com.krince.reminisce.infra.adapter.out.persistence.report.entity
 
-import com.krince.reminisce.domain.model.report.CompetencyAnalysis
-import com.krince.reminisce.domain.model.report.HomeConversationGuide
+import com.krince.reminisce.domain.model.report.HomeGuide
+import com.krince.reminisce.domain.model.report.ParticipationItem
+import com.krince.reminisce.domain.model.report.ReportOverall
+import com.krince.reminisce.domain.model.report.ReportSpeechAnalysis
 import com.krince.reminisce.domain.model.report.RepresentativeUtterance
-import com.krince.reminisce.domain.model.story.vo.ThinkingElement
-import com.krince.reminisce.infra.adapter.out.persistence.report.converter.CompetencyAnalysisConverter
-import com.krince.reminisce.infra.adapter.out.persistence.report.converter.HomeConversationGuideConverter
+import com.krince.reminisce.domain.model.report.SceneHighlight
+import com.krince.reminisce.infra.adapter.out.persistence.report.converter.HomeGuideConverter
+import com.krince.reminisce.infra.adapter.out.persistence.report.converter.ParticipationItemsConverter
+import com.krince.reminisce.infra.adapter.out.persistence.report.converter.ReportOverallConverter
+import com.krince.reminisce.infra.adapter.out.persistence.report.converter.ReportSpeechAnalysesConverter
 import com.krince.reminisce.infra.adapter.out.persistence.report.converter.RepresentativeUtteranceConverter
-import com.krince.reminisce.infra.adapter.out.persistence.report.converter.ThinkingElementsConverter
+import com.krince.reminisce.infra.adapter.out.persistence.report.converter.SceneHighlightsConverter
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
 import jakarta.persistence.Entity
@@ -34,36 +38,37 @@ class ReportOrmEntity(
     @Comment("말하기 세션 식별자 (FK 참조)")
     val sessionId: String,
 
-    @Column(name = "summary", nullable = false, columnDefinition = "text", updatable = false)
-    @Comment("스텁 생성 요약문")
-    val summary: String,
+    @Column(name = "overall", columnDefinition = "text")
+    @Convert(converter = ReportOverallConverter::class)
+    @Comment("총평 (JSON)")
+    val overall: ReportOverall?,
 
-    @Column(name = "strengths", nullable = false, columnDefinition = "text", updatable = false)
-    @Convert(converter = ThinkingElementsConverter::class)
-    @Comment("세션에서 확인된 사고 요소 (JSON)")
-    val strengths: List<ThinkingElement>,
+    @Column(name = "participation", columnDefinition = "text")
+    @Convert(converter = ParticipationItemsConverter::class)
+    @Comment("참여 모습 3항목 (JSON)")
+    val participation: List<ParticipationItem>?,
 
-    @Column(name = "next_focus", nullable = false, columnDefinition = "text", updatable = false)
-    @Convert(converter = ThinkingElementsConverter::class)
-    @Comment("아직 보여주지 않은 사고 요소 (JSON)")
-    val nextFocus: List<ThinkingElement>,
+    @Column(name = "speech_analyses", columnDefinition = "text")
+    @Convert(converter = ReportSpeechAnalysesConverter::class)
+    @Comment("말하기 분석 어휘·표현·논리 (JSON)")
+    val speechAnalyses: List<ReportSpeechAnalysis>?,
 
-    @Column(name = "competency_analysis", nullable = false, columnDefinition = "text", updatable = false)
-    @Convert(converter = CompetencyAnalysisConverter::class)
-    @Comment("말하기 역량 분석 (어휘·표현·논리) (JSON)")
-    val competencyAnalysis: CompetencyAnalysis,
+    @Column(name = "scene_highlights", columnDefinition = "text")
+    @Convert(converter = SceneHighlightsConverter::class)
+    @Comment("장면별 특징 (JSON)")
+    val sceneHighlights: List<SceneHighlight>?,
 
-    @Column(name = "representative_utterance", nullable = false, columnDefinition = "text", updatable = false)
+    @Column(name = "representative_utterance", columnDefinition = "text")
     @Convert(converter = RepresentativeUtteranceConverter::class)
-    @Comment("대표 발화와 선정 이유 (JSON)")
-    val representativeUtterance: RepresentativeUtterance,
+    @Comment("대표 발화 (JSON)")
+    val representativeUtterance: RepresentativeUtterance?,
 
-    @Column(name = "home_conversation_guide", nullable = false, columnDefinition = "text", updatable = false)
-    @Convert(converter = HomeConversationGuideConverter::class)
-    @Comment("가정 연계 대화 가이드 (JSON)")
-    val homeConversationGuide: HomeConversationGuide,
+    @Column(name = "home_guide", columnDefinition = "text")
+    @Convert(converter = HomeGuideConverter::class)
+    @Comment("가정 연계 가이드 (JSON)")
+    val homeGuide: HomeGuide?,
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     @Comment("생성 시각")
     val createdAt: LocalDateTime,
 )

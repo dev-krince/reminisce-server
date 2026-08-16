@@ -14,10 +14,11 @@ class ReportOrmAdapter(
 ) : CommandReportPort, LoadReportPort {
 
     override fun save(report: Report): Report {
-        val ormEntity: ReportOrmEntity = ReportMapper.toEntity(report)
+        val existingId: String? = repository.findBySessionId(report.sessionId.value)?.id
+        val ormEntity: ReportOrmEntity = ReportMapper.toEntity(report, existingId ?: report.reportId.value)
         val savedEntity: ReportOrmEntity = repository.saveAndFlush(ormEntity)
 
-        return ReportMapper.toDomain(savedEntity)
+        return checkNotNull(ReportMapper.toDomain(savedEntity))
     }
 
     override fun findBySession(sessionId: SpeakingSessionId): Report? {

@@ -2,6 +2,8 @@ package com.krince.reminisce.application.facade.story
 
 import com.krince.reminisce.application.port.access.story.ResumableStoryDisplayInfo
 import com.krince.reminisce.application.port.access.story.StoryAccessPort
+import com.krince.reminisce.application.port.access.story.StoryReportScene
+import com.krince.reminisce.application.port.access.story.StoryReportSnapshot
 import com.krince.reminisce.application.port.out.story.LoadStoryPort
 import com.krince.reminisce.domain.model.story.Scene
 import com.krince.reminisce.domain.model.story.Story
@@ -81,6 +83,21 @@ class StoryAccessFacade(
             topics = story.topics,
             currentChapter = currentChapterOf(story, currentSceneId),
             totalChapters = story.scenes.maxOfOrNull { it.chapter } ?: NO_CHAPTER,
+        )
+    }
+
+    override fun findReportSnapshot(storyId: StoryId): StoryReportSnapshot? {
+        val story: Story = loadStoryPort.findByIdWithScenesPublished(storyId) ?: return null
+
+        return StoryReportSnapshot(
+            title = story.title,
+            scenes = story.scenes.map { scene ->
+                StoryReportScene(
+                    sceneId = scene.sceneId.value,
+                    description = scene.sceneDescription,
+                    goal = scene.sceneGoal,
+                )
+            },
         )
     }
 
