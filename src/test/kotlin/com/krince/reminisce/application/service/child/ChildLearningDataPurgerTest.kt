@@ -15,6 +15,7 @@ import com.krince.reminisce.application.port.out.speakingsession.LoadSpeakingSes
 import com.krince.reminisce.application.port.out.storyprofile.CommandStoryProfilePort
 import com.krince.reminisce.application.port.out.utteranceanalysis.CommandUtteranceAnalysisPort
 import com.krince.reminisce.application.port.out.wordbook.CommandSavedWordPort
+import com.krince.reminisce.application.service.speakingsession.SpeakingSessionCascadePurger
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import io.kotest.core.annotation.DisplayName
 import io.kotest.core.annotation.Tags
@@ -45,16 +46,19 @@ class ChildLearningDataPurgerTest : FunSpec({
     val commandProfileInterviewPort = mockk<CommandProfileInterviewPort>()
     val commandInterviewMessagePort = mockk<CommandInterviewMessagePort>()
     val commandStoryProfilePort = mockk<CommandStoryProfilePort>()
-    val purger = ChildLearningDataPurger(
-        loadSpeakingSessionPort = loadSpeakingSessionPort,
+    val sessionCascadePurger = SpeakingSessionCascadePurger(
         loadMessagePort = loadMessagePort,
         loadPostActivityResultPort = loadPostActivityResultPort,
-        commandSpeakingSessionPort = commandSpeakingSessionPort,
         commandMessagePort = commandMessagePort,
         commandReportPort = commandReportPort,
         commandPostActivityResultPort = commandPostActivityResultPort,
         commandMissionResultPort = commandMissionResultPort,
         commandUtteranceAnalysisPort = commandUtteranceAnalysisPort,
+    )
+    val purger = ChildLearningDataPurger(
+        loadSpeakingSessionPort = loadSpeakingSessionPort,
+        commandSpeakingSessionPort = commandSpeakingSessionPort,
+        sessionCascadePurger = sessionCascadePurger,
         commandSavedWordPort = commandSavedWordPort,
         commandSavedStoryPort = commandSavedStoryPort,
         loadProfileInterviewPort = loadProfileInterviewPort,
