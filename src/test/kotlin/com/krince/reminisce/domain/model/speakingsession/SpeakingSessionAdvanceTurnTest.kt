@@ -12,6 +12,7 @@ import io.kotest.core.annotation.DisplayName
 import io.kotest.core.annotation.Tags
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import java.time.LocalDateTime
 
 @Tags("test", "unitTest")
@@ -128,8 +129,25 @@ class SpeakingSessionAdvanceTurnTest : FunSpec({
             updated.lastResponseMode shouldBe ResponseMode.CLOSING
         }
 
-        test("권장턴이 null이면 최소 1턴 기준으로 GOAL_MET 판정한다") {
-            val updated = session(currentChildTurnCount = 0).advanceTurn(
+        test("권장턴이 null이면 요소를 다 채워도 최소 3턴 전에는 GOAL_MET/CLOSING이 아니고 진행을 유지한다") {
+            listOf(0, 1).forEach { beforeTurnCount ->
+                val updated = session(currentChildTurnCount = beforeTurnCount).advanceTurn(
+                    hasNewElement = true,
+                    validity = UtteranceValidity.VALID,
+                    missingElements = emptyList(),
+                    preferredTurns = null,
+                    maxTurns = bigMaxTurns,
+                    at = at,
+                )
+
+                updated.sceneEndReason shouldBe null
+                updated.sceneGoalMet shouldBe false
+                updated.lastResponseMode shouldNotBe ResponseMode.CLOSING
+            }
+        }
+
+        test("권장턴이 null이면 요소를 다 채운 3턴째에 GOAL_MET·CLOSING이 된다") {
+            val updated = session(currentChildTurnCount = 2).advanceTurn(
                 hasNewElement = true,
                 validity = UtteranceValidity.VALID,
                 missingElements = emptyList(),
@@ -139,6 +157,8 @@ class SpeakingSessionAdvanceTurnTest : FunSpec({
             )
 
             updated.sceneEndReason shouldBe SceneEndReason.GOAL_MET
+            updated.sceneGoalMet shouldBe true
+            updated.lastResponseMode shouldBe ResponseMode.CLOSING
         }
 
         test("최대턴에 도달하면 필수 요소가 남아도 MAX_TURNS로 종료한다") {
