@@ -26,4 +26,17 @@ class TtsVoiceMappingTest : FunSpec({
         mapOpenAiVoice("   ", "nova") shouldBe "nova"
         mapOpenAiVoice("xyz", "nova") shouldBe "nova"
     }
+
+    test("알려진 voiceProfile은 역할에 맞는 연출 지시를 준다") {
+        voiceInstructions("narrator_female").contains("동화 구연가") shouldBe true
+        voiceInstructions("qumi_child_friendly").contains("큐미") shouldBe true
+        voiceInstructions("young_woman_gentle").contains("며느리") shouldBe true
+        voiceInstructions("elderly_man_stern").contains("시아버지") shouldBe true
+        voiceInstructions("elderly_man_warm").contains("이장님") shouldBe true
+    }
+
+    test("모르는 프로파일·null은 기본 연출 지시를 준다") {
+        voiceInstructions(null).contains("동화 음성") shouldBe true
+        voiceInstructions("xyz").contains("동화 음성") shouldBe true
+    }
 })

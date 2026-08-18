@@ -111,5 +111,17 @@ class TtsOpenAiAdapterCacheTest : FunSpec({
             result shouldBe null
             verify(exactly = 0) { commandTtsCachePort.save(any()) }
         }
+
+        test("합성 요청 body에 프로필별 목소리 연출 지시(instructions)를 담는다") {
+            server.enqueue(audioResponse())
+            every { loadTtsCachePort.findFileUrlByCacheKey(any()) } returns null
+            every { storeFilePort.saveAudioBytes(any(), any()) } returns "audio://styled"
+
+            adapter.synthesize("며느리예요", "young_woman_gentle")
+
+            val requestBody: String = server.takeRequest().body.readUtf8()
+            requestBody.contains("instructions") shouldBe true
+            requestBody.contains("동화 속 젊은 며느리") shouldBe true
+        }
     }
 })
