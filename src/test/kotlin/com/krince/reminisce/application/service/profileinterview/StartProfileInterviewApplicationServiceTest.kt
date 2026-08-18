@@ -5,6 +5,8 @@ import com.krince.reminisce.application.port.access.childconsent.ChildConsentAcc
 import com.krince.reminisce.application.port.`in`.profileinterview.command.StartProfileInterviewCommand
 import com.krince.reminisce.application.port.out.profileinterview.CommandInterviewMessagePort
 import com.krince.reminisce.application.port.out.profileinterview.CommandProfileInterviewPort
+import com.krince.reminisce.application.port.out.profileinterview.InterviewReplyPort
+import com.krince.reminisce.application.port.out.profileinterview.InterviewTurnSettingsPort
 import com.krince.reminisce.application.port.out.profileinterview.LoadInterviewMessagePort
 import com.krince.reminisce.application.port.out.profileinterview.LoadProfileInterviewPort
 import com.krince.reminisce.application.port.out.tts.QUMI_VOICE_PROFILE
@@ -43,6 +45,8 @@ class StartProfileInterviewApplicationServiceTest : FunSpec({
     val commandProfileInterviewPort = mockk<CommandProfileInterviewPort>()
     val loadInterviewMessagePort = mockk<LoadInterviewMessagePort>()
     val commandInterviewMessagePort = mockk<CommandInterviewMessagePort>()
+    val interviewReplyPort = mockk<InterviewReplyPort>()
+    val interviewTurnSettingsPort = mockk<InterviewTurnSettingsPort>()
     val ttsPort = mockk<TtsPort>()
     val fixedInstant = LocalDateTime.of(2026, 8, 17, 10, 0).toInstant(ZoneOffset.UTC)
     val clock = Clock.fixed(fixedInstant, ZoneId.of("UTC"))
@@ -53,11 +57,16 @@ class StartProfileInterviewApplicationServiceTest : FunSpec({
         commandProfileInterviewPort = commandProfileInterviewPort,
         loadInterviewMessagePort = loadInterviewMessagePort,
         commandInterviewMessagePort = commandInterviewMessagePort,
+        interviewReplyPort = interviewReplyPort,
+        interviewTurnSettingsPort = interviewTurnSettingsPort,
         ttsPort = ttsPort,
         clock = clock,
     )
 
-    beforeEach { clearAllMocks() }
+    beforeEach {
+        clearAllMocks()
+        every { interviewTurnSettingsPort.load() } returns emptyMap()
+    }
 
     val childIdStr = "child-uuid-1"
     val guardianIdStr = "guardian-uuid-1"

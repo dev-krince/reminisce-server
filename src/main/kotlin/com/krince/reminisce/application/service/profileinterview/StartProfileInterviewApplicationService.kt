@@ -8,12 +8,16 @@ import com.krince.reminisce.application.port.`in`.profileinterview.usecase.Start
 import com.krince.reminisce.application.port.out.profileinterview.CommandInterviewMessagePort
 import com.krince.reminisce.application.port.out.profileinterview.CommandProfileInterviewPort
 import com.krince.reminisce.application.port.out.profileinterview.LoadInterviewMessagePort
+import com.krince.reminisce.application.port.out.profileinterview.InterviewReplyContext
+import com.krince.reminisce.application.port.out.profileinterview.InterviewReplyPort
+import com.krince.reminisce.application.port.out.profileinterview.InterviewTurnSettingsPort
 import com.krince.reminisce.application.port.out.profileinterview.LoadProfileInterviewPort
 import com.krince.reminisce.application.port.out.tts.QUMI_VOICE_PROFILE
 import com.krince.reminisce.application.port.out.tts.TtsPort
 import com.krince.reminisce.domain.model.child.vo.ChildId
 import com.krince.reminisce.domain.model.profileinterview.InterviewMessage
 import com.krince.reminisce.domain.model.profileinterview.ProfileInterview
+import com.krince.reminisce.domain.model.profileinterview.vo.InterviewStage
 import com.krince.reminisce.domain.model.story.ChildNamePersonalizer
 import com.krince.reminisce.domain.model.user.vo.UserId
 import com.krince.reminisce.shared.exception.BusinessRuleViolationException
@@ -33,6 +37,8 @@ class StartProfileInterviewApplicationService(
     private val commandProfileInterviewPort: CommandProfileInterviewPort,
     private val loadInterviewMessagePort: LoadInterviewMessagePort,
     private val commandInterviewMessagePort: CommandInterviewMessagePort,
+    private val interviewReplyPort: InterviewReplyPort,
+    private val interviewTurnSettingsPort: InterviewTurnSettingsPort,
     private val ttsPort: TtsPort,
     private val clock: Clock,
 ) : StartProfileInterviewUseCase {
@@ -53,9 +59,10 @@ class StartProfileInterviewApplicationService(
 
     private fun startNewInterview(childId: ChildId): ProfileInterviewResult {
         val now: LocalDateTime = LocalDateTime.now(clock)
-        val interview: ProfileInterview = commandProfileInterviewPort.save(ProfileInterview.start(childId, now))
+        val stageTurns: Map<InterviewStage, Int> = interviewTurnSettingsPort.load()
+        val interview: ProfileInterview = commandProfileInterviewPort.save(ProfileInterview.start(childId, now, stageTurns))
         val childName: String? = childAccessPort.findChildName(childId)
-        val firstQuestion: String = ChildNamePersonalizer.personalize(FIRST_QUESTION_TEMPLATE, childName)
+        val firstQuestion: String = firstQumiQuestion(interview.currentStage, childName)
         commandInterviewMessagePort.save(
             InterviewMessage.qumiLine(interview.interviewId, FIRST_TURN_ORDER, firstQuestion, now),
         )
@@ -92,6 +99,22 @@ class StartProfileInterviewApplicationService(
         if (!childConsentAccessPort.hasActiveConsent(childId)) {
             throw BusinessRuleViolationException(CONSENT_REQUIRED, CONSENT_REQUIRED.message)
         }
+    }
+
+    private fun firstQumiQuestion(startStage: InterviewStage, childName: String?): String {
+        if (startStage == InterviewStage.FREE_TALK) {
+            return ChildNamePersonalizer.personalize(FIRST_QUESTION_TEMPLATE, childName)
+        }
+
+        return interviewReplyPort.generate(
+            InterviewReplyContext(
+                stage = startStage,
+                stageOpening = true,
+                childName = childName,
+                childUtterance = "",
+                recentTurns = emptyList(),
+            ),
+        )
     }
 
     companion object {

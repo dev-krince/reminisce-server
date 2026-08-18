@@ -9,6 +9,7 @@ import com.krince.reminisce.application.port.out.profileinterview.CommandIntervi
 import com.krince.reminisce.application.port.out.profileinterview.CommandProfileInterviewPort
 import com.krince.reminisce.application.port.out.profileinterview.InterviewReplyContext
 import com.krince.reminisce.application.port.out.profileinterview.InterviewReplyPort
+import com.krince.reminisce.application.port.out.profileinterview.InterviewTurnSettingsPort
 import com.krince.reminisce.application.port.out.profileinterview.LoadInterviewMessagePort
 import com.krince.reminisce.application.port.out.profileinterview.LoadProfileInterviewPort
 import com.krince.reminisce.application.port.out.tts.QUMI_VOICE_PROFILE
@@ -38,6 +39,7 @@ class SubmitInterviewUtteranceApplicationService(
     private val loadInterviewMessagePort: LoadInterviewMessagePort,
     private val commandInterviewMessagePort: CommandInterviewMessagePort,
     private val interviewReplyPort: InterviewReplyPort,
+    private val interviewTurnSettingsPort: InterviewTurnSettingsPort,
     private val ttsPort: TtsPort,
     private val clock: Clock,
 ) : SubmitInterviewUtteranceUseCase {
@@ -54,7 +56,7 @@ class SubmitInterviewUtteranceApplicationService(
             InterviewMessage.childUtterance(interview.interviewId, childTurnOrder, command.text, command.sttRawText, now),
         )
 
-        val advanced: ProfileInterview = interview.advanceOnChildTurn(now)
+        val advanced: ProfileInterview = interview.advanceOnChildTurn(now, interviewTurnSettingsPort.load())
         val qumiText: String = interviewReplyPort.generate(
             InterviewReplyContext(
                 stage = advanced.currentStage,

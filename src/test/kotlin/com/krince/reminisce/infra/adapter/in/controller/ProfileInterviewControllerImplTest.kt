@@ -233,7 +233,7 @@ class ProfileInterviewControllerImplTest(
                     .then()
                     .statusCode(200)
                     .body("data.status", equalTo("IN_PROGRESS"))
-                    .body("data.stage", equalTo("FREE_TALK"))
+                    .body("data.stage", equalTo("EXPERIENCE"))
                     .body("data.qumiText", notNullValue())
                     .body("data.qumiAudio", notNullValue())
 

@@ -6,6 +6,7 @@ import com.krince.reminisce.application.port.out.profileinterview.CommandIntervi
 import com.krince.reminisce.application.port.out.profileinterview.CommandProfileInterviewPort
 import com.krince.reminisce.application.port.out.profileinterview.InterviewReplyContext
 import com.krince.reminisce.application.port.out.profileinterview.InterviewReplyPort
+import com.krince.reminisce.application.port.out.profileinterview.InterviewTurnSettingsPort
 import com.krince.reminisce.application.port.out.profileinterview.LoadInterviewMessagePort
 import com.krince.reminisce.application.port.out.profileinterview.LoadProfileInterviewPort
 import com.krince.reminisce.application.port.out.tts.QUMI_VOICE_PROFILE
@@ -46,6 +47,7 @@ class SubmitInterviewUtteranceApplicationServiceTest : FunSpec({
     val loadInterviewMessagePort = mockk<LoadInterviewMessagePort>()
     val commandInterviewMessagePort = mockk<CommandInterviewMessagePort>()
     val interviewReplyPort = mockk<InterviewReplyPort>()
+    val interviewTurnSettingsPort = mockk<InterviewTurnSettingsPort>()
     val ttsPort = mockk<TtsPort>()
     val fixedInstant = LocalDateTime.of(2026, 8, 17, 11, 0).toInstant(ZoneOffset.UTC)
     val clock = Clock.fixed(fixedInstant, ZoneId.of("UTC"))
@@ -56,11 +58,15 @@ class SubmitInterviewUtteranceApplicationServiceTest : FunSpec({
         loadInterviewMessagePort = loadInterviewMessagePort,
         commandInterviewMessagePort = commandInterviewMessagePort,
         interviewReplyPort = interviewReplyPort,
+        interviewTurnSettingsPort = interviewTurnSettingsPort,
         ttsPort = ttsPort,
         clock = clock,
     )
 
-    beforeEach { clearAllMocks() }
+    beforeEach {
+        clearAllMocks()
+        every { interviewTurnSettingsPort.load() } returns emptyMap()
+    }
 
     val childIdStr = "child-uuid-1"
     val guardianIdStr = "guardian-uuid-1"
@@ -100,7 +106,7 @@ class SubmitInterviewUtteranceApplicationServiceTest : FunSpec({
             val result = service.execute(command(interview.interviewId.value))
 
             result.status shouldBe "IN_PROGRESS"
-            result.stage shouldBe InterviewStage.FREE_TALK.name
+            result.stage shouldBe InterviewStage.EXPERIENCE.name
             result.qumiText shouldBe "토끼를 좋아하는구나! 토끼가 왜 좋아?"
             result.qumiAudio shouldBe "audio://qumi-next"
             messageSlots.size shouldBe 2
@@ -111,26 +117,37 @@ class SubmitInterviewUtteranceApplicationServiceTest : FunSpec({
             messageSlots[1].turnOrder shouldBe 3L
         }
 
-        test("단계 목표 턴을 채우는 답이면 다음 단계로 넘어가고 stageOpening으로 응답을 생성한다") {
+        test("단계를 마치면 0으로 설정된 단계들을 건너뛰고 다음 활성 단계로 stageOpening 응답을 생성한다") {
             var interview = inProgressInterview()
             interview = interview.advanceOnChildTurn(startedAt.plusMinutes(1))
-            stubHappyPath(interview, messageCount = 3, reply = "재미있다! 그럼 토끼를 실제로 본 적 있어?")
+            interview.currentStage shouldBe InterviewStage.EXPERIENCE
+            stubHappyPath(interview, messageCount = 3, reply = "이제 네가 큐미에게 물어볼 차례야!")
             val contextSlot = slot<InterviewReplyContext>()
-            every { interviewReplyPort.generate(capture(contextSlot)) } returns "재미있다! 그럼 토끼를 실제로 본 적 있어?"
+            every { interviewReplyPort.generate(capture(contextSlot)) } returns "이제 네가 큐미에게 물어볼 차례야!"
 
-            val result = service.execute(command(interview.interviewId.value, text = "귀가 길어요."))
+            val result = service.execute(command(interview.interviewId.value, text = "동물원에서 봤어요."))
 
-            result.stage shouldBe InterviewStage.EXPERIENCE.name
-            contextSlot.captured.stage shouldBe InterviewStage.EXPERIENCE
+            result.stage shouldBe InterviewStage.CHILD_QUESTION.name
+            contextSlot.captured.stage shouldBe InterviewStage.CHILD_QUESTION
             contextSlot.captured.stageOpening shouldBe true
-            contextSlot.captured.childUtterance shouldBe "귀가 길어요."
+            contextSlot.captured.childUtterance shouldBe "동물원에서 봤어요."
+        }
+
+        test("설정으로 단계 턴을 늘리면 그만큼 답하기 전에는 같은 단계에 머문다") {
+            val interview = inProgressInterview()
+            stubHappyPath(interview, messageCount = 1, reply = "토끼가 왜 좋아?")
+            every { interviewTurnSettingsPort.load() } returns mapOf(InterviewStage.FREE_TALK to 2)
+
+            val result = service.execute(command(interview.interviewId.value))
+
+            result.stage shouldBe InterviewStage.FREE_TALK.name
         }
 
         test("마지막 단계 답을 제출하면 큐미 마무리 인사와 함께 COMPLETED로 끝난다") {
             var interview = inProgressInterview()
-            repeat(9) { interview = interview.advanceOnChildTurn(startedAt.plusMinutes(1)) }
+            repeat(2) { interview = interview.advanceOnChildTurn(startedAt.plusMinutes(1)) }
             interview.currentStage shouldBe InterviewStage.CHILD_QUESTION
-            stubHappyPath(interview, messageCount = 19, reply = "오늘 정말 즐거웠어! 다음에 또 만나자!")
+            stubHappyPath(interview, messageCount = 5, reply = "오늘 정말 즐거웠어! 다음에 또 만나자!")
             val savedInterview = slot<ProfileInterview>()
             every { commandProfileInterviewPort.save(capture(savedInterview)) } answers { savedInterview.captured }
 

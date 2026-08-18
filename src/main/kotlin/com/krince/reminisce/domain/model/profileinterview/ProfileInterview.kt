@@ -18,11 +18,11 @@ class ProfileInterview(
     val lastActivityAt: LocalDateTime,
 ) {
 
-    fun advanceOnChildTurn(at: LocalDateTime): ProfileInterview {
+    fun advanceOnChildTurn(at: LocalDateTime, stageTurns: Map<InterviewStage, Int> = emptyMap()): ProfileInterview {
         val advancedStageTurns: Int = stageChildTurnCount + 1
-        val stageFinished: Boolean = advancedStageTurns >= currentStage.targetChildTurns
+        val stageFinished: Boolean = advancedStageTurns >= targetTurns(currentStage, stageTurns)
         val nextStage: InterviewStage = if (stageFinished) {
-            currentStage.next() ?: currentStage
+            nextActiveStage(currentStage, stageTurns)
         } else {
             currentStage
         }
@@ -51,15 +51,38 @@ class ProfileInterview(
     )
 
     companion object {
-        fun start(childId: ChildId, at: LocalDateTime): ProfileInterview = ProfileInterview(
+        fun start(
+            childId: ChildId,
+            at: LocalDateTime,
+            stageTurns: Map<InterviewStage, Int> = emptyMap(),
+        ): ProfileInterview = ProfileInterview(
             interviewId = ProfileInterviewId(UuidGenerator.generate()),
             childId = childId,
             status = ProfileInterviewStatus.IN_PROGRESS,
-            currentStage = InterviewStage.FREE_TALK,
+            currentStage = firstActiveStage(stageTurns),
             stageChildTurnCount = 0,
             totalChildTurnCount = 0,
             startedAt = at,
             lastActivityAt = at,
         )
+
+        fun firstActiveStage(stageTurns: Map<InterviewStage, Int> = emptyMap()): InterviewStage =
+            InterviewStage.entries.firstOrNull { it != InterviewStage.CLOSING && targetTurns(it, stageTurns) > 0 }
+                ?: InterviewStage.CLOSING
+
+        fun totalTargetTurns(stageTurns: Map<InterviewStage, Int> = emptyMap()): Int =
+            InterviewStage.entries.filter { it != InterviewStage.CLOSING }.sumOf { targetTurns(it, stageTurns) }
+
+        private fun targetTurns(stage: InterviewStage, stageTurns: Map<InterviewStage, Int>): Int =
+            stageTurns[stage] ?: stage.targetChildTurns
+
+        private fun nextActiveStage(current: InterviewStage, stageTurns: Map<InterviewStage, Int>): InterviewStage {
+            var candidate: InterviewStage = current.next() ?: return current
+            while (candidate != InterviewStage.CLOSING && targetTurns(candidate, stageTurns) <= 0) {
+                candidate = candidate.next() ?: return InterviewStage.CLOSING
+            }
+
+            return candidate
+        }
     }
 }
