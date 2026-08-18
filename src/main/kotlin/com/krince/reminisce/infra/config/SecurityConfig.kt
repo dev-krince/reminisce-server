@@ -31,6 +31,7 @@ class SecurityConfig(
     private val jwtAuthFilter: JwtAuthFilter,
 ) {
     private val permitAllUrls = listOf(
+        "/api/admin/**",
         "/swagger-ui/**",
         "/v3/api-docs/**",
         "/favicon.ico",
