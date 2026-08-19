@@ -119,7 +119,7 @@ class GetSessionReportApplicationServiceTest : FunSpec({
         scenes = listOf(
             StoryReportScene(
                 sceneId = sceneOneId,
-                sceneOrder = 1,
+                sceneOrder = 4,
                 sceneType = SceneType.DIALOGUE,
                 description = "며느리를 만나는 장면",
                 goal = "며느리의 마음 이해하기",
@@ -129,7 +129,7 @@ class GetSessionReportApplicationServiceTest : FunSpec({
             ),
             StoryReportScene(
                 sceneId = sceneTwoId,
-                sceneOrder = 2,
+                sceneOrder = 8,
                 sceneType = SceneType.DIALOGUE,
                 description = "며느리를 돕는 장면",
                 goal = null,
@@ -280,6 +280,7 @@ class GetSessionReportApplicationServiceTest : FunSpec({
             result.summary.childName shouldBe childName
             result.sceneCards.map { it.sceneId to it.childUtterance.text } shouldBe
                 listOf(sceneOneId to "며느리가 힘들었을 것 같아요", sceneTwoId to "제가 도와줄래요")
+            result.sceneCards.map { it.sceneNumber } shouldBe listOf(1, 2)
             result.sceneCards.first().characterQuestion shouldBe null
             result.sceneCards.first().title shouldBe "걱정하는 며느리"
             result.sceneCards.last().characterQuestion shouldBe "캐릭터 응답 2"

@@ -266,13 +266,20 @@ class GetSessionReportApplicationService(
         return story.scenes
             .filter { it.sceneType == SceneType.DIALOGUE }
             .sortedBy { it.sceneOrder }
-            .mapNotNull { scene ->
-                sceneCard(scene, childMessagesByScene[scene.sceneId], messages, highlightBySceneId[scene.sceneId])
+            .mapIndexedNotNull { index, scene ->
+                sceneCard(
+                    scene = scene,
+                    dialogueSceneNumber = index + 1,
+                    sceneChildMessages = childMessagesByScene[scene.sceneId],
+                    messages = messages,
+                    highlight = highlightBySceneId[scene.sceneId],
+                )
             }
     }
 
     private fun sceneCard(
         scene: StoryReportScene,
+        dialogueSceneNumber: Int,
         sceneChildMessages: List<Message>?,
         messages: List<Message>,
         highlight: SceneHighlight?,
@@ -280,7 +287,7 @@ class GetSessionReportApplicationService(
         val lastChildMessage: Message = sceneChildMessages?.maxByOrNull { it.turnOrder } ?: return null
 
         return SessionReportSceneCard(
-            sceneNumber = scene.sceneOrder,
+            sceneNumber = dialogueSceneNumber,
             sceneId = scene.sceneId,
             title = scene.sceneTitle,
             imageUrl = scene.imageUrl,

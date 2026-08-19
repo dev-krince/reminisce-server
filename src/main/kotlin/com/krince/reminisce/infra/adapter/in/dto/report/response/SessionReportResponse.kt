@@ -130,7 +130,7 @@ class SceneTabResponse(
 
 @Schema(title = "SceneCardResponse", description = "장면별 발화 카드")
 class SceneCardResponse(
-    @field:Schema(description = "장면 순서 번호", required = true)
+    @field:Schema(description = "대화 장면 순번(1부터, 나레이션 장면 제외)", example = "1", required = true)
     val sceneNumber: Int,
 
     @field:Schema(description = "장면 고유 식별자", required = true)
