@@ -119,10 +119,10 @@ class ReportAnalysisOpenAiAdapter(
             - strength: 잘한 점 한 문장
             - improvement: 다음에 연습하면 좋은 점 한 문장
 
-            sceneHighlights — 아이 발화가 있는 대화 장면별 항목. 각 항목:
-            - sceneId: 장면 식별자
+            sceneHighlights — 아이 발화가 있는 모든 대화 장면을 빠짐없이 하나씩 담습니다. 어느 장면도 생략하지 마세요. 각 항목:
+            - sceneId: 장면 식별자 ([장면 정보]에 표기된 값 그대로)
             - messageId: 그 장면의 마지막 아이 발화 messageId
-            - featureSentence: 그 장면에서 보인 특징 한 문장
+            - featureSentence: 그 장면에서 보인 특징 한 문장 (빈 문자열 금지)
             - featureChips: 특징 칩 목록
 
             representative — 대표 발화 1개.

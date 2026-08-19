@@ -400,6 +400,37 @@ class GetSessionReportApplicationServiceTest : FunSpec({
             result.sceneCards.first().featureSentence shouldBe "$sceneOneId 특징 문장"
             result.sceneCards.first().featureChips shouldBe listOf("$sceneOneId-칩")
         }
+
+        test("분석 결과의 장면 특징이 누락되거나 빈 문장이면 아이 이름을 넣은 기본 특징 문장으로 채운다") {
+            stubOwnedCompletedSession()
+            val messages = listOf(
+                childMessage("msg-1", sceneOneId, 1, "며느리가 힘들었을 것 같아요"),
+                childMessage("msg-3", sceneTwoId, 3, "제가 도와줄래요"),
+            )
+            stubGenerationSources(messages, analyses = emptyList())
+            val blankHighlight = SceneHighlight(
+                sceneId = sceneOneId,
+                messageId = "msg-1",
+                featureSentence = " ",
+                featureChips = emptyList(),
+            )
+            every { reportAnalysisPort.analyze(any()) } returns analysisResult(
+                representativeMessageId = "msg-1",
+                highlights = listOf(blankHighlight),
+            )
+            val savedSlot = slot<Report>()
+            every { commandReportPort.save(capture(savedSlot)) } answers { savedSlot.captured }
+
+            val result = service.execute(command())
+
+            result.sceneCards.map { it.featureSentence } shouldBe listOf(
+                "토토가 장면 속 질문에 자기 생각을 말로 표현했어요.",
+                "토토가 장면 속 질문에 자기 생각을 말로 표현했어요.",
+            )
+            savedSlot.captured.sceneHighlights.map { it.featureSentence }.forEach { sentence ->
+                sentence shouldBe "토토가 장면 속 질문에 자기 생각을 말로 표현했어요."
+            }
+        }
     }
 
     context("완료 세션 - 저장분 존재") {

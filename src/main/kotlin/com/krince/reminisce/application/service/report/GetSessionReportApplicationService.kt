@@ -31,6 +31,7 @@ import com.krince.reminisce.domain.model.report.Report
 import com.krince.reminisce.domain.model.report.RepresentativeUtterance
 import com.krince.reminisce.domain.model.report.SceneHighlight
 import com.krince.reminisce.domain.model.speakingsession.SpeakingSession
+import com.krince.reminisce.domain.model.story.ChildNamePersonalizer
 import com.krince.reminisce.domain.model.story.vo.SceneType
 import com.krince.reminisce.domain.model.speakingsession.vo.SessionStatus
 import com.krince.reminisce.domain.model.speakingsession.vo.SpeakingSessionId
@@ -104,7 +105,7 @@ class GetSessionReportApplicationService(
             overall = analysisResult.overall,
             participation = analysisResult.participation,
             speechAnalyses = analysisResult.speechAnalyses,
-            sceneHighlights = resolveSceneHighlights(analysisResult.sceneHighlights, childMessages),
+            sceneHighlights = resolveSceneHighlights(analysisResult.sceneHighlights, childMessages, childName),
             representative = resolveRepresentative(analysisResult.representative, childMessages, analyses),
             homeGuide = analysisResult.homeGuide,
             at = LocalDateTime.now(clock),
@@ -144,6 +145,7 @@ class GetSessionReportApplicationService(
     private fun resolveSceneHighlights(
         analyzedHighlights: List<SceneHighlight>,
         childMessages: List<Message>,
+        childName: String?,
     ): List<SceneHighlight> {
         val messagesByScene: Map<String, List<Message>> = childMessages.groupBy { it.sceneId.value }
         val orderedSceneIds: List<String> = childMessages.sortedBy { it.turnOrder }.map { it.sceneId.value }.distinct()
@@ -155,10 +157,19 @@ class GetSessionReportApplicationService(
             SceneHighlight(
                 sceneId = sceneId,
                 messageId = lastChildMessage.messageId.value,
-                featureSentence = analyzedHighlight?.featureSentence.orEmpty(),
+                featureSentence = resolveFeatureSentence(analyzedHighlight, childName),
                 featureChips = analyzedHighlight?.featureChips.orEmpty(),
             )
         }
+    }
+
+    private fun resolveFeatureSentence(analyzedHighlight: SceneHighlight?, childName: String?): String {
+        val analyzedSentence: String? = analyzedHighlight?.featureSentence?.takeIf { it.isNotBlank() }
+        if (analyzedSentence != null) {
+            return analyzedSentence
+        }
+
+        return ChildNamePersonalizer.personalize(FALLBACK_FEATURE_SENTENCE_TEMPLATE, childName)
     }
 
     private fun resolveRepresentative(
@@ -324,5 +335,6 @@ class GetSessionReportApplicationService(
 
     companion object {
         private const val NO_ELAPSED_MINUTES: Long = 0L
+        private const val FALLBACK_FEATURE_SENTENCE_TEMPLATE: String = "ㅇㅇ이가 장면 속 질문에 자기 생각을 말로 표현했어요."
     }
 }
