@@ -205,7 +205,7 @@ class SpeakingSessionControllerImpl(
         @RequestPart("audio", required = false) audio: MultipartFile?,
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<UtteranceResponse>> {
-        val utteranceAudioUrl: String? = audio?.let { storeFilePort.saveAudioOrThrows(it) }
+        val utteranceAudioUrl: String? = audio?.takeIf { it.isEmpty.not() }?.let { storeFilePort.saveAudioOrThrows(it) }
         val command = SubmitUtteranceCommand(
             sessionId = sessionId,
             guardianId = userDetails.getId(),
@@ -288,7 +288,7 @@ class SpeakingSessionControllerImpl(
         @RequestPart("audio", required = false) audio: MultipartFile?,
         @AuthenticationPrincipal userDetails: CustomUserDetails,
     ): ResponseEntity<SuccessResponse<RetellingResultResponse>> {
-        val retellingAudioUrl: String? = audio?.let { storeFilePort.saveAudioOrThrows(it) }
+        val retellingAudioUrl: String? = audio?.takeIf { it.isEmpty.not() }?.let { storeFilePort.saveAudioOrThrows(it) }
         val command = SubmitRetellingCommand(
             sessionId = sessionId,
             guardianId = userDetails.getId(),

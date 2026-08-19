@@ -1346,6 +1346,32 @@ class SpeakingSessionControllerImplTest(
                 stored.audioUrl shouldBe null
             }
 
+            test("빈 음성 파일을 첨부하면 파일을 저장하지 않고 201과 audioUrl null로 발화만 저장한다") {
+                val (guardianId, token) = authorizedGuardian()
+                val childId = "child-${uniqueSuffix()}"
+                val storyId = "story-${uniqueSuffix()}"
+                val sessionId = "session-${uniqueSuffix()}"
+                testChildFixture.saveChild(childEntity(childId, guardianId))
+                testStoryFixture.saveStory(storyEntity(storyId))
+                testStoryFixture.saveScene(dialogueEntity(storyId, 3))
+                val dialogueSceneId = "sc-3-$storyId"
+                testSpeakingSessionFixture.save(
+                    sessionEntity(sessionId, childId, storyId, currentSceneId = dialogueSceneId),
+                )
+
+                RestAssured.given()
+                    .header("Authorization", token)
+                    .multiPart(utteranceRequestPart("며느리가 참 힘들었겠어요"))
+                    .multiPart("audio", "utterance.m4a", ByteArray(0), "audio/mp4")
+                    .`when`()
+                    .post("/speaking-sessions/$sessionId/utterances")
+                    .then()
+                    .statusCode(201)
+
+                val stored = testMessageFixture.findAllBySessionId(sessionId).first()
+                stored.audioUrl shouldBe null
+            }
+
             test("같은 세션에 두 번째 발화를 제출하면 201과 turnOrder=2가 되고 누적 요소가 중복 없이 늘어난다") {
                 val (guardianId, token) = authorizedGuardian()
                 val childId = "child-${uniqueSuffix()}"
