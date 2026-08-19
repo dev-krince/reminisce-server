@@ -50,20 +50,20 @@ class SubmitInterviewUtteranceApplicationService(
         verifyInProgress(interview)
 
         val now: LocalDateTime = LocalDateTime.now(clock)
-        val recentTurns: List<ConversationTurn> = loadRecentTurns(interview.interviewId)
+        val advanced: ProfileInterview = interview.advanceOnChildTurn(now, interviewTurnSettingsPort.load())
+        val historyTurns: List<ConversationTurn> = loadHistoryTurns(interview.interviewId, advanced.currentStage)
         val childTurnOrder: Long = loadInterviewMessagePort.countByInterview(interview.interviewId) + 1
         commandInterviewMessagePort.save(
             InterviewMessage.childUtterance(interview.interviewId, childTurnOrder, command.text, command.sttRawText, now),
         )
 
-        val advanced: ProfileInterview = interview.advanceOnChildTurn(now, interviewTurnSettingsPort.load())
         val qumiText: String = interviewReplyPort.generate(
             InterviewReplyContext(
                 stage = advanced.currentStage,
                 stageOpening = advanced.currentStage != interview.currentStage,
                 childName = childAccessPort.findChildName(interview.childId),
                 childUtterance = command.text,
-                recentTurns = recentTurns,
+                recentTurns = historyTurns,
             ),
         )
         val finalInterview: ProfileInterview = commandProfileInterviewPort.save(finishIfClosing(advanced, now))
@@ -107,9 +107,17 @@ class SubmitInterviewUtteranceApplicationService(
         }
     }
 
-    private fun loadRecentTurns(interviewId: ProfileInterviewId): List<ConversationTurn> =
-        loadInterviewMessagePort.findRecentByInterview(interviewId, RECENT_TURN_LIMIT)
+    private fun loadHistoryTurns(interviewId: ProfileInterviewId, nextStage: InterviewStage): List<ConversationTurn> =
+        loadHistoryMessages(interviewId, nextStage)
             .map { ConversationTurn(isChild = it.speaker == InterviewSpeaker.CHILD, text = it.text) }
+
+    private fun loadHistoryMessages(interviewId: ProfileInterviewId, nextStage: InterviewStage): List<InterviewMessage> {
+        if (nextStage == InterviewStage.CLOSING) {
+            return loadInterviewMessagePort.findAllByInterview(interviewId)
+        }
+
+        return loadInterviewMessagePort.findRecentByInterview(interviewId, RECENT_TURN_LIMIT)
+    }
 
     companion object {
         const val RECENT_TURN_LIMIT = 6

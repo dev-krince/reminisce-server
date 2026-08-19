@@ -84,6 +84,14 @@ class SubmitInterviewUtteranceApplicationServiceTest : FunSpec({
             sttRawText = "토끼요",
         )
 
+    fun fullHistory(interview: ProfileInterview): List<InterviewMessage> = (1L..7L).map { order ->
+        if (order % 2L == 1L) {
+            InterviewMessage.qumiLine(interview.interviewId, order, "큐미 질문 $order", startedAt)
+        } else {
+            InterviewMessage.childUtterance(interview.interviewId, order, "아이 대답 $order", null, startedAt)
+        }
+    }
+
     fun stubHappyPath(interview: ProfileInterview, messageCount: Long, reply: String) {
         every { loadProfileInterviewPort.findById(interview.interviewId) } returns interview
         every { childAccessPort.findGuardianId(childId) } returns guardianId
@@ -115,6 +123,7 @@ class SubmitInterviewUtteranceApplicationServiceTest : FunSpec({
             messageSlots[0].sttRawText shouldBe "토끼요"
             messageSlots[1].speaker shouldBe InterviewSpeaker.QUMI
             messageSlots[1].turnOrder shouldBe 3L
+            verify(exactly = 0) { loadInterviewMessagePort.findAllByInterview(any()) }
         }
 
         test("단계를 마치면 0으로 설정된 단계들을 건너뛰고 다음 활성 단계로 stageOpening 응답을 생성한다") {
@@ -148,6 +157,7 @@ class SubmitInterviewUtteranceApplicationServiceTest : FunSpec({
             repeat(2) { interview = interview.advanceOnChildTurn(startedAt.plusMinutes(1)) }
             interview.currentStage shouldBe InterviewStage.CHILD_QUESTION
             stubHappyPath(interview, messageCount = 5, reply = "오늘 정말 즐거웠어! 다음에 또 만나자!")
+            every { loadInterviewMessagePort.findAllByInterview(interview.interviewId) } returns fullHistory(interview)
             val savedInterview = slot<ProfileInterview>()
             every { commandProfileInterviewPort.save(capture(savedInterview)) } answers { savedInterview.captured }
 
@@ -157,6 +167,25 @@ class SubmitInterviewUtteranceApplicationServiceTest : FunSpec({
             result.stage shouldBe InterviewStage.CLOSING.name
             result.qumiText shouldBe "오늘 정말 즐거웠어! 다음에 또 만나자!"
             savedInterview.captured.status.name shouldBe "COMPLETED"
+        }
+
+        test("마무리로 넘어갈 때는 최근 몇 턴이 아니라 전체 대화 이력을 컨텍스트로 전달한다") {
+            var interview = inProgressInterview()
+            repeat(2) { interview = interview.advanceOnChildTurn(startedAt.plusMinutes(1)) }
+            interview.currentStage shouldBe InterviewStage.CHILD_QUESTION
+            stubHappyPath(interview, messageCount = 5, reply = "오늘 정말 즐거웠어! 다음에 또 만나자!")
+            val history = fullHistory(interview)
+            every { loadInterviewMessagePort.findAllByInterview(interview.interviewId) } returns history
+            val contextSlot = slot<InterviewReplyContext>()
+            every { interviewReplyPort.generate(capture(contextSlot)) } returns "오늘 정말 즐거웠어! 다음에 또 만나자!"
+
+            service.execute(command(interview.interviewId.value, text = "왜 만나자고 했어?"))
+
+            contextSlot.captured.stage shouldBe InterviewStage.CLOSING
+            contextSlot.captured.recentTurns.size shouldBe history.size
+            contextSlot.captured.recentTurns.first().text shouldBe history.first().text
+            contextSlot.captured.recentTurns.last().text shouldBe history.last().text
+            verify(exactly = 0) { loadInterviewMessagePort.findRecentByInterview(any(), any()) }
         }
     }
 
