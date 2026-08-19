@@ -116,6 +116,7 @@ class GetSessionReportApplicationServiceTest : FunSpec({
 
     fun snapshot(): StoryReportSnapshot = StoryReportSnapshot(
         title = "방귀쟁이 며느리",
+        representativeImageUrl = "/files/story-banggui.png",
         scenes = listOf(
             StoryReportScene(
                 sceneId = sceneOneId,
@@ -277,6 +278,7 @@ class GetSessionReportApplicationServiceTest : FunSpec({
             result.homeGuide shouldBe homeGuide()
             result.createdAt shouldBe LocalDateTime.ofInstant(fixedInstant, ZoneOffset.UTC)
             result.summary.storyTitle shouldBe "방귀쟁이 며느리"
+            result.summary.storyImageUrl shouldBe "/files/story-banggui.png"
             result.summary.childName shouldBe childName
             result.sceneCards.map { it.sceneId to it.childUtterance.text } shouldBe
                 listOf(sceneOneId to "며느리가 힘들었을 것 같아요", sceneTwoId to "제가 도와줄래요")

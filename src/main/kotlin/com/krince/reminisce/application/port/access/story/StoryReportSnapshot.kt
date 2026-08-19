@@ -4,6 +4,7 @@ import com.krince.reminisce.domain.model.story.vo.SceneType
 
 class StoryReportSnapshot(
     val title: String,
+    val representativeImageUrl: String?,
     val scenes: List<StoryReportScene>,
 )
 

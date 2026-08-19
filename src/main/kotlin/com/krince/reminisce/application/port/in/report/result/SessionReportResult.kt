@@ -20,6 +20,7 @@ data class SessionReportResult(
 data class SessionReportSummary(
     val childName: String?,
     val storyTitle: String,
+    val storyImageUrl: String?,
     val activityDate: LocalDateTime,
     val durationMinutes: Long,
     val cardOrderCompleted: Boolean,

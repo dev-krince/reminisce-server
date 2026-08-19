@@ -45,6 +45,9 @@ class SummaryTabResponse(
     @field:Schema(description = "이야기 제목", required = true)
     val storyTitle: String,
 
+    @field:Schema(description = "이야기 대표 이미지 URL", example = "/files/story-banggui.png", required = false)
+    val storyImageUrl: String?,
+
     @field:JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     @field:Schema(description = "활동 날짜", example = "2026-01-09 14:30:25", required = true)
     val activityDate: LocalDateTime,
@@ -249,6 +252,7 @@ private fun summaryTab(
 ): SummaryTabResponse = SummaryTabResponse(
     childName = summary.childName,
     storyTitle = summary.storyTitle,
+    storyImageUrl = summary.storyImageUrl,
     activityDate = summary.activityDate,
     durationMinutes = summary.durationMinutes,
     postActivityCompleted = PostActivityCompletedResponse(

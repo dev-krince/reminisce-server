@@ -249,6 +249,7 @@ class GetSessionReportApplicationService(
     ): SessionReportSummary = SessionReportSummary(
         childName = childName,
         storyTitle = story.title,
+        storyImageUrl = story.representativeImageUrl,
         activityDate = session.startedAt,
         durationMinutes = durationMinutes(session),
         cardOrderCompleted = postActivity?.isOrderCorrect == true,

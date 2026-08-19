@@ -91,6 +91,7 @@ class StoryAccessFacade(
 
         return StoryReportSnapshot(
             title = story.title,
+            representativeImageUrl = story.representativeImageUrl,
             scenes = story.scenes.map { scene ->
                 StoryReportScene(
                     sceneId = scene.sceneId.value,

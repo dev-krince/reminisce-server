@@ -2397,6 +2397,7 @@ class SpeakingSessionControllerImplTest(
                     .body("code", equalTo(200))
                     .body("message", equalTo(SuccessResponseCode.OK.message))
                     .body("data.summaryTab.storyTitle", equalTo("제목-$storyId"))
+                    .body("data.summaryTab.storyImageUrl", equalTo("/files/$storyId.png"))
                     .body("data.summaryTab.durationMinutes", equalTo(4))
                     .body("data.summaryTab.postActivityCompleted.cardOrder", equalTo(true))
                     .body("data.summaryTab.postActivityCompleted.retelling", equalTo(true))
