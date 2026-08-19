@@ -21,6 +21,6 @@ class InterviewReplyStubAdapter : InterviewReplyPort {
         InterviewStage.CHARACTER_FEELING -> "토끼는 어떤 기분일까?"
         InterviewStage.STORY_CONTINUATION -> "그다음에는 무슨 일이 생길까?"
         InterviewStage.CHILD_QUESTION -> "이제 네가 큐미에게 물어볼 차례야! 궁금한 게 있으면 뭐든 물어봐."
-        InterviewStage.CLOSING -> "오늘 이야기 나눠서 정말 즐거웠어! 우리 다음에 또 재미있는 이야기 만들자!"
+        InterviewStage.CLOSING -> qumiClosingLine(context.childName)
     }
 }

@@ -14,6 +14,7 @@ import io.kotest.core.annotation.DisplayName
 import io.kotest.core.annotation.Tags
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import io.restassured.RestAssured
 import io.restassured.http.ContentType
 import io.restassured.parsing.Parser
@@ -254,6 +255,7 @@ class ProfileInterviewControllerImplTest(
                 val totalTurns = InterviewStage.entries.sumOf { it.targetChildTurns }
                 var lastStatus = ""
                 var lastStage = ""
+                var lastQumiText = ""
                 repeat(totalTurns) { turn ->
                     val response = RestAssured.given()
                         .header("Authorization", token)
@@ -266,10 +268,13 @@ class ProfileInterviewControllerImplTest(
                         .extract()
                     lastStatus = response.path("data.status")
                     lastStage = response.path("data.stage")
+                    lastQumiText = response.path("data.qumiText")
                 }
 
                 lastStatus shouldBe "COMPLETED"
                 lastStage shouldBe "CLOSING"
+                lastQumiText shouldContain "토토랑 이야기하니까"
+                lastQumiText shouldContain "잘 어울리는 이야기를 찾아볼게"
                 testProfileInterviewFixture.findMessagesByInterviewId(interviewId).size shouldBe 1 + totalTurns * 2
 
                 RestAssured.given()
